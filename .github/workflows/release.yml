@@ -7,36 +7,31 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-            runner: macos-latest
-          - target: x86_64-apple-darwin
-            runner: macos-latest
-
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-action/setup@v1
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Add target
-        run: rustup target add ${{ matrix.target }}
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2"
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-aarch64-apple-darwin.full.zip -o /tmp/binstall.zip
+          unzip -od /tmp/binstall /tmp/binstall.zip
+          /tmp/binstall/cargo-binstall tauri-cli --version "^2" --no-confirm
 
       - name: Build
-        run: cargo tauri build --target ${{ matrix.target }}
+        run: cargo tauri build --target aarch64-apple-darwin
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: dmg-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          name: dmg-aarch64-apple-darwin
+          path: target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
 
   publish:
     needs: build
@@ -46,7 +41,7 @@ jobs:
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
           merge-multiple: true
