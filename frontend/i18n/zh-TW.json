@@ -142,6 +142,15 @@
   "about.download": "下載並安裝",
   "about.gatekeeperNote": "重新啟動後，macOS 可能會要求您在「系統設定 \u203A 隱私與安全性」中重新允許此應用程式。",
 
+  "setup.permissionsTitle": "需要權限",
+  "setup.permissionsDesc": "OpenTypeless 需要以下權限來錄製音訊並將文字貼上至游標位置。",
+  "setup.permMicName": "麥克風",
+  "setup.permMicDesc": "錄製語音以進行轉錄",
+  "setup.permAccName": "輔助使用",
+  "setup.permAccDesc": "使用 Cmd+V 將文字貼上至游標位置",
+  "setup.permGrant": "授權",
+  "setup.permContinue": "繼續",
+
   "setup.initialTitle": "設定語音辨識",
   "setup.initialDesc": "OpenTypeless 需要下載語音辨識模型（約 1.5 GB）以支援完全離線轉錄。這只需要進行一次。",
   "setup.downloadBtn": "下載模型",

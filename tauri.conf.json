@@ -52,7 +52,7 @@
     },
     "plugins": {
         "updater": {
-            "pubkey": "UPDATER_PUBKEY_PLACEHOLDER",
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyNUVBMzBCMDJBQTE2Q0UKUldUT0Zxb0NDNk5lWWdGRGk5Rlhib2JDU0JTSXBTbjBKTy81emwveGxyZGEzKzlYdVcvQkUwbkIK",
             "endpoints": [
                 "https://github.com/alan890104/opentypeless/releases/latest/download/latest.json"
             ]

@@ -27,14 +27,19 @@ OpenTypeless is a macOS desktop app (Tauri 2) that provides system-wide, fully-o
 
 ## Installation
 
-### Prerequisites
+### Download (Recommended)
 
-- **macOS** (Apple Silicon or Intel)
-- **Rust**: Install via [rustup.rs](https://rustup.rs/).
-- **Tauri CLI**: `cargo install tauri-cli --version "^2"`
-- **macOS Permissions**:
-  - **Microphone** access for recording.
-  - **Accessibility** permissions (System Settings > Privacy & Security > Accessibility) for the auto-paste feature.
+1. Download the latest DMG from [GitHub Releases](https://github.com/alan890104/opentypeless/releases/latest).
+2. Open the DMG and drag **OpenTypeless** into `/Applications`.
+3. Since this app is not notarized by Apple, macOS will flag it as damaged. Run the following command in Terminal to fix it:
+
+   ```bash
+   xattr -cr /Applications/OpenTypeless.app
+   ```
+
+4. Launch the app. On first launch it will ask for:
+   - **Microphone** access for recording.
+   - **Accessibility** permissions (System Settings > Privacy & Security > Accessibility) for the auto-paste feature.
 
 ### Build from Source
 
@@ -48,6 +53,8 @@ cargo tauri dev
 # Build for production (outputs .dmg)
 cargo tauri build
 ```
+
+Requires [Rust](https://rustup.rs/) and [Tauri CLI](https://v2.tauri.app/) (`cargo install tauri-cli --version "^2"`).
 
 The Whisper model (~1.5 GB) is downloaded automatically from HuggingFace on first launch.
 

@@ -142,6 +142,15 @@
   "about.download": "Download & Install",
   "about.gatekeeperNote": "After restarting, macOS may ask you to allow the app again in System Settings \u203A Privacy & Security.",
 
+  "setup.permissionsTitle": "Permissions Required",
+  "setup.permissionsDesc": "OpenTypeless needs these permissions to record audio and paste text at your cursor.",
+  "setup.permMicName": "Microphone",
+  "setup.permMicDesc": "Record your voice for transcription",
+  "setup.permAccName": "Accessibility",
+  "setup.permAccDesc": "Paste text at your cursor with Cmd+V",
+  "setup.permGrant": "Grant",
+  "setup.permContinue": "Continue",
+
   "setup.initialTitle": "Set Up Speech Recognition",
   "setup.initialDesc": "OpenTypeless needs to download a speech recognition model (~1.5 GB) for fully offline transcription. This only happens once.",
   "setup.downloadBtn": "Download Model",

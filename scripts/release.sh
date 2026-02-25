@@ -19,14 +19,16 @@ IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
 echo "Current version: ${CURRENT}"
 echo ""
 echo "Select bump type:"
-echo "  1) patch  → $MAJOR.$MINOR.$((PATCH + 1))"
-echo "  2) minor  → $MAJOR.$((MINOR + 1)).0"
-echo "  3) major  → $((MAJOR + 1)).0.0"
+echo "  0) current → $CURRENT  (re-release, overwrite existing)"
+echo "  1) patch   → $MAJOR.$MINOR.$((PATCH + 1))"
+echo "  2) minor   → $MAJOR.$((MINOR + 1)).0"
+echo "  3) major   → $((MAJOR + 1)).0.0"
 echo ""
-echo -n "Choice [1/2/3]: "
+echo -n "Choice [0/1/2/3]: "
 read -r CHOICE
 
 case "$CHOICE" in
+  0) VERSION="$CURRENT" ;;
   1) VERSION="$MAJOR.$MINOR.$((PATCH + 1))" ;;
   2) VERSION="$MAJOR.$((MINOR + 1)).0" ;;
   3) VERSION="$((MAJOR + 1)).0.0" ;;
@@ -34,20 +36,31 @@ case "$CHOICE" in
 esac
 
 TAG="v${VERSION}"
+RERELEASE=false
 
-echo ""
-echo "  ${CURRENT} → ${VERSION}  (tag: ${TAG})"
-echo ""
-echo "This will update version in tauri.conf.json and Cargo.toml."
-echo -n "Proceed? [y/N]: "
+if [ "$VERSION" = "$CURRENT" ]; then
+  RERELEASE=true
+  echo ""
+  echo "  Re-release ${VERSION}  (tag: ${TAG})"
+  echo ""
+  echo "This will rebuild and overwrite the existing release."
+  echo -n "Proceed? [y/N]: "
+else
+  echo ""
+  echo "  ${CURRENT} → ${VERSION}  (tag: ${TAG})"
+  echo ""
+  echo "This will update version in tauri.conf.json and Cargo.toml."
+  echo -n "Proceed? [y/N]: "
+fi
 read -r CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
   echo "Aborted."
   exit 0
 fi
 
-# ── Update version in config files ──
-python3 -c "
+if [ "$RERELEASE" = false ]; then
+  # ── Update version in config files ──
+  python3 -c "
 import json, pathlib
 for f in ['tauri.conf.json']:
     p = pathlib.Path(f)
@@ -55,14 +68,15 @@ for f in ['tauri.conf.json']:
     d['version'] = '${VERSION}'
     p.write_text(json.dumps(d, indent=4) + '\n')
 "
-sed -i '' "s/^version = \"${CURRENT}\"/version = \"${VERSION}\"/" Cargo.toml
+  sed -i '' "s/^version = \"${CURRENT}\"/version = \"${VERSION}\"/" Cargo.toml
 
-echo "==> Version updated to ${VERSION}"
+  echo "==> Version updated to ${VERSION}"
 
-# ── Commit version bump ──
-git add tauri.conf.json Cargo.toml
-git commit -m "release: v${VERSION}"
-echo "==> Committed version bump"
+  # ── Commit version bump ──
+  git add tauri.conf.json Cargo.toml
+  git commit -m "release: v${VERSION}"
+  echo "==> Committed version bump"
+fi
 echo ""
 
 # ── Load signing key from file ──
@@ -87,7 +101,9 @@ if ! command -v gh &> /dev/null; then
 fi
 
 # ── Build both architectures ──
-TARGETS=("aarch64-apple-darwin" "x86_64-apple-darwin")
+export MACOSX_DEPLOYMENT_TARGET="11.0"
+export CMAKE_OSX_DEPLOYMENT_TARGET="11.0"
+TARGETS=("aarch64-apple-darwin")
 ARTIFACTS=()
 
 for target in "${TARGETS[@]}"; do
@@ -96,11 +112,15 @@ for target in "${TARGETS[@]}"; do
 
   BUNDLE_DIR="target/${target}/release/bundle/macos"
 
-  # Find the .app.tar.gz and .sig files
+  # Find the .app.tar.gz, .sig, and .dmg files
   for f in "${BUNDLE_DIR}"/*.app.tar.gz; do
     [ -f "$f" ] && ARTIFACTS+=("$f")
   done
   for f in "${BUNDLE_DIR}"/*.app.tar.gz.sig; do
+    [ -f "$f" ] && ARTIFACTS+=("$f")
+  done
+  DMG_DIR="target/${target}/release/bundle/dmg"
+  for f in "${DMG_DIR}"/*.dmg; do
     [ -f "$f" ] && ARTIFACTS+=("$f")
   done
 done
@@ -154,8 +174,14 @@ cat latest.json
 echo ""
 echo "==> Creating GitHub Release ${TAG}..."
 
-# Create tag if it doesn't exist
-if ! git rev-parse "$TAG" &> /dev/null; then
+# Handle existing tag/release for re-release
+if [ "$RERELEASE" = true ]; then
+  # Delete existing release if it exists
+  gh release delete "$TAG" --repo "$REPO" --yes 2>/dev/null || true
+  # Move tag to current commit
+  git tag -f "$TAG"
+  git push origin "$TAG" --force
+else
   git tag "$TAG"
   git push origin "$TAG"
 fi
