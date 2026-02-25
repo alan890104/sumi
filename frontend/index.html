@@ -5048,6 +5048,10 @@
       // Disable test mode — let the hotkey actually record + transcribe
       try { await invoke('set_test_mode', { enabled: false }); } catch (e) {}
 
+      // Clean up previous Gmail listener (must happen before setting context override,
+      // because cleanupGmail() also clears the context override)
+      cleanupGmail();
+
       // Set context override so polisher uses Gmail prompt rule
       try {
         await invoke('set_context_override', {
@@ -5060,9 +5064,6 @@
       // Reset Gmail body
       const body = document.getElementById('testGmailBody');
       if (body) body.innerHTML = '';
-
-      // Listen for transcription result and insert at cursor in the Gmail body
-      cleanupGmail();
       window.__TAURI__.event.listen('transcription-result', (event) => {
         const text = event.payload;
         if (!text) return;

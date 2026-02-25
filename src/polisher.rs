@@ -310,14 +310,6 @@ pub fn default_prompt_rules_for(lang: &OutputLanguage) -> Vec<PromptRule> {
                 match_type: MatchType::Url,
                 match_value: "mail.google.com".to_string(),
                 prompt: "將口語內容整理為電子郵件格式。\n\
-                         輸出必須嚴格按照以下範例，用空行分隔每個段落：\n\
-                         \n\
-                         嗨 XXX，\n\
-                         \n\
-                         （正文內容）\n\
-                         \n\
-                         （署名）\n\
-                         \n\
                          僅回覆郵件文字，不要加任何其他內容。".to_string(),
                 enabled: true,
             },
