@@ -47,6 +47,15 @@
         "icon": [
             "icons/icon.icns",
             "icons/icon.png"
-        ]
+        ],
+        "createUpdaterArtifacts": true
+    },
+    "plugins": {
+        "updater": {
+            "pubkey": "UPDATER_PUBKEY_PLACEHOLDER",
+            "endpoints": [
+                "https://github.com/alan890104/opentypeless/releases/latest/download/latest.json"
+            ]
+        }
     }
 }

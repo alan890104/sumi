@@ -110,7 +110,7 @@ mod macos_ffi {
         send(ns_window, sel, std::ptr::null_mut());
     }
 
-    // ── CGEvent: reliable Cmd+V simulation ──────────────────────────────────
+    // ── CGEvent: Cmd+V paste simulation ────────────────────────────────────
 
     #[link(name = "CoreGraphics", kind = "framework")]
     extern "C" {
@@ -129,42 +129,36 @@ mod macos_ffi {
         fn CFRelease(cf: *mut c_void);
     }
 
-    /// Simulate Cmd+V at the HID level via CGEvent.
-    /// Returns false only if CGEventSourceCreate fails.
+    /// Simulate Cmd+V via CGEvent.
+    ///
+    /// Only two events are posted: V key-down and V key-up, both carrying the
+    /// Command modifier flag.  Explicit Cmd key-down / key-up events are NOT
+    /// sent — that avoids extra events flowing through the TSM (input method)
+    /// and global-shortcut event tap chains, which previously caused
+    /// double-paste on systems with a CJK input method active.
     pub unsafe fn simulate_cmd_v() -> bool {
-        const HID_SYSTEM_STATE: i32 = 1; // kCGEventSourceStateHIDSystemState
+        const COMBINED_STATE: i32 = 0; // kCGEventSourceStateCombinedSessionState
         const HID_EVENT_TAP: u32 = 0; // kCGHIDEventTap
         const FLAG_CMD: u64 = 0x100000; // kCGEventFlagMaskCommand
-        const VK_CMD: u16 = 55;
         const VK_V: u16 = 9;
 
-        let source = CGEventSourceCreate(HID_SYSTEM_STATE);
+        let source = CGEventSourceCreate(COMBINED_STATE);
         if source.is_null() {
             return false;
         }
 
-        // Cmd down
-        let cmd_d = CGEventCreateKeyboardEvent(source, VK_CMD, true);
-        CGEventPost(HID_EVENT_TAP, cmd_d);
-
-        // V down (with Cmd flag)
+        // V down with Cmd flag
         let v_d = CGEventCreateKeyboardEvent(source, VK_V, true);
         CGEventSetFlags(v_d, FLAG_CMD);
         CGEventPost(HID_EVENT_TAP, v_d);
 
-        // V up
+        // V up with Cmd flag
         let v_u = CGEventCreateKeyboardEvent(source, VK_V, false);
         CGEventSetFlags(v_u, FLAG_CMD);
         CGEventPost(HID_EVENT_TAP, v_u);
 
-        // Cmd up
-        let cmd_u = CGEventCreateKeyboardEvent(source, VK_CMD, false);
-        CGEventPost(HID_EVENT_TAP, cmd_u);
-
-        CFRelease(cmd_d);
         CFRelease(v_d);
         CFRelease(v_u);
-        CFRelease(cmd_u);
         CFRelease(source);
 
         true
@@ -490,6 +484,9 @@ pub struct AppState {
     context_override: Mutex<Option<context_detect::AppContext>>,
     /// When true, the global hotkey only emits `hotkey-activated` without recording.
     test_mode: AtomicBool,
+    /// Debounce: timestamp of the last processed hotkey event.
+    /// Prevents macOS key-repeat from toggling recording on/off too quickly.
+    last_hotkey_time: Mutex<Instant>,
 }
 
 /// Spawn a persistent audio thread that builds and immediately starts the cpal
@@ -731,8 +728,19 @@ fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), Stri
 }
 
 #[tauri::command]
-fn get_default_prompt() -> String {
-    polisher::base_prompt_template()
+fn get_default_prompt(language: Option<String>) -> String {
+    let lang: polisher::OutputLanguage = language
+        .and_then(|s| serde_json::from_value(serde_json::Value::String(s)).ok())
+        .unwrap_or_default();
+    polisher::base_prompt_template(&lang)
+}
+
+#[tauri::command]
+fn get_default_prompt_rules(language: Option<String>) -> Vec<polisher::PromptRule> {
+    let lang: polisher::OutputLanguage = language
+        .and_then(|s| serde_json::from_value(serde_json::Value::String(s)).ok())
+        .unwrap_or_default();
+    polisher::default_prompt_rules_for(&lang)
 }
 
 #[tauri::command]
@@ -794,7 +802,7 @@ fn test_polish(
     let model_dir = models_dir();
 
     // Default built-in prompt
-    let default_tmpl = polisher::base_prompt_template();
+    let default_tmpl = polisher::base_prompt_template(&config.output_language);
     let default_system_prompt =
         polisher::resolve_prompt(&default_tmpl, &config.output_language);
 
@@ -1472,7 +1480,6 @@ fn num_cpus() -> usize {
 }
 
 /// Simulate Cmd+V to paste clipboard content at the current cursor position.
-/// Uses CGEvent (HID-level) for instant, reliable keystroke simulation across all apps.
 fn paste_with_cmd_v() -> bool {
     #[cfg(target_os = "macos")]
     {
@@ -1487,10 +1494,18 @@ fn paste_with_cmd_v() -> bool {
 /// Shared logic: stop recording, transcribe, copy/paste, and hide the overlay.
 /// Called by both the hotkey handler and the auto-stop timer.
 fn stop_transcribe_and_paste(app: &AppHandle) {
-    // Mark the pipeline as running so the hotkey handler won't start a new
-    // recording until we're completely done (transcribe → polish → paste).
+    // Atomically claim the "processor" role — only one caller (hotkey or
+    // auto-stop timer) can enter the pipeline.  This prevents double-paste
+    // when both fire at roughly the same time (~30 s boundary).
     let state = app.state::<AppState>();
-    state.is_processing.store(true, Ordering::SeqCst);
+    if state
+        .is_processing
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        println!("[OpenTypeless] stop_transcribe_and_paste: already processing, skipping");
+        return;
+    }
 
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.emit("recording-status", "transcribing");
@@ -1524,7 +1539,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         polish_config.cloud.api_key = key;
                     }
                 }
-                let final_text = if polish_config.enabled {
+                let (final_text, reasoning) = if polish_config.enabled {
                     let model_dir = models_dir();
                     if polisher::is_polish_ready(&model_dir, &polish_config) {
                         if let Some(overlay) = app_handle.get_webview_window("overlay") {
@@ -1544,21 +1559,21 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                             .unwrap_or_default();
 
                         let polish_start = Instant::now();
-                        let polished = polisher::polish_text(
+                        let result = polisher::polish_text(
                             &state.llm_model,
                             &model_dir,
                             &polish_config,
                             &context,
                             &text,
                         );
-                        println!("[OpenTypeless] ✨ Polished: {} (took {:.0?})", polished, polish_start.elapsed());
-                        polished
+                        println!("[OpenTypeless] ✨ Polished: {:?} (took {:.0?})", result.text, polish_start.elapsed());
+                        (result.text, result.reasoning)
                     } else {
                         println!("[OpenTypeless] Polish enabled but not ready (model missing or no API key), skipping");
-                        text
+                        (text, None)
                     }
                 } else {
-                    text
+                    (text, None)
                 };
                 let text = final_text;
 
@@ -1583,7 +1598,9 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 };
 
                 if clipboard_ok {
-                    std::thread::sleep(std::time::Duration::from_millis(30));
+                    // Wait for the pasteboard change to propagate to the target app.
+                    // 30 ms was occasionally too short on loaded systems; 100 ms is safe.
+                    std::thread::sleep(std::time::Duration::from_millis(100));
 
                     if auto_paste {
                         let pasted = paste_with_cmd_v();
@@ -1633,6 +1650,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                             .as_millis() as i64,
                         text: text.clone(),
                         raw_text,
+                        reasoning,
                         stt_model,
                         polish_model: polish_model_name,
                         duration_secs: audio_duration_secs,
@@ -1677,6 +1695,8 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             start_recording,
@@ -1689,6 +1709,7 @@ pub fn run() {
             update_hotkey,
             reset_settings,
             get_default_prompt,
+            get_default_prompt_rules,
             test_polish,
             get_mic_status,
             check_model_status,
@@ -1740,6 +1761,7 @@ pub fn run() {
                 captured_context: Mutex::new(None),
                 context_override: Mutex::new(None),
                 test_mode: AtomicBool::new(false),
+                last_hotkey_time: Mutex::new(Instant::now() - std::time::Duration::from_secs(1)),
             });
 
             // ── Auto-show settings when model is missing ──
@@ -1869,6 +1891,20 @@ pub fn run() {
                                     let _ = main_win.emit("hotkey-activated", true);
                                 }
                                 return;
+                            }
+
+                            // Debounce: ignore key-repeat events from macOS.
+                            // Key-repeat fires additional Pressed events ~500 ms after
+                            // the initial press; a 300 ms guard prevents accidental
+                            // start-then-immediate-stop toggles.
+                            {
+                                let now = Instant::now();
+                                if let Ok(mut last) = state.last_hotkey_time.lock() {
+                                    if now.duration_since(*last) < std::time::Duration::from_millis(300) {
+                                        return;
+                                    }
+                                    *last = now;
+                                }
                             }
 
                             // Block re-entry while the transcription pipeline is running.

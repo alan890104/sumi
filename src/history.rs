@@ -7,6 +7,8 @@ pub struct HistoryEntry {
     pub timestamp: i64,
     pub text: String,
     pub raw_text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<String>,
     pub stt_model: String,
     pub polish_model: String,
     pub duration_secs: f64,

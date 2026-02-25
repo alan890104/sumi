@@ -963,6 +963,29 @@
       color: var(--text-tertiary);
     }
 
+    .provider-link-btn {
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .provider-link-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+      background-color: var(--bg-sidebar);
+    }
+
     .cloud-select {
       -webkit-app-region: no-drag;
       app-region: no-drag;
@@ -1076,6 +1099,81 @@
       margin-top: 20px;
       font-size: 12px;
       color: var(--text-tertiary);
+    }
+
+    .about-update {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .about-update-btn {
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+      padding: 7px 18px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--bg-primary);
+      color: var(--accent-blue);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .about-update-btn:hover {
+      background: var(--bg-hover);
+    }
+
+    .about-update-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .about-update-btn.primary {
+      background: var(--accent-blue);
+      color: #ffffff;
+      border-color: var(--accent-blue);
+    }
+
+    .about-update-btn.primary:hover {
+      filter: brightness(1.1);
+    }
+
+    .about-update-status {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .about-update-status.error {
+      color: #ff3b30;
+    }
+
+    .about-update-progress {
+      width: 200px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--bg-active);
+      overflow: hidden;
+    }
+
+    .about-update-progress-bar {
+      height: 100%;
+      background: var(--accent-blue);
+      border-radius: 2px;
+      transition: width 0.2s ease;
+      width: 0%;
+    }
+
+    .about-update-note {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      max-width: 300px;
+      text-align: center;
+      line-height: 1.4;
     }
 
     /* ── Mic status ── */
@@ -1867,6 +1965,63 @@
       color: var(--text-tertiary);
     }
 
+    .test-plain-editor {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(0, 0, 0, 0.06);
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .test-plain-titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .test-plain-titlebar .test-plain-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .test-plain-titlebar .test-plain-dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .test-plain-titlebar .test-plain-dots span:nth-child(1) { background: #ff5f57; }
+    .test-plain-titlebar .test-plain-dots span:nth-child(2) { background: #ffbd2e; }
+    .test-plain-titlebar .test-plain-dots span:nth-child(3) { background: #28c840; }
+
+    .test-plain-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .test-plain-body {
+      padding: 14px 16px;
+      min-height: 180px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-primary);
+      outline: none;
+      cursor: text;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    .test-plain-body:focus {
+      background: rgba(0, 122, 255, 0.02);
+    }
+
     .test-doc-hint {
       font-size: 12px;
       color: var(--text-secondary);
@@ -2492,7 +2647,7 @@
       </button>
     </nav>
     <div class="sidebar-footer">
-      <div class="sidebar-version">v0.1.0</div>
+      <div class="sidebar-version" id="sidebarVersion"></div>
     </div>
   </div>
 
@@ -2646,7 +2801,12 @@
                 <div class="setting-info">
                   <div class="setting-name sub-name" data-i18n="settings.polish.apiKey">API Key</div>
                 </div>
-                <input type="password" class="cloud-input" id="cloudApiKeyInput" placeholder="sk-..." onchange="onCloudConfigChange()" />
+                <div style="display:flex;align-items:center;gap:6px;flex:1;max-width:280px">
+                  <input type="password" class="cloud-input" id="cloudApiKeyInput" placeholder="sk-..." onchange="onCloudConfigChange()" style="max-width:none" />
+                  <button class="provider-link-btn" id="providerLinkBtn" onclick="openProviderApiPage()" title="Get API Key" style="display:none">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </button>
+                </div>
               </div>
               <div class="cloud-row" id="cloudEndpointRow" style="display:none">
                 <div class="setting-info">
@@ -2654,7 +2814,7 @@
                 </div>
                 <input type="text" class="cloud-input" id="cloudEndpointInput" placeholder="https://api.example.com/v1/chat/completions" onchange="onCloudConfigChange()" />
               </div>
-              <div class="cloud-row">
+              <div class="cloud-row" id="cloudModelSelectRow">
                 <div class="setting-info">
                   <div class="setting-name sub-name" data-i18n="settings.polish.cloudModel">Model</div>
                 </div>
@@ -2665,7 +2825,7 @@
                 <div class="setting-info">
                   <div class="setting-name sub-name" data-i18n="settings.polish.modelId">Model ID</div>
                 </div>
-                <input type="text" class="cloud-input" id="cloudCustomModelInput" placeholder="model-name" onchange="onCloudConfigChange()" />
+                <input type="text" class="cloud-input" id="cloudCustomModelInput" placeholder="google/gemma-3n-e2b-it:free" oninput="onCustomModelInput()" onchange="onCloudConfigChange()" />
               </div>
             </div>
 
@@ -2804,6 +2964,14 @@
             Press a hotkey to record, release to transcribe and paste at your cursor.
           </div>
           <div class="about-engine" id="aboutEngine" data-i18n="about.engine">Engine: Whisper &middot; Fully on-device</div>
+          <div class="about-update" id="aboutUpdate">
+            <button class="about-update-btn" id="updateBtn" onclick="checkForUpdates()" data-i18n="about.checkUpdate">Check for Updates</button>
+            <div class="about-update-status" id="updateStatus" style="display:none"></div>
+            <div class="about-update-progress" id="updateProgress" style="display:none">
+              <div class="about-update-progress-bar" id="updateProgressBar"></div>
+            </div>
+            <div class="about-update-note" id="updateNote" style="display:none"></div>
+          </div>
         </div>
       </div>
 
@@ -2816,10 +2984,12 @@
             <span class="test-breadcrumb-sep">&rsaquo;</span>
             <span class="test-breadcrumb-item" id="testBc2" data-i18n="test.breadcrumb.hotkey">Hotkey</span>
             <span class="test-breadcrumb-sep">&rsaquo;</span>
-            <span class="test-breadcrumb-item" id="testBc3" data-i18n="test.breadcrumb.tryIt">Try it</span>
+            <span class="test-breadcrumb-item" id="testBc3" data-i18n="test.breadcrumb.general">General</span>
+            <span class="test-breadcrumb-sep">&rsaquo;</span>
+            <span class="test-breadcrumb-item" id="testBc4" data-i18n="test.breadcrumb.gmail">Gmail</span>
           </div>
           <div class="test-progress-bar">
-            <div class="test-progress-fill" id="testProgressFill" style="width: 33.3%"></div>
+            <div class="test-progress-fill" id="testProgressFill" style="width: 25%"></div>
           </div>
 
           <!-- Step 1: Microphone Test -->
@@ -2866,23 +3036,57 @@
             </div>
           </div>
 
-          <!-- Step 3: Try It -->
+          <!-- Step 3: General (no app context) -->
           <div class="test-step" id="testStep3">
             <div class="test-layout">
               <div class="test-left">
                 <button class="test-back" onclick="testGoBack(3)" data-i18n="test.back">&larr; Back</button>
                 <div class="test-left-spacer"></div>
-                <div class="test-title" data-i18n="test.step3.title">Try it out!</div>
+                <div class="test-title" data-i18n="test.step3.title">General dictation</div>
+                <div class="test-instruction-card">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                  <span id="testGeneralInstruction">Click the text area, press <strong id="testGeneralHotkey"></strong>, speak, then release</span>
+                </div>
+                <div class="test-sample-text" data-i18n="test.step3.sampleText">
+                  Remind me to buy milk and eggs on the way home today.
+                </div>
+                <div class="test-left-spacer"></div>
+                <div class="test-actions">
+                  <button class="test-btn-filled" onclick="goToTestStep(4)" data-i18n="test.step3.next">Next</button>
+                </div>
+              </div>
+              <div class="test-right">
+                <div style="display:flex; flex-direction:column; align-items:center; width:92%; max-width:420px;">
+                  <div class="test-plain-editor">
+                    <div class="test-plain-titlebar">
+                      <div class="test-plain-dots"><span></span><span></span><span></span></div>
+                      <span class="test-plain-title" data-i18n="test.step3.editorTitle">Untitled</span>
+                      <span style="width:38px"></span>
+                    </div>
+                    <div class="test-plain-body" id="testPlainBody" contenteditable="true" spellcheck="false"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Gmail scenario -->
+          <div class="test-step" id="testStep4">
+            <div class="test-layout">
+              <div class="test-left">
+                <button class="test-back" onclick="testGoBack(4)" data-i18n="test.back">&larr; Back</button>
+                <div class="test-left-spacer"></div>
+                <div class="test-title" data-i18n="test.step4.title">Try it in Gmail!</div>
                 <div class="test-instruction-card">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
                   <span id="testTryInstruction">Click the email body, press <strong id="testTryHotkey"></strong>, speak, then release</span>
                 </div>
-                <div class="test-sample-text" data-i18n="test.step3.sampleText">
-                  Try saying: &ldquo;嗨 Alice，我們明天還是照原計劃吃午餐嗎？Alan 敬上&rdquo;
+                <div class="test-sample-text" data-i18n="test.step4.sampleText">
+                  Try saying: &ldquo;嗨 Alice，我們明天還是照原計劃吃午餐嗎？Alan&rdquo;
                 </div>
                 <div class="test-left-spacer"></div>
                 <div class="test-actions">
-                  <button class="test-btn-filled" onclick="switchPage('settings')" data-i18n="test.step3.done">Done</button>
+                  <button class="test-btn-filled" onclick="switchPage('settings')" data-i18n="test.step4.done">Done</button>
                 </div>
               </div>
               <div class="test-right">
@@ -2999,6 +3203,7 @@
   <script src="i18n.js"></script>
   <script>
     const { invoke } = window.__TAURI__.core;
+    const APP_VERSION = window.__TAURI__.app ? window.__TAURI__.app.getVersion() : Promise.resolve('0.0.0');
 
     let currentHotkey = '';
     let isCapturing = false;
@@ -3009,26 +3214,42 @@
       output_language: 'traditional_chinese',
       mode: 'local',
       cloud: { provider: 'groq', api_key: '', endpoint: '', model_id: 'qwen/qwen3-32b' },
-      prompt_rules: [],
+      prompt_rules: {},
       dictionary: { enabled: true, entries: [] },
     };
     let editingRuleIndex = -1;
     let editingDictIndex = -1;
+
+    /** Get prompt rules for the current output language. */
+    function getCurrentRules() {
+      const lang = polishConfig.output_language;
+      return polishConfig.prompt_rules[lang] || [];
+    }
+
+    /** Set prompt rules for the current output language. */
+    function setCurrentRules(rules) {
+      const lang = polishConfig.output_language;
+      polishConfig.prompt_rules[lang] = rules;
+    }
 
     const CLOUD_PROVIDERS = {
       groq: {
         models: [
           { id: 'qwen/qwen3-32b', name: 'Qwen 3 32B' },
         ],
+        apiKeyUrl: 'https://console.groq.com/keys',
       },
       open_router: {
         models: [],
+        apiKeyUrl: 'https://openrouter.ai/settings/keys',
       },
       open_ai: {
         models: [],
+        apiKeyUrl: 'https://platform.openai.com/api-keys',
       },
       gemini: {
         models: [],
+        apiKeyUrl: 'https://aistudio.google.com/apikey',
       },
       custom: {
         models: [],
@@ -3141,7 +3362,13 @@
         polishConfig.model = polish.model || 'llama_taiwan';
         polishConfig.output_language = polish.output_language || 'traditional_chinese';
         polishConfig.mode = polish.mode || 'local';
-        polishConfig.prompt_rules = polish.prompt_rules || [];
+        // prompt_rules is a per-language map; handle old array format for backwards compat
+        const rawRules = polish.prompt_rules;
+        if (Array.isArray(rawRules)) {
+          polishConfig.prompt_rules = { [polishConfig.output_language]: rawRules };
+        } else {
+          polishConfig.prompt_rules = rawRules || {};
+        }
         const dict = polish.dictionary || {};
         polishConfig.dictionary = {
           enabled: dict.enabled !== false,
@@ -3181,9 +3408,11 @@
         localStorage.setItem('opentypeless-lang', I18n.getLocale());
         document.getElementById('languageSelect').value = I18n.getLocale();
 
-        // Apply version param to about.version
+        // Apply version from Tauri API
+        const appVer = await APP_VERSION;
         const versionEl = document.querySelector('[data-i18n="about.version"]');
-        if (versionEl) versionEl.textContent = t('about.version', { version: '0.1.0' });
+        if (versionEl) versionEl.textContent = t('about.version', { version: appVer });
+        document.getElementById('sidebarVersion').textContent = 'v' + appVer;
 
         updatePolishUI();
         renderPromptRules();
@@ -3199,8 +3428,9 @@
       localStorage.setItem('opentypeless-lang', lang);
 
       // Apply version param after locale change
+      const appVer2 = await APP_VERSION;
       const versionEl = document.querySelector('[data-i18n="about.version"]');
-      if (versionEl) versionEl.textContent = t('about.version', { version: '0.1.0' });
+      if (versionEl) versionEl.textContent = t('about.version', { version: appVer2 });
 
       // Persist to settings
       try {
@@ -3410,6 +3640,18 @@
       // Show/hide endpoint row (only for Custom provider)
       const endpointRow = document.getElementById('cloudEndpointRow');
       endpointRow.style.display = polishConfig.cloud.provider === 'custom' ? '' : 'none';
+
+      // Show/hide provider API key link button
+      const providerData = CLOUD_PROVIDERS[polishConfig.cloud.provider];
+      const linkBtn = document.getElementById('providerLinkBtn');
+      linkBtn.style.display = (providerData && providerData.apiKeyUrl) ? '' : 'none';
+    }
+
+    async function openProviderApiPage() {
+      const providerData = CLOUD_PROVIDERS[polishConfig.cloud.provider];
+      if (providerData && providerData.apiKeyUrl) {
+        await window.__TAURI__.opener.openUrl(providerData.apiKeyUrl);
+      }
     }
 
     function togglePolish() {
@@ -3437,8 +3679,18 @@
 
     async function savePolishSettings() {
       polishConfig.output_language = document.getElementById('polishLangSelect').value;
+      // Initialize prompt rules for new language with localized defaults if empty
+      const lang = polishConfig.output_language;
+      if (!polishConfig.prompt_rules[lang]) {
+        try {
+          polishConfig.prompt_rules[lang] = await invoke('get_default_prompt_rules', { language: lang });
+        } catch (e) {
+          polishConfig.prompt_rules[lang] = [];
+        }
+      }
       try {
         await invoke('save_settings', { newSettings: buildSettingsPayload() });
+        renderPromptRules();
       } catch (e) {
         console.error('Failed to save polish settings:', e);
       }
@@ -3542,8 +3794,22 @@
 
     function populateCloudModels() {
       const select = document.getElementById('cloudModelSelect');
+      const selectRow = document.getElementById('cloudModelSelectRow');
+      const customRow = document.getElementById('cloudCustomModelRow');
+      const customInput = document.getElementById('cloudCustomModelInput');
       const provider = polishConfig.cloud.provider;
       const providerData = CLOUD_PROVIDERS[provider] || { models: [] };
+
+      if (providerData.models.length === 0) {
+        // No predefined models — show text input directly, hide dropdown
+        selectRow.style.display = 'none';
+        customRow.style.display = '';
+        customInput.value = polishConfig.cloud.model_id || '';
+        return;
+      }
+
+      // Provider has predefined models — show dropdown
+      selectRow.style.display = '';
       select.innerHTML = '';
 
       for (const m of providerData.models) {
@@ -3563,11 +3829,11 @@
       const knownIds = providerData.models.map(m => m.id);
       if (knownIds.includes(polishConfig.cloud.model_id)) {
         select.value = polishConfig.cloud.model_id;
-        document.getElementById('cloudCustomModelRow').style.display = 'none';
-      } else if (polishConfig.cloud.model_id) {
+        customRow.style.display = 'none';
+      } else {
         select.value = '__custom__';
-        document.getElementById('cloudCustomModelInput').value = polishConfig.cloud.model_id;
-        document.getElementById('cloudCustomModelRow').style.display = '';
+        customInput.value = polishConfig.cloud.model_id || '';
+        customRow.style.display = '';
       }
     }
 
@@ -3633,6 +3899,10 @@
       }
 
       savePolishSettings();
+    }
+
+    function onCustomModelInput() {
+      polishConfig.cloud.model_id = document.getElementById('cloudCustomModelInput').value;
     }
 
     // ── Prompt Rules ──
@@ -3745,14 +4015,14 @@
       const defaultCard = document.getElementById('defaultPromptCard');
       if (defaultCard) {
         try {
-          const basePrompt = await invoke('get_default_prompt');
+          const basePrompt = await invoke('get_default_prompt', { language: polishConfig.output_language });
           defaultCard.innerHTML = `<div class="default-prompt-card">
             <div class="prompt-rule-top">
               <span class="prompt-rule-name">
-                <span class="default-prompt-badge" data-i18n="promptRules.basePrompt">Base Prompt</span>
+                <span class="default-prompt-badge">${t('promptRules.basePrompt')}</span>
               </span>
             </div>
-            <div class="default-prompt-desc" data-i18n="promptRules.basePromptDesc">Universal STT processing rules, automatically applied to all transcriptions</div>
+            <div class="default-prompt-desc">${t('promptRules.basePromptDesc')}</div>
             <div class="prompt-rule-prompt">${escapeHtml(basePrompt)}</div>
           </div>`;
         } catch (e) {
@@ -3762,9 +4032,9 @@
 
       // Render rules sorted alphabetically by name
       const container = document.getElementById('promptRulesList');
-      const rules = polishConfig.prompt_rules;
+      const rules = getCurrentRules();
       if (!rules || rules.length === 0) {
-        container.innerHTML = '<div class="prompt-rules-empty" data-i18n="settings.polish.noRules">' + t('settings.polish.noRules') + '</div>';
+        container.innerHTML = '<div class="prompt-rules-empty">' + t('settings.polish.noRules') + '</div>';
       } else {
         // Build sorted index array
         const sorted = rules.map((rule, i) => ({ rule, origIndex: i }));
@@ -3795,7 +4065,7 @@
             <div class="prompt-rule-body">
               <div class="prompt-rule-body-inner">
                 <div class="prompt-rule-match">${matchLabel}: ${escapeHtml(rule.match_value)}</div>
-                <div class="prompt-rule-prompt"><strong>Context:</strong> ${escapeHtml(rule.prompt || '')}</div>
+                <div class="prompt-rule-prompt"><strong>${t('settings.polish.rulePrompt')}:</strong> ${escapeHtml(rule.prompt || '')}</div>
                 <div class="prompt-rule-actions">
                   <button onclick="event.stopPropagation(); toggleRule(${origIndex})">${toggleLabel}</button>
                   <button onclick="event.stopPropagation(); openRuleEditor(${origIndex})" title="${t('settings.polish.editRule')}">✎</button>
@@ -3822,7 +4092,7 @@
       editingRuleIndex = index;
       const titleEl = document.getElementById('ruleEditorTitle');
       if (index >= 0) {
-        const rule = polishConfig.prompt_rules[index];
+        const rule = getCurrentRules()[index];
         titleEl.textContent = t('settings.polish.editRule');
         document.getElementById('ruleNameInput').value = rule.name || '';
         document.getElementById('ruleMatchTypeSelect').value = rule.match_type || 'app_name';
@@ -3866,12 +4136,14 @@
         enabled: true,
       };
 
+      const rules = getCurrentRules().slice();
       if (editingRuleIndex >= 0) {
-        rule.enabled = polishConfig.prompt_rules[editingRuleIndex].enabled;
-        polishConfig.prompt_rules[editingRuleIndex] = rule;
+        rule.enabled = rules[editingRuleIndex].enabled;
+        rules[editingRuleIndex] = rule;
       } else {
-        polishConfig.prompt_rules.push(rule);
+        rules.push(rule);
       }
+      setCurrentRules(rules);
 
       closeRuleEditor();
       renderPromptRules();
@@ -3879,13 +4151,17 @@
     }
 
     async function deleteRule(index) {
-      polishConfig.prompt_rules.splice(index, 1);
+      const rules = getCurrentRules().slice();
+      rules.splice(index, 1);
+      setCurrentRules(rules);
       renderPromptRules();
       await savePolishSettings();
     }
 
     async function toggleRule(index) {
-      polishConfig.prompt_rules[index].enabled = !polishConfig.prompt_rules[index].enabled;
+      const rules = getCurrentRules().slice();
+      rules[index] = { ...rules[index], enabled: !rules[index].enabled };
+      setCurrentRules(rules);
       renderPromptRules();
       await savePolishSettings();
     }
@@ -4203,8 +4479,9 @@
         testHotkeyUnlisten();
         testHotkeyUnlisten = null;
       }
-      // Clean up Try It listener
-      cleanupTryIt();
+      // Clean up Try It listeners
+      cleanupGeneral();
+      cleanupGmail();
       // Ensure test mode is disabled when leaving the wizard
       invoke('set_test_mode', { enabled: false }).catch(() => {});
     }
@@ -4213,7 +4490,7 @@
       testStep = n;
 
       // Update breadcrumb
-      for (let i = 1; i <= 3; i++) {
+      for (let i = 1; i <= 4; i++) {
         const bc = document.getElementById('testBc' + i);
         bc.classList.remove('active', 'done');
         if (i === n) bc.classList.add('active');
@@ -4221,10 +4498,10 @@
       }
 
       // Update progress bar
-      document.getElementById('testProgressFill').style.width = (n / 3 * 100) + '%';
+      document.getElementById('testProgressFill').style.width = (n / 4 * 100) + '%';
 
       // Show/hide steps
-      for (let i = 1; i <= 3; i++) {
+      for (let i = 1; i <= 4; i++) {
         const step = document.getElementById('testStep' + i);
         step.classList.toggle('active', i === n);
       }
@@ -4236,8 +4513,11 @@
       if (n === 2) setupHotkeyTest();
       else cleanupHotkeyTest();
 
-      if (n === 3) setupTryIt();
-      else cleanupTryIt();
+      if (n === 3) setupGeneral();
+      else cleanupGeneral();
+
+      if (n === 4) setupGmail();
+      else cleanupGmail();
     }
 
     function testGoBack(fromStep) {
@@ -4428,15 +4708,89 @@
       try { await invoke('set_test_mode', { enabled: false }); } catch (e) { console.warn('set_test_mode failed:', e); }
     }
 
-    // -- Step 3: Try It --
+    // -- Test paste de-duplication --
+    // The backend inserts text via the `transcription-result` Tauri event AND
+    // simulates Cmd+V (for real apps).  When the paste target is our own
+    // contenteditable, both paths fire and text appears twice.  We suppress
+    // the redundant Cmd+V paste for a short window after the event-based insert.
+    let _suppressPasteUntil = 0;
 
-    let testTryItUnlisten = null;
+    function suppressNextPaste() {
+      _suppressPasteUntil = Date.now() + 1000;
+    }
 
-    async function setupTryIt() {
+    document.addEventListener('paste', (e) => {
+      if (Date.now() < _suppressPasteUntil) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    }, true);  // capture phase — fires before contenteditable's default handler
+
+    // -- Step 3: General (no app context) --
+
+    let testGeneralUnlisten = null;
+
+    async function setupGeneral() {
+      const parts = currentHotkey.split('+');
+      const label = parts.map(p => modifierSymbols[p] || keyCodeToLabel(p)).join(' + ');
+      const instrEl = document.getElementById('testGeneralInstruction');
+      if (instrEl) instrEl.innerHTML = t('test.step3.instruction', { hotkey: label });
+
+      // Disable test mode — let the hotkey actually record + transcribe
+      try { await invoke('set_test_mode', { enabled: false }); } catch (e) {}
+
+      // No context override — general scenario
+      try {
+        await invoke('set_context_override', { appName: '', bundleId: '', url: '' });
+      } catch (e) { console.warn('set_context_override failed:', e); }
+
+      // Reset plain body
+      const body = document.getElementById('testPlainBody');
+      if (body) body.innerHTML = '';
+
+      // Listen for transcription result and insert into the plain editor
+      cleanupGeneral();
+      window.__TAURI__.event.listen('transcription-result', (event) => {
+        const text = event.payload;
+        if (!text) return;
+        const body = document.getElementById('testPlainBody');
+        if (!body) return;
+
+        suppressNextPaste();
+
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0 && body.contains(sel.anchorNode)) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(document.createTextNode(text));
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else {
+          body.focus();
+          body.innerHTML += escapeHtml(text);
+        }
+      }).then(unlisten => {
+        testGeneralUnlisten = unlisten;
+      });
+    }
+
+    function cleanupGeneral() {
+      if (testGeneralUnlisten) {
+        testGeneralUnlisten();
+        testGeneralUnlisten = null;
+      }
+    }
+
+    // -- Step 4: Gmail scenario --
+
+    let testGmailUnlisten = null;
+
+    async function setupGmail() {
       const parts = currentHotkey.split('+');
       const label = parts.map(p => modifierSymbols[p] || keyCodeToLabel(p)).join(' + ');
       const instrEl = document.getElementById('testTryInstruction');
-      if (instrEl) instrEl.innerHTML = t('test.step3.instruction', { hotkey: label });
+      if (instrEl) instrEl.innerHTML = t('test.step4.instruction', { hotkey: label });
 
       // Disable test mode — let the hotkey actually record + transcribe
       try { await invoke('set_test_mode', { enabled: false }); } catch (e) {}
@@ -4452,41 +4806,46 @@
 
       // Reset Gmail body
       const body = document.getElementById('testGmailBody');
-      if (body) {
-        body.innerHTML = '';
-      }
+      if (body) body.innerHTML = '';
 
       // Listen for transcription result and insert at cursor in the Gmail body
-      cleanupTryIt();
+      cleanupGmail();
       window.__TAURI__.event.listen('transcription-result', (event) => {
         const text = event.payload;
         if (!text) return;
         const body = document.getElementById('testGmailBody');
         if (!body) return;
+        suppressNextPaste();
 
-        // Insert text at cursor position if focused, otherwise append
+        // Convert newlines to <br> for contenteditable
+        const frag = document.createDocumentFragment();
+        const lines = text.split('\n');
+        lines.forEach((line, i) => {
+          if (i > 0) frag.appendChild(document.createElement('br'));
+          if (line) frag.appendChild(document.createTextNode(line));
+        });
+
         const sel = window.getSelection();
         if (sel && sel.rangeCount > 0 && body.contains(sel.anchorNode)) {
           const range = sel.getRangeAt(0);
           range.deleteContents();
-          range.insertNode(document.createTextNode(text));
-          // Move cursor to end of inserted text
+          range.insertNode(frag);
           range.collapse(false);
           sel.removeAllRanges();
           sel.addRange(range);
         } else {
           body.focus();
-          body.innerHTML += escapeHtml(text);
+          body.innerHTML += escapeHtml(text).replace(/\n/g, '<br>');
         }
       }).then(unlisten => {
-        testTryItUnlisten = unlisten;
+        testGmailUnlisten = unlisten;
       });
     }
 
-    function cleanupTryIt() {
-      if (testTryItUnlisten) {
-        testTryItUnlisten();
-        testTryItUnlisten = null;
+    function cleanupGmail() {
+      if (testGmailUnlisten) {
+        testGmailUnlisten();
+        testGmailUnlisten = null;
       }
       invoke('set_context_override', { appName: '', bundleId: '', url: '' }).catch(() => {});
     }
@@ -4701,6 +5060,113 @@
         console.log('Audio exported to:', path);
       } catch (e) {
         console.error('Failed to export audio:', e);
+      }
+    }
+
+    // ── Update ──
+    let pendingUpdate = null;
+
+    async function checkForUpdates() {
+      const btn = document.getElementById('updateBtn');
+      const status = document.getElementById('updateStatus');
+      const progress = document.getElementById('updateProgress');
+      const note = document.getElementById('updateNote');
+
+      // Reset UI
+      status.className = 'about-update-status';
+      status.style.display = 'block';
+      status.textContent = t('about.checking');
+      progress.style.display = 'none';
+      note.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = t('about.checking');
+
+      try {
+        const { check } = window.__TAURI__.updater;
+        const update = await check();
+
+        if (update) {
+          pendingUpdate = update;
+          status.textContent = t('about.updateAvailable', { version: update.version });
+          btn.textContent = t('about.download');
+          btn.disabled = false;
+          btn.classList.add('primary');
+          btn.onclick = downloadAndInstallUpdate;
+        } else {
+          status.textContent = t('about.upToDate');
+          btn.textContent = t('about.checkUpdate');
+          btn.disabled = false;
+          btn.onclick = checkForUpdates;
+        }
+      } catch (e) {
+        console.error('Update check failed:', e);
+        status.textContent = t('about.updateError');
+        status.classList.add('error');
+        btn.textContent = t('about.retry');
+        btn.disabled = false;
+        btn.onclick = checkForUpdates;
+      }
+    }
+
+    async function downloadAndInstallUpdate() {
+      if (!pendingUpdate) return;
+
+      const btn = document.getElementById('updateBtn');
+      const status = document.getElementById('updateStatus');
+      const progress = document.getElementById('updateProgress');
+      const progressBar = document.getElementById('updateProgressBar');
+      const note = document.getElementById('updateNote');
+
+      btn.style.display = 'none';
+      status.textContent = t('about.downloading', { percent: '0' });
+      progress.style.display = 'block';
+      progressBar.style.width = '0%';
+
+      try {
+        let downloaded = 0;
+        let contentLength = 0;
+
+        await pendingUpdate.downloadAndInstall((event) => {
+          switch (event.event) {
+            case 'Started':
+              contentLength = event.data.contentLength || 0;
+              break;
+            case 'Progress':
+              downloaded += event.data.chunkLength;
+              if (contentLength > 0) {
+                const pct = Math.min(100, Math.round((downloaded / contentLength) * 100));
+                progressBar.style.width = pct + '%';
+                status.textContent = t('about.downloading', { percent: String(pct) });
+              }
+              break;
+            case 'Finished':
+              break;
+          }
+        });
+
+        // Download & install complete
+        progress.style.display = 'none';
+        status.textContent = t('about.readyToRestart');
+        note.textContent = t('about.gatekeeperNote');
+        note.style.display = 'block';
+
+        btn.style.display = '';
+        btn.textContent = t('about.restartNow');
+        btn.disabled = false;
+        btn.classList.add('primary');
+        btn.onclick = () => {
+          window.__TAURI__.process.relaunch();
+        };
+      } catch (e) {
+        console.error('Update download failed:', e);
+        progress.style.display = 'none';
+        status.textContent = t('about.updateError');
+        status.classList.add('error');
+        btn.style.display = '';
+        btn.textContent = t('about.retry');
+        btn.disabled = false;
+        btn.classList.remove('primary');
+        btn.onclick = checkForUpdates;
       }
     }
 

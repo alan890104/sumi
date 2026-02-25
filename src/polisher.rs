@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -28,8 +29,11 @@ pub struct PolishConfig {
     pub mode: PolishMode,
     #[serde(default)]
     pub cloud: CloudConfig,
-    #[serde(default = "default_prompt_rules")]
-    pub prompt_rules: Vec<PromptRule>,
+    #[serde(
+        default = "default_prompt_rules_map",
+        deserialize_with = "deserialize_prompt_rules"
+    )]
+    pub prompt_rules: HashMap<String, Vec<PromptRule>>,
     #[serde(default)]
     pub dictionary: DictionaryConfig,
 }
@@ -43,7 +47,7 @@ impl Default for PolishConfig {
             custom_prompt: None,
             mode: PolishMode::default(),
             cloud: CloudConfig::default(),
-            prompt_rules: default_prompt_rules(),
+            prompt_rules: default_prompt_rules_map(),
             dictionary: DictionaryConfig::default(),
         }
     }
@@ -185,6 +189,25 @@ impl OutputLanguage {
             OutputLanguage::Auto => "the same language the user spoke in",
         }
     }
+
+    fn is_chinese(&self) -> bool {
+        matches!(
+            self,
+            OutputLanguage::TraditionalChinese | OutputLanguage::SimplifiedChinese
+        )
+    }
+
+    /// Returns the snake_case key matching serde serialization.
+    pub fn key(&self) -> &'static str {
+        match self {
+            OutputLanguage::TraditionalChinese => "traditional_chinese",
+            OutputLanguage::SimplifiedChinese => "simplified_chinese",
+            OutputLanguage::English => "english",
+            OutputLanguage::Japanese => "japanese",
+            OutputLanguage::Korean => "korean",
+            OutputLanguage::Auto => "auto",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -244,46 +267,131 @@ pub struct LlmModelCache {
 // LlamaBackend is Send+Sync, LlamaModel is Send+Sync
 unsafe impl Send for LlmModelCache {}
 
-/// Returns built-in preset prompt rules for common apps.
-/// Rule prompts contain only app-specific instructions — they are appended
-/// to the base prompt at runtime by `build_system_prompt()`.
-pub fn default_prompt_rules() -> Vec<PromptRule> {
-    vec![
-        PromptRule {
-            name: "Gmail".to_string(),
-            match_type: MatchType::Url,
-            match_value: "mail.google.com".to_string(),
-            prompt: "Restructure the spoken content into proper email format (greeting, body, sign-off).\n\
-                     Use a professional, clear, and polite tone.\n\
-                     Reply with ONLY the email text, nothing else."
-                .to_string(),
-            enabled: true,
-        },
-        PromptRule {
-            name: "Notion".to_string(),
-            match_type: MatchType::AppName,
-            match_value: "Notion".to_string(),
-            prompt: "Organize the spoken content into clear, readable prose or bullet points as appropriate.\n\
-                     Use a clean, well-structured style suitable for documentation."
-                .to_string(),
-            enabled: true,
-        },
-    ]
+/// Returns a per-language map with built-in preset prompt rules for the default language.
+/// Used by serde `#[serde(default = ...)]` and `PolishConfig::default()`.
+fn default_prompt_rules_map() -> HashMap<String, Vec<PromptRule>> {
+    let lang = OutputLanguage::default();
+    let mut map = HashMap::new();
+    map.insert(lang.key().to_string(), default_prompt_rules_for(&lang));
+    map
+}
+
+/// Backwards-compatible deserializer: accepts either a per-language map (new format)
+/// or a flat array (old format, migrated under the default language key).
+fn deserialize_prompt_rules<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<String, Vec<PromptRule>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Format {
+        Map(HashMap<String, Vec<PromptRule>>),
+        List(Vec<PromptRule>),
+    }
+
+    match Format::deserialize(deserializer)? {
+        Format::Map(map) => Ok(map),
+        Format::List(list) => {
+            let mut map = HashMap::new();
+            map.insert(OutputLanguage::default().key().to_string(), list);
+            Ok(map)
+        }
+    }
+}
+
+/// Returns built-in preset prompt rules localized for the given output language.
+pub fn default_prompt_rules_for(lang: &OutputLanguage) -> Vec<PromptRule> {
+    if lang.is_chinese() {
+        vec![
+            PromptRule {
+                name: "Gmail".to_string(),
+                match_type: MatchType::Url,
+                match_value: "mail.google.com".to_string(),
+                prompt: "將口語內容整理為電子郵件格式。\n\
+                         輸出必須嚴格按照以下範例，用空行分隔每個段落：\n\
+                         \n\
+                         嗨 XXX，\n\
+                         \n\
+                         （正文內容）\n\
+                         \n\
+                         （署名）\n\
+                         \n\
+                         僅回覆郵件文字，不要加任何其他內容。".to_string(),
+                enabled: true,
+            },
+            PromptRule {
+                name: "Notion".to_string(),
+                match_type: MatchType::AppName,
+                match_value: "Notion".to_string(),
+                prompt: "請依 Notion 格式排版輸出，不需額外解釋。".to_string(),
+                enabled: true,
+            },
+        ]
+    } else {
+        vec![
+            PromptRule {
+                name: "Gmail".to_string(),
+                match_type: MatchType::Url,
+                match_value: "mail.google.com".to_string(),
+                prompt: "Restructure the spoken content into proper email format (greeting, body, sign-off).\n\
+                         Use a professional, clear, and polite tone.\n\
+                         Reply with ONLY the email text, nothing else."
+                    .to_string(),
+                enabled: true,
+            },
+            PromptRule {
+                name: "Notion".to_string(),
+                match_type: MatchType::AppName,
+                match_value: "Notion".to_string(),
+                prompt: "Organize the spoken content into clear, readable prose or bullet points as appropriate.\n\
+                         Use a clean, well-structured style suitable for documentation."
+                    .to_string(),
+                enabled: true,
+            },
+        ]
+    }
 }
 
 /// Returns the base prompt template with `{language}` placeholder.
 /// This contains universal STT processing rules applied to all transcriptions.
-pub fn base_prompt_template() -> String {
-    "Clean up speech-to-text output. Fix recognition errors, grammar, and punctuation. \
-     Remove fillers and repetitions. If the speaker corrects themselves, keep only the final intent. \
-     Preserve meaning and tone. Output in {language}. Reply with ONLY the cleaned text."
-        .to_string()
+/// Returns a Chinese version when `lang` is Traditional or Simplified Chinese.
+pub fn base_prompt_template(lang: &OutputLanguage) -> String {
+    if lang.is_chinese() {
+        "精煉口語文本：修正冗餘與口誤，保留專有名詞不要翻譯，其餘內容轉換為 {language}。僅輸出修正後的文本，不要輸出任何其他內容。"
+            .to_string()
+    } else {
+        "Clean up speech-to-text output. Fix recognition errors, grammar, and punctuation. \
+         Remove fillers and repetitions. If the speaker corrects themselves, keep only the final intent. \
+         Preserve meaning and tone. Output in {language}. Reply with ONLY the cleaned text."
+            .to_string()
+    }
 }
 
 /// Resolve a prompt template by replacing the `{language}` placeholder.
 pub fn resolve_prompt(template: &str, language: &OutputLanguage) -> String {
     let lang_rule = language.label();
     template.replace("{language}", lang_rule).trim().to_string()
+}
+
+/// Extract reasoning from `<think>…</think>` blocks and return (cleaned_text, reasoning).
+fn extract_think_tags(text: &str) -> (String, Option<String>) {
+    if let Some(start) = text.find("<think>") {
+        if let Some(end) = text.find("</think>") {
+            let reasoning = text[start + "<think>".len()..end].trim().to_string();
+            let cleaned = text[end + "</think>".len()..].to_string();
+            let reasoning = if reasoning.is_empty() { None } else { Some(reasoning) };
+            return (cleaned, reasoning);
+        }
+    }
+    (text.to_string(), None)
+}
+
+/// Result of AI polishing, containing the cleaned text and optional reasoning.
+pub struct PolishResult {
+    pub text: String,
+    pub reasoning: Option<String>,
 }
 
 /// Format app context information into a single descriptive line.
@@ -327,7 +435,7 @@ fn find_matching_rule<'a>(rules: &'a [PromptRule], context: &AppContext) -> Opti
 }
 
 /// Format dictionary entries into a prompt block for the AI model.
-fn format_dictionary_prompt(dictionary: &DictionaryConfig) -> String {
+fn format_dictionary_prompt(dictionary: &DictionaryConfig, lang: &OutputLanguage) -> String {
     if !dictionary.enabled {
         return String::new();
     }
@@ -340,11 +448,16 @@ fn format_dictionary_prompt(dictionary: &DictionaryConfig) -> String {
     if active.is_empty() {
         return String::new();
     }
-    let mut block = String::from(
+    let header = if lang.is_chinese() {
+        "\n\n以下是使用者自定義的專有名詞。\
+         當遇到同音詞或發音相似的詞彙時，\
+         請根據上下文自動套用正確的形式："
+    } else {
         "\n\nThe following are user-defined proper nouns. \
          When you encounter homophones or similar-sounding words, \
-         automatically apply the correct form based on context:",
-    );
+         automatically apply the correct form based on context:"
+    };
+    let mut block = String::from(header);
     for term in &active {
         block.push_str(&format!("\n• {}", term));
     }
@@ -357,18 +470,21 @@ fn format_dictionary_prompt(dictionary: &DictionaryConfig) -> String {
 /// + dictionary block + app context info.
 fn build_system_prompt(config: &PolishConfig, context: &AppContext) -> String {
     // 1. Base prompt (or custom_prompt override)
-    let base_tmpl = base_prompt_template();
+    let base_tmpl = base_prompt_template(&config.output_language);
     let base = config.custom_prompt.as_deref().unwrap_or(&base_tmpl);
     let mut prompt = resolve_prompt(base, &config.output_language);
 
     // 2. Append matched rule's context prompt
-    if let Some(rule_prompt) = find_matching_rule(&config.prompt_rules, context) {
+    let lang_key = config.output_language.key();
+    let empty_rules = Vec::new();
+    let rules = config.prompt_rules.get(lang_key).unwrap_or(&empty_rules);
+    if let Some(rule_prompt) = find_matching_rule(rules, context) {
         prompt.push_str("\n\n");
         prompt.push_str(rule_prompt);
     }
 
     // 3. Append dictionary block
-    prompt.push_str(&format_dictionary_prompt(&config.dictionary));
+    prompt.push_str(&format_dictionary_prompt(&config.dictionary, &config.output_language));
 
     // 4. Append app context info
     let context_line = format_app_context(context);
@@ -392,17 +508,21 @@ pub fn polish_text(
     config: &PolishConfig,
     context: &AppContext,
     raw_text: &str,
-) -> String {
+) -> PolishResult {
     if raw_text.trim().is_empty() {
-        return raw_text.to_string();
+        return PolishResult { text: raw_text.to_string(), reasoning: None };
     }
 
     match polish_text_inner(llm_cache, model_dir, config, context, raw_text) {
-        Ok(polished) => {
+        Ok(raw_output) => {
+            // Extract reasoning from <think> blocks
+            let (polished, reasoning) = extract_think_tags(&raw_output);
+            let polished = polished.trim().to_string();
+
             // Safety: if output is empty or suspiciously long, use original
-            if polished.trim().is_empty() {
+            if polished.is_empty() {
                 println!("[OpenTypeless] Polish returned empty, using original");
-                return raw_text.to_string();
+                return PolishResult { text: raw_text.to_string(), reasoning };
             }
             let raw_chars = raw_text.chars().count();
             let polished_chars = polished.chars().count();
@@ -412,13 +532,13 @@ pub fn polish_text(
                     polished_chars,
                     raw_chars
                 );
-                return raw_text.to_string();
+                return PolishResult { text: raw_text.to_string(), reasoning };
             }
-            polished
+            PolishResult { text: polished, reasoning }
         }
         Err(e) => {
             eprintln!("[OpenTypeless] Polish error: {} — using original text", e);
-            raw_text.to_string()
+            PolishResult { text: raw_text.to_string(), reasoning: None }
         }
     }
 }
@@ -431,6 +551,8 @@ fn polish_text_inner(
     raw_text: &str,
 ) -> Result<String, String> {
     let system_prompt = build_system_prompt(config, context);
+    println!("[OpenTypeless] System prompt: {:?}", system_prompt);
+    println!("[OpenTypeless] Context: app={:?}, url={:?}", context.app_name, context.url);
     match config.mode {
         PolishMode::Cloud => run_cloud_inference(&config.cloud, &system_prompt, raw_text),
         PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, &system_prompt, raw_text),
@@ -469,7 +591,7 @@ fn run_cloud_inference(
             { "role": "system", "content": system_prompt },
             { "role": "user", "content": raw_text }
         ],
-        "temperature": 0.3,
+        "temperature": 0.1,
         "max_tokens": 512
     });
 
@@ -506,8 +628,9 @@ fn run_cloud_inference(
         .ok_or_else(|| format!("Unexpected response format: {}", resp_text))?;
 
     println!(
-        "[OpenTypeless] Cloud polish done: {:.0?}",
-        start.elapsed()
+        "[OpenTypeless] Cloud polish done: {:.0?}, raw content: {:?}",
+        start.elapsed(),
+        content
     );
 
     Ok(content.trim().to_string())
@@ -625,8 +748,6 @@ fn run_llm_inference(
     // Sample tokens
     let max_tokens: usize = 512;
     let mut sampler = LlamaSampler::chain_simple([
-        LlamaSampler::temp(0.3),
-        LlamaSampler::top_p(0.9, 1),
         LlamaSampler::greedy(),
     ]);
 
@@ -686,7 +807,9 @@ pub fn polish_with_prompt(
     system_prompt: &str,
     raw_text: &str,
 ) -> Result<String, String> {
-    run_llm_inference(llm_cache, model_dir, config, system_prompt, raw_text)
+    let raw_output = run_llm_inference(llm_cache, model_dir, config, system_prompt, raw_text)?;
+    let (cleaned, _) = extract_think_tags(&raw_output);
+    Ok(cleaned.trim().to_string())
 }
 
 /// Ensure the LLM model is loaded into the cache (for pre-warming at startup).
