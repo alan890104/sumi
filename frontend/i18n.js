@@ -1,5 +1,5 @@
 /**
- * Lightweight i18n module for OpenTypeless.
+ * Lightweight i18n module for Voxink.
  *
  * Usage:
  *   <span data-i18n="nav.settings">Settings</span>

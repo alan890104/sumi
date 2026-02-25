@@ -1,8 +1,8 @@
 [package]
-name = "opentypeless"
+name = "voxink"
 version = "0.1.1"
 edition = "2021"
-description = "A local speech-to-text desktop app"
+description = "Your voice, in writing — AI-powered speech-to-text for macOS"
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "macos-private-api", "image-png"] }
@@ -15,7 +15,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 cpal = "0.15"
 whisper-rs = { version = "0.15", features = ["metal"] }
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.12", features = ["blocking", "multipart"] }
 llama-cpp-2 = { version = "0.1", default-features = false, features = ["metal", "sampler"] }
 hound = "3"
 dirs = "6"

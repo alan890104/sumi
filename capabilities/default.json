@@ -1,6 +1,6 @@
 {
     "identifier": "default",
-    "description": "Default capabilities for OpenTypeless",
+    "description": "Default capabilities for Voxink",
     "windows": [
         "main",
         "overlay"

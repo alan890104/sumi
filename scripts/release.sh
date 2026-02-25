@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── OpenTypeless Local Release Script ──
+# ── Voxink Local Release Script ──
 # Usage: ./scripts/release.sh
 #
 # Prerequisites:
 #   1. gh CLI installed and authenticated (brew install gh && gh auth login)
 #   2. Signing key generated:
-#        cargo tauri signer generate -w ~/.tauri/opentypeless.key
+#        cargo tauri signer generate -w ~/.tauri/voxink.key
 
-REPO="alan890104/opentypeless"
-KEY_FILE="${HOME}/.tauri/opentypeless.key"
+REPO="alan890104/voxink"
+KEY_FILE="${HOME}/.tauri/voxink.key"
 
 # ── Read current version ──
 CURRENT=$(python3 -c "import json; print(json.load(open('tauri.conf.json'))['version'])")

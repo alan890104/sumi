@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OpenTypeless</title>
+  <title>Voxink</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -2599,7 +2599,7 @@
         </div>
         <div class="setup-title" data-i18n="setup.permissionsTitle">Permissions Required</div>
         <div class="setup-desc" data-i18n="setup.permissionsDesc">
-          OpenTypeless needs these permissions to record audio and paste text at your cursor.
+          Voxink needs these permissions to record audio and paste text at your cursor.
         </div>
         <div class="setup-permissions-list">
           <div class="setup-permission-row" id="permRowMic">
@@ -2656,7 +2656,7 @@
         </div>
         <div class="setup-title" data-i18n="setup.initialTitle">Set Up Speech Recognition</div>
         <div class="setup-desc" data-i18n="setup.initialDesc">
-          OpenTypeless needs to download a speech recognition model (~1.5 GB) for fully offline transcription. This only happens once.
+          Voxink needs to download a speech recognition model (~1.5 GB) for fully offline transcription. This only happens once.
         </div>
         <button class="setup-download-btn" onclick="startModelDownload()" data-i18n="setup.downloadBtn">Download Model</button>
       </div>
@@ -2698,7 +2698,7 @@
         </div>
         <div class="setup-title" data-i18n="setup.completeTitle">Ready to Go!</div>
         <div class="setup-desc" data-i18n="setup.completeDesc">
-          Speech recognition model downloaded successfully. You can start using OpenTypeless now.
+          Speech recognition model downloaded successfully. You can start using Voxink now.
         </div>
       </div>
 
@@ -2882,6 +2882,114 @@
 
         <div class="section-divider"></div>
 
+        <!-- Speech Recognition Section -->
+        <div class="section" id="sttCard">
+          <div class="section-header">
+            <span class="section-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
+            <span class="section-title" data-i18n="settings.stt">Speech Recognition</span>
+          </div>
+          <!-- Mode selector -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-name" data-i18n="settings.stt.mode">Mode</div>
+              <div class="setting-desc" data-i18n="settings.stt.modeDesc">Choose local or cloud transcription engine</div>
+            </div>
+            <div class="segmented-control" id="sttModeControl">
+              <button class="active" onclick="selectSttMode('local')" data-i18n="settings.stt.modeLocal">Local</button>
+              <button onclick="selectSttMode('cloud')" data-i18n="settings.stt.modeCloud">Cloud API</button>
+            </div>
+          </div>
+
+          <!-- Local panel: Whisper model download -->
+          <div class="sub-settings visible" id="sttLocalPanel">
+            <div class="polish-model-card">
+              <div class="polish-model-header">
+                <div>
+                  <div class="polish-model-name">Whisper large-v3-turbo-zh-TW</div>
+                  <div class="polish-model-size">~1.5 GB</div>
+                </div>
+                <button class="polish-download-btn" id="sttModelDownloadBtn" onclick="startSttModelDownload()">Download</button>
+              </div>
+              <div class="polish-progress-wrap" id="sttModelProgressWrap" style="display:none">
+                <div class="polish-progress-track">
+                  <div class="polish-progress-fill" id="sttModelProgressFill"></div>
+                </div>
+                <div class="polish-progress-label">
+                  <span id="sttModelProgressPercent">0%</span>
+                  <span id="sttModelProgressSize">0 MB / 0 MB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cloud panel -->
+          <div class="sub-settings" id="sttCloudPanel">
+            <div class="cloud-row">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.provider">Provider</div>
+              </div>
+              <select class="cloud-select" id="sttProviderSelect" onchange="onSttProviderChange()">
+                <option value="deepgram">Deepgram</option>
+                <option value="groq">Groq</option>
+                <option value="open_ai">OpenAI</option>
+                <option value="azure">Azure</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="cloud-row">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.apiKey">API Key</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;flex:1;max-width:280px">
+                <input type="password" class="cloud-input" id="sttApiKeyInput" placeholder="sk-..." onchange="onSttCloudConfigChange()" style="max-width:none" />
+                <button class="provider-link-btn" id="sttProviderLinkBtn" onclick="openSttProviderApiPage()" title="Get API Key" style="display:none">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="cloud-row" id="sttAzureRegionRow" style="display:none">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.azureRegion">Region</div>
+              </div>
+              <input type="text" class="cloud-input" id="sttAzureRegionInput" placeholder="eastus" onchange="onSttCloudConfigChange()" />
+            </div>
+            <div class="cloud-row" id="sttEndpointRow" style="display:none">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.endpoint">Endpoint</div>
+              </div>
+              <input type="text" class="cloud-input" id="sttEndpointInput" placeholder="https://api.example.com/v1/audio/transcriptions" onchange="onSttCloudConfigChange()" />
+            </div>
+            <div class="cloud-row" id="sttModelSelectRow">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.cloudModel">Model</div>
+              </div>
+              <select class="cloud-select" id="sttModelSelect" onchange="onSttModelChange()">
+              </select>
+            </div>
+            <div class="cloud-row" id="sttCustomModelRow" style="display:none">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.modelId">Model ID</div>
+              </div>
+              <input type="text" class="cloud-input" id="sttCustomModelInput" placeholder="whisper-large-v3-turbo" oninput="onSttCustomModelInput()" onchange="onSttCloudConfigChange()" />
+            </div>
+            <div class="cloud-row">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.language">Language</div>
+              </div>
+              <select class="cloud-select" id="sttLanguageSelect" onchange="onSttCloudConfigChange()">
+                <option value="zh-TW">繁體中文</option>
+                <option value="zh-CN">简体中文</option>
+                <option value="en">English</option>
+                <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
+                <option value="">Auto</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
         <!-- AI Polishing Section -->
         <div class="section" id="polishCard">
           <div class="section-header">
@@ -2908,6 +3016,18 @@
                 <button class="active" onclick="selectPolishMode('local')" data-i18n="settings.polish.modeLocal">Local</button>
                 <button onclick="selectPolishMode('cloud')" data-i18n="settings.polish.modeCloud">Cloud API</button>
               </div>
+            </div>
+
+            <!-- Reasoning toggle -->
+            <div class="setting-row sub-row">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.polish.reasoning">Enable reasoning</div>
+                <div class="setting-desc" data-i18n="settings.polish.reasoningDesc">Allow the model to think step-by-step before responding (slower)</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="polishReasoningToggle" onchange="onPolishReasoningChange()" />
+                <div class="toggle-track"></div>
+              </label>
             </div>
 
             <!-- Local panel -->
@@ -2952,6 +3072,7 @@
                   <option value="open_router">OpenRouter</option>
                   <option value="open_ai">OpenAI</option>
                   <option value="gemini">Gemini</option>
+                  <option value="samba_nova">SambaNova</option>
                   <option value="custom">Custom</option>
                 </select>
               </div>
@@ -3114,8 +3235,8 @@
       <div class="page" id="pageAbout">
         <div class="page-title" data-i18n="about.title">About</div>
         <div class="about-content">
-          <div class="about-icon"><img src="icon.png" alt="OpenTypeless"></div>
-          <div class="about-name">OpenTypeless</div>
+          <div class="about-icon"><img src="icon.png" alt="Voxink"></div>
+          <div class="about-name">Voxink</div>
           <div class="about-version" data-i18n="about.version">Version 0.1.0</div>
           <div class="about-desc" data-i18n="about.desc">
             Privacy-first, fully offline speech-to-text for macOS.
@@ -3394,6 +3515,8 @@
       groq: {
         models: [
           { id: 'qwen/qwen3-32b', name: 'Qwen 3 32B' },
+          { id: 'openai/gpt-oss-120b', name: 'GPT-oss 120B' },
+          { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B' },
         ],
         apiKeyUrl: 'https://console.groq.com/keys',
       },
@@ -3409,12 +3532,56 @@
         models: [],
         apiKeyUrl: 'https://aistudio.google.com/apikey',
       },
+      samba_nova: {
+        models: [
+          { id: 'Qwen3-32B', name: 'Qwen 3 32B' },
+          { id: 'DeepSeek-V3.1', name: 'DeepSeek V3.1' },
+          { id: 'Meta-Llama-3.3-70B-Instruct', name: 'Llama 3.3 70B' },
+          { id: 'Llama-4-Maverick-17B-128E-Instruct', name: 'Llama 4 Maverick' },
+          { id: 'DeepSeek-R1-0528', name: 'DeepSeek R1' },
+        ],
+        apiKeyUrl: 'https://cloud.sambanova.ai/apis',
+      },
       custom: {
         models: [],
       },
     };
     let llmDownloadUnlisten = null;
     let llmDownloadingModel = null;
+
+    // ── STT Cloud Config ──
+    const STT_CLOUD_PROVIDERS = {
+      deepgram: {
+        models: [
+          { id: 'whisper', name: 'Whisper' },
+        ],
+        apiKeyUrl: 'https://console.deepgram.com/api-keys',
+      },
+      groq: {
+        models: [
+          { id: 'whisper-large-v3-turbo', name: 'Whisper Large v3 Turbo' },
+          { id: 'distil-whisper-large-v3-en', name: 'Distil Whisper Large v3 (EN)' },
+        ],
+        apiKeyUrl: 'https://console.groq.com/keys',
+      },
+      open_ai: {
+        models: [
+          { id: 'whisper-1', name: 'Whisper 1' },
+          { id: 'gpt-4o-transcribe', name: 'GPT-4o Transcribe' },
+          { id: 'gpt-4o-mini-transcribe', name: 'GPT-4o Mini Transcribe' },
+        ],
+        apiKeyUrl: 'https://platform.openai.com/api-keys',
+      },
+      azure: {
+        models: [],
+        apiKeyUrl: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/SpeechServices',
+      },
+      custom: {
+        models: [],
+      },
+    };
+    let sttConfig = { mode: 'local', cloud: { provider: 'deepgram', api_key: '', endpoint: '', model_id: 'whisper', language: 'zh-TW' } };
+    let sttModelDownloadUnlisten = null;
 
     // ── Page navigation ──
 
@@ -3520,6 +3687,7 @@
         polishConfig.model = polish.model || 'llama_taiwan';
         polishConfig.output_language = polish.output_language || 'traditional_chinese';
         polishConfig.mode = polish.mode || 'local';
+        polishConfig.reasoning = polish.reasoning || false;
         // prompt_rules is a per-language map; handle old array format for backwards compat
         const rawRules = polish.prompt_rules;
         if (Array.isArray(rawRules)) {
@@ -3543,6 +3711,7 @@
         };
 
         document.getElementById('polishToggle').checked = polishConfig.enabled;
+        document.getElementById('polishReasoningToggle').checked = polishConfig.reasoning;
         document.getElementById('polishLangSelect').value = polishConfig.output_language;
 
         // Populate cloud UI
@@ -3560,10 +3729,38 @@
           document.getElementById('cloudApiKeyInput').value = '';
         }
 
+        // STT settings
+        const stt = settings.stt || {};
+        sttConfig.mode = stt.mode || 'local';
+        const sttCloud = stt.cloud || {};
+        sttConfig.cloud = {
+          provider: sttCloud.provider || 'deepgram',
+          api_key: '',
+          endpoint: sttCloud.endpoint || '',
+          model_id: sttCloud.model_id || 'whisper',
+          language: sttCloud.language !== undefined ? sttCloud.language : 'zh-TW',
+        };
+
+        document.getElementById('sttProviderSelect').value = sttConfig.cloud.provider;
+        document.getElementById('sttLanguageSelect').value = sttConfig.cloud.language;
+        document.getElementById('sttEndpointInput').value = sttConfig.cloud.endpoint;
+        document.getElementById('sttAzureRegionInput').value = sttConfig.cloud.endpoint;
+        populateSttModels();
+
+        // Load STT API key from keychain
+        try {
+          const sttKey = await invoke('get_api_key', { provider: 'stt_' + sttConfig.cloud.provider });
+          sttConfig.cloud.api_key = sttKey;
+          document.getElementById('sttApiKeyInput').value = sttKey;
+        } catch (e) {
+          console.warn('Failed to load STT API key from keychain:', e);
+          document.getElementById('sttApiKeyInput').value = '';
+        }
+
         // i18n: initialize language from settings or auto-detect
         const savedLang = settings.language || null;
         await I18n.initI18n(savedLang);
-        localStorage.setItem('opentypeless-lang', I18n.getLocale());
+        localStorage.setItem('voxink-lang', I18n.getLocale());
         document.getElementById('languageSelect').value = I18n.getLocale();
 
         // Apply version from Tauri API
@@ -3573,6 +3770,8 @@
         document.getElementById('sidebarVersion').textContent = 'v' + appVer;
 
         updatePolishUI();
+        updateSttUI();
+        checkSttModelStatus();
         renderPromptRules();
         checkLlmModelStatus();
       } catch (e) {
@@ -3583,7 +3782,7 @@
     async function onLanguageChange() {
       const lang = document.getElementById('languageSelect').value;
       await I18n.setLocale(lang);
-      localStorage.setItem('opentypeless-lang', lang);
+      localStorage.setItem('voxink-lang', lang);
 
       // Apply version param after locale change
       const appVer2 = await APP_VERSION;
@@ -3715,6 +3914,16 @@
           },
           prompt_rules: polishConfig.prompt_rules,
           dictionary: polishConfig.dictionary,
+          reasoning: polishConfig.reasoning,
+        },
+        stt: {
+          mode: sttConfig.mode,
+          cloud: {
+            provider: sttConfig.cloud.provider,
+            endpoint: sttConfig.cloud.endpoint,
+            model_id: sttConfig.cloud.model_id,
+            language: sttConfig.cloud.language,
+          },
         },
       };
     }
@@ -3815,6 +4024,11 @@
     function togglePolish() {
       polishConfig.enabled = document.getElementById('polishToggle').checked;
       updatePolishUI();
+      savePolishSettings();
+    }
+
+    function onPolishReasoningChange() {
+      polishConfig.reasoning = document.getElementById('polishReasoningToggle').checked;
       savePolishSettings();
     }
 
@@ -3941,6 +4155,234 @@
       }
     }
 
+
+    // ── STT Cloud mode ──
+
+    function selectSttMode(mode) {
+      sttConfig.mode = mode;
+      updateSttUI();
+      saveSttSettings();
+    }
+
+    function updateSttUI() {
+      const modeBtns = document.querySelectorAll('#sttModeControl button');
+      modeBtns[0].classList.toggle('active', sttConfig.mode === 'local');
+      modeBtns[1].classList.toggle('active', sttConfig.mode === 'cloud');
+
+      const localPanel = document.getElementById('sttLocalPanel');
+      const cloudPanel = document.getElementById('sttCloudPanel');
+      if (sttConfig.mode === 'cloud') {
+        localPanel.classList.remove('visible');
+        cloudPanel.classList.add('visible');
+      } else {
+        localPanel.classList.add('visible');
+        cloudPanel.classList.remove('visible');
+      }
+
+      // Azure: show region input; Custom: show endpoint input; others: hide both
+      const isAzure = sttConfig.cloud.provider === 'azure';
+      const isCustom = sttConfig.cloud.provider === 'custom';
+      document.getElementById('sttAzureRegionRow').style.display = isAzure ? '' : 'none';
+      document.getElementById('sttEndpointRow').style.display = isCustom ? '' : 'none';
+
+      // Show/hide provider API key link button
+      const providerData = STT_CLOUD_PROVIDERS[sttConfig.cloud.provider];
+      const linkBtn = document.getElementById('sttProviderLinkBtn');
+      linkBtn.style.display = (providerData && providerData.apiKeyUrl) ? '' : 'none';
+    }
+
+    function populateSttModels() {
+      const select = document.getElementById('sttModelSelect');
+      const selectRow = document.getElementById('sttModelSelectRow');
+      const customRow = document.getElementById('sttCustomModelRow');
+      const customInput = document.getElementById('sttCustomModelInput');
+      const provider = sttConfig.cloud.provider;
+      const providerData = STT_CLOUD_PROVIDERS[provider] || { models: [] };
+
+      // Azure has no model parameter — hide both model rows
+      if (provider === 'azure') {
+        selectRow.style.display = 'none';
+        customRow.style.display = 'none';
+        return;
+      }
+
+      if (providerData.models.length === 0) {
+        selectRow.style.display = 'none';
+        customRow.style.display = '';
+        customInput.value = sttConfig.cloud.model_id || '';
+        return;
+      }
+
+      selectRow.style.display = '';
+      select.innerHTML = '';
+
+      for (const m of providerData.models) {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        select.appendChild(opt);
+      }
+
+      // Add "Custom..." option
+      const customOpt = document.createElement('option');
+      customOpt.value = '__custom__';
+      customOpt.textContent = 'Custom...';
+      select.appendChild(customOpt);
+
+      const knownIds = providerData.models.map(m => m.id);
+      if (knownIds.includes(sttConfig.cloud.model_id)) {
+        select.value = sttConfig.cloud.model_id;
+        customRow.style.display = 'none';
+      } else {
+        select.value = '__custom__';
+        customInput.value = sttConfig.cloud.model_id || '';
+        customRow.style.display = '';
+      }
+    }
+
+    async function onSttProviderChange() {
+      const provider = document.getElementById('sttProviderSelect').value;
+      sttConfig.cloud.provider = provider;
+
+      const providerData = STT_CLOUD_PROVIDERS[provider] || { models: [] };
+      if (providerData.models.length > 0) {
+        sttConfig.cloud.model_id = providerData.models[0].id;
+      } else {
+        sttConfig.cloud.model_id = '';
+      }
+
+      // Load API key from keychain for the new provider
+      try {
+        const key = await invoke('get_api_key', { provider: 'stt_' + provider });
+        sttConfig.cloud.api_key = key;
+        document.getElementById('sttApiKeyInput').value = key;
+      } catch (e) {
+        console.warn('Failed to load STT API key from keychain:', e);
+        sttConfig.cloud.api_key = '';
+        document.getElementById('sttApiKeyInput').value = '';
+      }
+
+      populateSttModels();
+      updateSttUI();
+      saveSttSettings();
+    }
+
+    function onSttModelChange() {
+      const select = document.getElementById('sttModelSelect');
+      const customRow = document.getElementById('sttCustomModelRow');
+      if (select.value === '__custom__') {
+        customRow.style.display = '';
+        sttConfig.cloud.model_id = document.getElementById('sttCustomModelInput').value;
+      } else {
+        customRow.style.display = 'none';
+        sttConfig.cloud.model_id = select.value;
+      }
+      saveSttSettings();
+    }
+
+    async function onSttCloudConfigChange() {
+      const newKey = document.getElementById('sttApiKeyInput').value;
+      if (sttConfig.cloud.provider === 'azure') {
+        sttConfig.cloud.endpoint = document.getElementById('sttAzureRegionInput').value;
+      } else {
+        sttConfig.cloud.endpoint = document.getElementById('sttEndpointInput').value;
+      }
+      sttConfig.cloud.language = document.getElementById('sttLanguageSelect').value;
+
+      if (newKey !== sttConfig.cloud.api_key) {
+        sttConfig.cloud.api_key = newKey;
+        try {
+          await invoke('save_api_key', { provider: 'stt_' + sttConfig.cloud.provider, key: newKey });
+        } catch (e) {
+          console.error('Failed to save STT API key to keychain:', e);
+        }
+      }
+
+      const select = document.getElementById('sttModelSelect');
+      if (select.value === '__custom__') {
+        sttConfig.cloud.model_id = document.getElementById('sttCustomModelInput').value;
+      }
+
+      saveSttSettings();
+    }
+
+    function onSttCustomModelInput() {
+      sttConfig.cloud.model_id = document.getElementById('sttCustomModelInput').value;
+    }
+
+    async function openSttProviderApiPage() {
+      const providerData = STT_CLOUD_PROVIDERS[sttConfig.cloud.provider];
+      if (providerData && providerData.apiKeyUrl) {
+        await window.__TAURI__.opener.openUrl(providerData.apiKeyUrl);
+      }
+    }
+
+    async function saveSttSettings() {
+      try {
+        await invoke('save_settings', { newSettings: buildSettingsPayload() });
+      } catch (e) {
+        console.error('Failed to save STT settings:', e);
+      }
+    }
+
+    async function startSttModelDownload() {
+      const btn = document.getElementById('sttModelDownloadBtn');
+      btn.textContent = t('settings.polish.downloading');
+      btn.disabled = true;
+      document.getElementById('sttModelProgressWrap').style.display = '';
+
+      if (sttModelDownloadUnlisten) sttModelDownloadUnlisten();
+      sttModelDownloadUnlisten = await listen('model-download-progress', (event) => {
+        const d = event.payload;
+        if (d.status === 'downloading') {
+          const pct = d.percent.toFixed(1);
+          document.getElementById('sttModelProgressFill').style.width = pct + '%';
+          document.getElementById('sttModelProgressPercent').textContent = pct + '%';
+          const dlMB = (d.downloaded / 1048576).toFixed(0);
+          const totMB = (d.total / 1048576).toFixed(0);
+          document.getElementById('sttModelProgressSize').textContent = dlMB + ' MB / ' + totMB + ' MB';
+        } else if (d.status === 'complete') {
+          document.getElementById('sttModelProgressWrap').style.display = 'none';
+          btn.textContent = t('settings.polish.downloaded');
+          btn.classList.add('downloaded');
+          btn.disabled = true;
+          if (sttModelDownloadUnlisten) { sttModelDownloadUnlisten(); sttModelDownloadUnlisten = null; }
+        } else if (d.status === 'error') {
+          document.getElementById('sttModelProgressWrap').style.display = 'none';
+          btn.textContent = t('settings.polish.retry');
+          btn.disabled = false;
+          console.error('STT model download error:', d.message);
+          if (sttModelDownloadUnlisten) { sttModelDownloadUnlisten(); sttModelDownloadUnlisten = null; }
+        }
+      });
+
+      try {
+        await invoke('download_model');
+      } catch (e) {
+        btn.textContent = t('settings.polish.retry');
+        btn.disabled = false;
+        document.getElementById('sttModelProgressWrap').style.display = 'none';
+        console.error('Failed to start STT model download:', e);
+      }
+    }
+
+    async function checkSttModelStatus() {
+      try {
+        const status = await invoke('check_model_status');
+        const btn = document.getElementById('sttModelDownloadBtn');
+        if (status.model_exists) {
+          btn.textContent = t('settings.polish.downloaded');
+          btn.classList.add('downloaded');
+          btn.disabled = true;
+        } else {
+          btn.textContent = t('settings.polish.download');
+          btn.classList.remove('downloaded');
+          btn.disabled = false;
+        }
+      } catch (e) {
+        console.error('Failed to check STT model status:', e);
+      }
+    }
 
     // ── Cloud mode ──
 

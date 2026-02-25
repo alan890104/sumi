@@ -36,6 +36,10 @@ pub struct PolishConfig {
     pub prompt_rules: HashMap<String, Vec<PromptRule>>,
     #[serde(default)]
     pub dictionary: DictionaryConfig,
+    /// Enable model reasoning / chain-of-thought (e.g. Qwen3 `<think>` blocks).
+    /// When false, `/no_think` is prepended to suppress reasoning.
+    #[serde(default)]
+    pub reasoning: bool,
 }
 
 impl Default for PolishConfig {
@@ -49,6 +53,7 @@ impl Default for PolishConfig {
             cloud: CloudConfig::default(),
             prompt_rules: default_prompt_rules_map(),
             dictionary: DictionaryConfig::default(),
+            reasoning: false,
         }
     }
 }
@@ -68,6 +73,7 @@ pub enum CloudProvider {
     OpenRouter,
     OpenAi,
     Gemini,
+    SambaNova,
     Custom,
 }
 
@@ -85,6 +91,7 @@ impl CloudProvider {
             CloudProvider::OpenRouter => "open_router",
             CloudProvider::OpenAi => "open_ai",
             CloudProvider::Gemini => "gemini",
+            CloudProvider::SambaNova => "samba_nova",
             CloudProvider::Custom => "custom",
         }
     }
@@ -95,6 +102,7 @@ impl CloudProvider {
             CloudProvider::OpenRouter => "https://openrouter.ai/api/v1/chat/completions",
             CloudProvider::OpenAi => "https://api.openai.com/v1/chat/completions",
             CloudProvider::Gemini => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            CloudProvider::SambaNova => "https://api.sambanova.ai/v1/chat/completions",
             CloudProvider::Custom => "",
         }
     }
@@ -314,10 +322,12 @@ pub fn default_prompt_rules_for(lang: &OutputLanguage) -> Vec<PromptRule> {
                 enabled: true,
             },
             PromptRule {
-                name: "Notion".to_string(),
+                name: "Terminal".to_string(),
                 match_type: MatchType::AppName,
-                match_value: "Notion".to_string(),
-                prompt: "請依 Notion 格式排版輸出，不需額外解釋。".to_string(),
+                match_value: "Terminal".to_string(),
+                prompt: "使用者正在終端機中工作（可能在執行指令或與 AI 編程助手互動）。\n\
+                         保留所有程式碼、指令、路徑、變數名稱與技術術語的原始形式，不要翻譯。\n\
+                         輸出簡潔、精確的文字，不要加額外解釋。".to_string(),
                 enabled: true,
             },
         ]
@@ -334,11 +344,12 @@ pub fn default_prompt_rules_for(lang: &OutputLanguage) -> Vec<PromptRule> {
                 enabled: true,
             },
             PromptRule {
-                name: "Notion".to_string(),
+                name: "Terminal".to_string(),
                 match_type: MatchType::AppName,
-                match_value: "Notion".to_string(),
-                prompt: "Organize the spoken content into clear, readable prose or bullet points as appropriate.\n\
-                         Use a clean, well-structured style suitable for documentation."
+                match_value: "Terminal".to_string(),
+                prompt: "The user is working in a terminal (possibly running commands or interacting with an AI coding assistant).\n\
+                         Preserve all code, commands, paths, variable names, and technical terms exactly as spoken.\n\
+                         Output concise, precise text. No extra explanation."
                     .to_string(),
                 enabled: true,
             },
@@ -419,10 +430,11 @@ fn find_matching_rule<'a>(rules: &'a [PromptRule], context: &AppContext) -> Opti
             }
         };
         if matched {
-            println!("[OpenTypeless] Prompt rule matched: \"{}\"", rule.name);
+            println!("[Voxink] Prompt rule matched: \"{}\"", rule.name);
             return Some(&rule.prompt);
         }
     }
+    println!("[Voxink] No prompt rule matched (app: {:?}, url: {:?})", context.app_name, context.url);
     None
 }
 
@@ -513,14 +525,14 @@ pub fn polish_text(
 
             // Safety: if output is empty or suspiciously long, use original
             if polished.is_empty() {
-                println!("[OpenTypeless] Polish returned empty, using original");
+                println!("[Voxink] Polish returned empty, using original");
                 return PolishResult { text: raw_text.to_string(), reasoning };
             }
             let raw_chars = raw_text.chars().count();
             let polished_chars = polished.chars().count();
             if polished_chars > raw_chars * 3 + 200 {
                 println!(
-                    "[OpenTypeless] Polish output too long ({} vs {} chars), likely hallucination — using original",
+                    "[Voxink] Polish output too long ({} vs {} chars), likely hallucination — using original",
                     polished_chars,
                     raw_chars
                 );
@@ -529,7 +541,7 @@ pub fn polish_text(
             PolishResult { text: polished, reasoning }
         }
         Err(e) => {
-            eprintln!("[OpenTypeless] Polish error: {} — using original text", e);
+            eprintln!("[Voxink] Polish error: {} — using original text", e);
             PolishResult { text: raw_text.to_string(), reasoning: None }
         }
     }
@@ -543,11 +555,17 @@ fn polish_text_inner(
     raw_text: &str,
 ) -> Result<String, String> {
     let system_prompt = build_system_prompt(config, context);
-    println!("[OpenTypeless] System prompt: {:?}", system_prompt);
-    println!("[OpenTypeless] Context: app={:?}, url={:?}", context.app_name, context.url);
+
+    // Prepend /no_think to suppress model reasoning (Qwen3 convention)
+    let user_text = if config.reasoning {
+        raw_text.to_string()
+    } else {
+        format!("/no_think\n{}", raw_text)
+    };
+
     match config.mode {
-        PolishMode::Cloud => run_cloud_inference(&config.cloud, &system_prompt, raw_text),
-        PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, &system_prompt, raw_text),
+        PolishMode::Cloud => run_cloud_inference(&config.cloud, &system_prompt, &user_text),
+        PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, &system_prompt, &user_text),
     }
 }
 
@@ -587,7 +605,7 @@ fn run_cloud_inference(
         "max_tokens": 512
     });
 
-    println!("[OpenTypeless] Cloud polish: {} via {}", model_id, endpoint);
+    println!("[Voxink] Cloud polish: {} via {}", model_id, endpoint);
     let start = std::time::Instant::now();
 
     let client = reqwest::blocking::Client::builder()
@@ -620,7 +638,7 @@ fn run_cloud_inference(
         .ok_or_else(|| format!("Unexpected response format: {}", resp_text))?;
 
     println!(
-        "[OpenTypeless] Cloud polish done: {:.0?}, raw content: {:?}",
+        "[Voxink] Cloud polish done: {:.0?}, raw content: {:?}",
         start.elapsed(),
         content
     );
@@ -655,7 +673,7 @@ fn run_llm_inference(
         if needs_reload {
             let load_start = std::time::Instant::now();
             println!(
-                "[OpenTypeless] Loading LLM: {}",
+                "[Voxink] Loading LLM: {}",
                 config.model.display_name()
             );
 
@@ -666,7 +684,7 @@ fn run_llm_inference(
             let model = LlamaModel::load_from_file(&backend, &model_path, &model_params)
                 .map_err(|e| format!("Model load: {}", e))?;
 
-            println!("[OpenTypeless] LLM loaded with GPU offload (took {:.0?})", load_start.elapsed());
+            println!("[Voxink] LLM loaded with GPU offload (took {:.0?})", load_start.elapsed());
             *cache = Some(LlmModelCache {
                 backend,
                 model,
@@ -717,7 +735,7 @@ fn run_llm_inference(
         .model
         .str_to_token(&formatted, llama_cpp_2::model::AddBos::Never)
         .map_err(|e| format!("Tokenize: {}", e))?;
-    println!("[OpenTypeless] LLM tokenized: {} tokens ({:.0?})", tokens.len(), tokenize_start.elapsed());
+    println!("[Voxink] LLM tokenized: {} tokens ({:.0?})", tokens.len(), tokenize_start.elapsed());
 
     if tokens.is_empty() {
         return Err("Empty tokenization result".to_string());
@@ -735,7 +753,7 @@ fn run_llm_inference(
 
     ctx.decode(&mut batch)
         .map_err(|e| format!("Decode prompt: {}", e))?;
-    println!("[OpenTypeless] LLM prompt eval: {:.0?} ({} tokens, {:.1} t/s)", prompt_start.elapsed(), tokens.len(), tokens.len() as f64 / prompt_start.elapsed().as_secs_f64());
+    println!("[Voxink] LLM prompt eval: {:.0?} ({} tokens, {:.1} t/s)", prompt_start.elapsed(), tokens.len(), tokens.len() as f64 / prompt_start.elapsed().as_secs_f64());
 
     // Sample tokens
     let max_tokens: usize = 512;
@@ -751,7 +769,7 @@ fn run_llm_inference(
     for _ in 0..max_tokens {
         // Timeout check
         if gen_start.elapsed() > timeout {
-            println!("[OpenTypeless] Polish inference timeout (15s)");
+            println!("[Voxink] Polish inference timeout (15s)");
             break;
         }
 
@@ -778,7 +796,7 @@ fn run_llm_inference(
     }
 
     let gen_elapsed = gen_start.elapsed();
-    println!("[OpenTypeless] LLM generation: {} tokens in {:.0?} ({:.1} t/s)", output_tokens.len(), gen_elapsed, output_tokens.len() as f64 / gen_elapsed.as_secs_f64());
+    println!("[Voxink] LLM generation: {} tokens in {:.0?} ({:.1} t/s)", output_tokens.len(), gen_elapsed, output_tokens.len() as f64 / gen_elapsed.as_secs_f64());
 
     // Decode output tokens to string
     let mut output = String::new();
@@ -838,7 +856,7 @@ pub fn ensure_model_loaded(
                 });
             }
             Err(e) => {
-                eprintln!("[OpenTypeless] LLM pre-warm load error: {}", e);
+                eprintln!("[Voxink] LLM pre-warm load error: {}", e);
             }
         }
     }
@@ -867,6 +885,6 @@ pub fn model_file_size(model_dir: &std::path::Path, model: &PolishModel) -> u64 
 pub fn invalidate_cache(llm_cache: &Mutex<Option<LlmModelCache>>) {
     if let Ok(mut cache) = llm_cache.lock() {
         *cache = None;
-        println!("[OpenTypeless] LLM model cache invalidated");
+        println!("[Voxink] LLM model cache invalidated");
     }
 }

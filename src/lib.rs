@@ -90,7 +90,7 @@ mod macos_ffi {
     /// runtime class that inherits from NSPanel and swap the window's
     /// isa pointer so the window server treats it as a panel.
     unsafe fn make_panel(ns_window: *mut c_void) {
-        let panel_class_name = b"OTLOverlayPanel\0".as_ptr();
+        let panel_class_name = b"VoxinkOverlayPanel\0".as_ptr();
         let mut cls = objc_getClass(panel_class_name);
         if cls.is_null() {
             let ns_panel = objc_getClass(b"NSPanel\0".as_ptr());
@@ -267,10 +267,10 @@ mod macos_ffi {
 mod keychain {
     use std::process::Command;
 
-    const ACCOUNT: &str = "opentypeless";
+    const ACCOUNT: &str = "voxink";
 
     fn service_name(provider: &str) -> String {
-        format!("opentypeless-api-key-{}", provider)
+        format!("voxink-api-key-{}", provider)
     }
 
     pub fn save(provider: &str, key: &str) -> Result<(), String> {
@@ -348,6 +348,113 @@ mod keychain {
     }
 }
 
+// ── STT (Speech-to-Text) config ─────────────────────────────────────────────
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SttMode {
+    #[default]
+    Local,
+    Cloud,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SttProvider {
+    #[default]
+    Deepgram,
+    Groq,
+    OpenAi,
+    Azure,
+    Custom,
+}
+
+impl SttProvider {
+    pub fn as_key(&self) -> &'static str {
+        match self {
+            Self::Deepgram => "stt_deepgram",
+            Self::Groq => "stt_groq",
+            Self::OpenAi => "stt_open_ai",
+            Self::Azure => "stt_azure",
+            Self::Custom => "stt_custom",
+        }
+    }
+
+    pub fn default_endpoint(&self) -> &'static str {
+        match self {
+            Self::Deepgram => "https://api.deepgram.com/v1/listen",
+            Self::Groq => "https://api.groq.com/openai/v1/audio/transcriptions",
+            Self::OpenAi => "https://api.openai.com/v1/audio/transcriptions",
+            Self::Azure => "", // user must provide: https://<region>.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1
+            Self::Custom => "",
+        }
+    }
+
+    pub fn default_model(&self) -> &'static str {
+        match self {
+            Self::Deepgram => "whisper",
+            Self::Groq => "whisper-large-v3-turbo",
+            Self::OpenAi => "whisper-1",
+            Self::Azure => "", // Azure does not use a model parameter
+            Self::Custom => "",
+        }
+    }
+
+    /// Whether this provider uses the OpenAI-compatible multipart API.
+    pub fn is_openai_compatible(&self) -> bool {
+        matches!(self, Self::Groq | Self::OpenAi | Self::Custom)
+    }
+
+    /// Whether the provider requires an endpoint URL from the user.
+    pub fn requires_endpoint(&self) -> bool {
+        matches!(self, Self::Azure | Self::Custom)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SttCloudConfig {
+    #[serde(default)]
+    pub provider: SttProvider,
+    #[serde(skip)]
+    pub api_key: String,
+    #[serde(default)]
+    pub endpoint: String,
+    #[serde(default = "default_stt_model_id")]
+    pub model_id: String,
+    /// BCP-47 language code for STT (e.g. "zh-TW", "en", "ja").
+    /// Empty string means auto-detect (provider-dependent).
+    #[serde(default = "default_stt_language")]
+    pub language: String,
+}
+
+fn default_stt_model_id() -> String {
+    "whisper".to_string()
+}
+
+fn default_stt_language() -> String {
+    "zh-TW".to_string()
+}
+
+impl Default for SttCloudConfig {
+    fn default() -> Self {
+        Self {
+            provider: SttProvider::default(),
+            api_key: String::new(),
+            endpoint: String::new(),
+            model_id: default_stt_model_id(),
+            language: default_stt_language(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct SttConfig {
+    #[serde(default)]
+    pub mode: SttMode,
+    #[serde(default)]
+    pub cloud: SttCloudConfig,
+}
+
 // ── Settings ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -362,6 +469,8 @@ pub struct Settings {
     /// UI language override. None = auto-detect from system.
     #[serde(default)]
     pub language: Option<String>,
+    #[serde(default)]
+    pub stt: SttConfig,
 }
 
 impl Default for Settings {
@@ -372,16 +481,17 @@ impl Default for Settings {
             polish: polisher::PolishConfig::default(),
             history_retention_days: 0, // forever
             language: None,
+            stt: SttConfig::default(),
         }
     }
 }
 
-// ── Consolidated data directory: ~/.opentypeless ─────────────────────────────
+// ── Consolidated data directory: ~/.voxink ───────────────────────────────────
 
 fn base_dir() -> PathBuf {
     dirs::home_dir()
         .expect("no home dir")
-        .join(".opentypeless")
+        .join(".voxink")
 }
 fn config_dir() -> PathBuf {
     base_dir().join("config")
@@ -643,7 +753,7 @@ fn spawn_audio_thread(
                             }
                         }
                     },
-                    |err| eprintln!("[OpenTypeless] audio stream error: {}", err),
+                    |err| eprintln!("[Voxink] audio stream error: {}", err),
                     None,
                 ),
                 cpal::SampleFormat::I16 => {
@@ -670,7 +780,7 @@ fn spawn_audio_thread(
                                 }
                             }
                         },
-                        |err| eprintln!("[OpenTypeless] audio stream error: {}", err),
+                        |err| eprintln!("[Voxink] audio stream error: {}", err),
                         None,
                     )
                 }
@@ -698,7 +808,7 @@ fn spawn_audio_thread(
         }
 
         println!(
-            "[OpenTypeless] Audio stream always-on: {} Hz, {} ch",
+            "[Voxink] Audio stream always-on: {} Hz, {} ch",
             sample_rate, channels
         );
         let _ = init_tx.send(Ok(sample_rate));
@@ -726,7 +836,7 @@ fn try_reconnect_audio(state: &AppState) -> Result<(), String> {
     let sr = spawn_audio_thread(Arc::clone(&state.buffer), Arc::clone(&state.is_recording))?;
     *state.sample_rate.lock().map_err(|e| e.to_string())? = Some(sr);
     state.mic_available.store(true, Ordering::SeqCst);
-    println!("[OpenTypeless] Microphone reconnected: {} Hz", sr);
+    println!("[Voxink] Microphone reconnected: {} Hz", sr);
     Ok(())
 }
 
@@ -746,6 +856,7 @@ fn save_settings(
     current.auto_paste = new_settings.auto_paste;
     current.polish = new_settings.polish;
     current.history_retention_days = new_settings.history_retention_days;
+    current.stt = new_settings.stt;
     save_settings_to_disk(&current);
     Ok(())
 }
@@ -777,11 +888,11 @@ fn update_hotkey(
     // Update tray tooltip
     let label = hotkey_display_label(&new_hotkey);
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(&format!("OpenTypeless – {} to record", label)));
+        let _ = tray.set_tooltip(Some(&format!("Voxink – {} to record", label)));
     }
 
     println!(
-        "[OpenTypeless] Hotkey updated to: {} ({})",
+        "[Voxink] Hotkey updated to: {} ({})",
         new_hotkey, label
     );
     Ok(())
@@ -816,10 +927,10 @@ fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), Stri
     // Update tray tooltip
     let label = hotkey_display_label(&default_hotkey);
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(&format!("OpenTypeless – {} to record", label)));
+        let _ = tray.set_tooltip(Some(&format!("Voxink – {} to record", label)));
     }
 
-    println!("[OpenTypeless] Settings reset to defaults (hotkey: {})", label);
+    println!("[Voxink] Settings reset to defaults (hotkey: {})", label);
     Ok(())
 }
 
@@ -936,7 +1047,13 @@ fn start_recording(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 fn stop_recording(state: State<'_, AppState>) -> Result<String, String> {
-    do_stop_recording(&state).map(|(text, _samples)| text)
+    let mut stt_config = state.settings.lock().map_err(|e| e.to_string())?.stt.clone();
+    if stt_config.mode == SttMode::Cloud {
+        if let Ok(key) = keychain::load(stt_config.cloud.provider.as_key()) {
+            stt_config.cloud.api_key = key;
+        }
+    }
+    do_stop_recording(&state, &stt_config).map(|(text, _samples)| text)
 }
 
 #[tauri::command]
@@ -1141,7 +1258,7 @@ fn download_model(app: AppHandle) -> Result<(), String> {
         if let Some(app_state) = app.try_state::<AppState>() {
             if let Ok(mut ctx) = app_state.whisper_ctx.lock() {
                 *ctx = None;
-                println!("[OpenTypeless] Whisper context cache invalidated after model download");
+                println!("[Voxink] Whisper context cache invalidated after model download");
             }
         }
 
@@ -1151,7 +1268,7 @@ fn download_model(app: AppHandle) -> Result<(), String> {
             "total": total,
             "percent": 100.0
         }));
-        println!("[OpenTypeless] Whisper model downloaded: {:?}", model_path);
+        println!("[Voxink] Whisper model downloaded: {:?}", model_path);
     });
 
     Ok(())
@@ -1316,7 +1433,7 @@ fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
             "total": total,
             "percent": 100.0
         }));
-        println!("[OpenTypeless] LLM model downloaded: {:?}", model_path);
+        println!("[Voxink] LLM model downloaded: {:?}", model_path);
     });
 
     Ok(())
@@ -1389,7 +1506,7 @@ fn transcribe_with_cached_whisper(
     if ctx_guard.is_none() {
         let model_path = whisper_model_path()?;
         let load_start = Instant::now();
-        println!("[OpenTypeless] Loading Whisper model (first use)...");
+        println!("[Voxink] Loading Whisper model (first use)...");
         let mut ctx_params = WhisperContextParameters::new();
         ctx_params.use_gpu(true);
         let ctx = WhisperContext::new_with_params(
@@ -1398,7 +1515,7 @@ fn transcribe_with_cached_whisper(
         )
         .map_err(|e| format!("Failed to load whisper model: {}", e))?;
         *ctx_guard = Some(ctx);
-        println!("[OpenTypeless] Whisper model loaded with GPU enabled (took {:.0?})", load_start.elapsed());
+        println!("[Voxink] Whisper model loaded with GPU enabled (took {:.0?})", load_start.elapsed());
     }
 
     let ctx = ctx_guard.as_ref().unwrap();
@@ -1407,7 +1524,7 @@ fn transcribe_with_cached_whisper(
     let mut wh_state = ctx
         .create_state()
         .map_err(|e| format!("Failed to create whisper state: {}", e))?;
-    println!("[OpenTypeless] Whisper state created: {:.0?}", state_start.elapsed());
+    println!("[Voxink] Whisper state created: {:.0?}", state_start.elapsed());
 
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     params.set_language(None); // auto-detect language
@@ -1424,7 +1541,7 @@ fn transcribe_with_cached_whisper(
     wh_state
         .full(params, samples_16k)
         .map_err(|e| format!("Whisper inference failed: {}", e))?;
-    println!("[OpenTypeless] Whisper wh_state.full() done: {:.0?}", infer_start.elapsed());
+    println!("[Voxink] Whisper wh_state.full() done: {:.0?}", infer_start.elapsed());
 
     let num_segments = wh_state.full_n_segments();
 
@@ -1440,8 +1557,184 @@ fn transcribe_with_cached_whisper(
     Ok(text.trim().to_string())
 }
 
+/// Transcribe audio via a cloud STT API (OpenAI-compatible `/v1/audio/transcriptions`).
+fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32]) -> Result<String, String> {
+    if stt_cloud.api_key.is_empty() {
+        return Err("Cloud STT API key is not set. Please configure it in Settings.".to_string());
+    }
+
+    let endpoint = if stt_cloud.provider == SttProvider::Azure {
+        // For Azure, the endpoint field stores just the region name (e.g. "eastus").
+        // Construct the full URL from it.
+        let region = stt_cloud.endpoint.trim();
+        if region.is_empty() {
+            return Err("Azure region is not configured. Please set it in Settings.".to_string());
+        }
+        format!(
+            "https://{}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1",
+            region
+        )
+    } else if stt_cloud.endpoint.is_empty() {
+        stt_cloud.provider.default_endpoint().to_string()
+    } else {
+        stt_cloud.endpoint.clone()
+    };
+    if endpoint.is_empty() {
+        return Err("Cloud STT endpoint is not configured.".to_string());
+    }
+
+    let model_id = if stt_cloud.model_id.is_empty() {
+        stt_cloud.provider.default_model().to_string()
+    } else {
+        stt_cloud.model_id.clone()
+    };
+
+    // Encode f32 samples → 16-bit PCM WAV in-memory (manual header)
+    let wav_bytes = {
+        let num_samples = samples_16k.len();
+        let data_size = (num_samples * 2) as u32;
+        let file_size = 36 + data_size;
+        let mut buf = Vec::with_capacity(44 + data_size as usize);
+
+        // RIFF header
+        buf.extend_from_slice(b"RIFF");
+        buf.extend_from_slice(&file_size.to_le_bytes());
+        buf.extend_from_slice(b"WAVE");
+        // fmt chunk
+        buf.extend_from_slice(b"fmt ");
+        buf.extend_from_slice(&16u32.to_le_bytes());    // chunk size
+        buf.extend_from_slice(&1u16.to_le_bytes());     // PCM format
+        buf.extend_from_slice(&1u16.to_le_bytes());     // 1 channel
+        buf.extend_from_slice(&16000u32.to_le_bytes()); // sample rate
+        buf.extend_from_slice(&32000u32.to_le_bytes()); // byte rate
+        buf.extend_from_slice(&2u16.to_le_bytes());     // block align
+        buf.extend_from_slice(&16u16.to_le_bytes());    // bits per sample
+        // data chunk
+        buf.extend_from_slice(b"data");
+        buf.extend_from_slice(&data_size.to_le_bytes());
+        // samples
+        for &s in samples_16k {
+            let clamped = s.clamp(-1.0, 1.0);
+            let val = (clamped * 32767.0) as i16;
+            buf.extend_from_slice(&val.to_le_bytes());
+        }
+        buf
+    };
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let language = &stt_cloud.language;
+
+    let resp = match stt_cloud.provider {
+        // Deepgram: raw binary body + Token auth + query params
+        SttProvider::Deepgram => {
+            let lang_param = if language.is_empty() { "multi".to_string() } else { language.clone() };
+            let url = format!("{}?model={}&language={}&punctuate=true&smart_format=true",
+                endpoint, model_id, lang_param);
+            client
+                .post(&url)
+                .header("Authorization", format!("Token {}", stt_cloud.api_key))
+                .header("Content-Type", "audio/wav")
+                .body(wav_bytes)
+                .send()
+                .map_err(|e| format!("Cloud STT request failed: {}", e))?
+        }
+        // Azure: raw binary body + Ocp-Apim-Subscription-Key header + language query param
+        SttProvider::Azure => {
+            let lang_param = if language.is_empty() { "en-US".to_string() } else { language.clone() };
+            let url = format!("{}?language={}&format=simple", endpoint, lang_param);
+            client
+                .post(&url)
+                .header("Ocp-Apim-Subscription-Key", &stt_cloud.api_key)
+                .header("Content-Type", "audio/wav; codecs=audio/pcm; samplerate=16000")
+                .header("Accept", "application/json")
+                .body(wav_bytes)
+                .send()
+                .map_err(|e| format!("Cloud STT request failed: {}", e))?
+        }
+        // Groq / OpenAI / Custom: multipart/form-data + Bearer auth
+        _ => {
+            let file_part = reqwest::blocking::multipart::Part::bytes(wav_bytes)
+                .file_name("audio.wav")
+                .mime_str("audio/wav")
+                .map_err(|e| format!("Failed to create multipart part: {}", e))?;
+
+            let mut form = reqwest::blocking::multipart::Form::new()
+                .part("file", file_part)
+                .text("model", model_id)
+                .text("response_format", "json");
+
+            if !language.is_empty() {
+                let iso_lang = language.split('-').next().unwrap_or("").to_string();
+                if !iso_lang.is_empty() {
+                    form = form.text("language", iso_lang);
+                }
+            }
+
+            client
+                .post(&endpoint)
+                .header("Authorization", format!("Bearer {}", stt_cloud.api_key))
+                .multipart(form)
+                .send()
+                .map_err(|e| format!("Cloud STT request failed: {}", e))?
+        }
+    };
+
+    let status = resp.status();
+    let body = resp
+        .text()
+        .map_err(|e| format!("Failed to read Cloud STT response: {}", e))?;
+
+    if !status.is_success() {
+        return Err(format!("Cloud STT returned HTTP {}: {}", status, body));
+    }
+
+    let json: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| format!("Failed to parse Cloud STT response: {} — body: {}", e, body))?;
+
+    let text = match stt_cloud.provider {
+        // Deepgram: results.channels[0].alternatives[0].transcript
+        SttProvider::Deepgram => {
+            json["results"]["channels"]
+                .as_array()
+                .and_then(|ch| ch.first())
+                .and_then(|c| c["alternatives"].as_array())
+                .and_then(|alts| alts.first())
+                .and_then(|a| a["transcript"].as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        }
+        // Azure: DisplayText
+        SttProvider::Azure => {
+            json["DisplayText"]
+                .as_str()
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        }
+        // OpenAI-compatible: text
+        _ => {
+            json["text"]
+                .as_str()
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        }
+    };
+
+    if text.is_empty() {
+        Err("no_speech".to_string())
+    } else {
+        Ok(text)
+    }
+}
+
 /// Stop recording, transcribe, and return the text + 16 kHz samples for history.
-fn do_stop_recording(state: &AppState) -> Result<(String, Vec<f32>), String> {
+fn do_stop_recording(state: &AppState, stt_config: &SttConfig) -> Result<(String, Vec<f32>), String> {
     let sample_rate = state
         .sample_rate
         .lock()
@@ -1468,16 +1761,16 @@ fn do_stop_recording(state: &AppState) -> Result<(String, Vec<f32>), String> {
     }
 
     println!(
-        "[OpenTypeless] Raw captured: {} samples @ {} Hz = {:.2}s",
+        "[Voxink] [timing] recording: {:.2}s ({} samples @ {} Hz)",
+        samples.len() as f64 / sample_rate as f64,
         samples.len(),
         sample_rate,
-        samples.len() as f64 / sample_rate as f64
     );
 
     let t0 = Instant::now();
     let mut samples_16k = if sample_rate != 16000 {
         let resampled = resample(&samples, sample_rate, 16000);
-        println!("[OpenTypeless] Resample {} Hz → 16 kHz: {:.0?}", sample_rate, t0.elapsed());
+        println!("[Voxink] [timing] resample {} Hz → 16 kHz: {:.0?}", sample_rate, t0.elapsed());
         resampled
     } else {
         samples
@@ -1502,7 +1795,7 @@ fn do_stop_recording(state: &AppState) -> Result<(String, Vec<f32>), String> {
     let trim_start = speech_onset.saturating_sub(LOOKBACK);
     if trim_start > 0 {
         println!(
-            "[OpenTypeless] Trimmed {:.0} ms of leading silence (onset at {:.0} ms)",
+            "[Voxink] Trimmed {:.0} ms of leading silence (onset at {:.0} ms)",
             trim_start as f64 / 16.0,
             speech_onset as f64 / 16.0
         );
@@ -1525,19 +1818,26 @@ fn do_stop_recording(state: &AppState) -> Result<(String, Vec<f32>), String> {
         let trim_end = (last_speech + LOOKBACK).min(total);
         if trim_end < total {
             println!(
-                "[OpenTypeless] Trimmed {:.0} ms of trailing silence",
+                "[Voxink] Trimmed {:.0} ms of trailing silence",
                 (total - trim_end) as f64 / 16.0
             );
             samples_16k.truncate(trim_end);
         }
     }
 
-    println!("[OpenTypeless] Audio after trim: {:.2}s ({} samples)", samples_16k.len() as f64 / 16000.0, samples_16k.len());
-
-    let whisper_start = Instant::now();
-    println!("[OpenTypeless] Transcribing via Whisper (local)...");
-    let text = transcribe_with_cached_whisper(state, &samples_16k)?;
-    println!("[OpenTypeless] Whisper raw: {} (inference took {:.0?})", text, whisper_start.elapsed());
+    let stt_start = Instant::now();
+    let text = match stt_config.mode {
+        SttMode::Local => {
+            let result = transcribe_with_cached_whisper(state, &samples_16k)?;
+            println!("[Voxink] [timing] STT (local whisper): {:.0?}", stt_start.elapsed());
+            result
+        }
+        SttMode::Cloud => {
+            let result = run_cloud_stt(&stt_config.cloud, &samples_16k)?;
+            println!("[Voxink] [timing] STT (cloud {}): {:.0?}", stt_config.cloud.provider.as_key(), stt_start.elapsed());
+            result
+        }
+    };
 
     if text.is_empty() {
         Err("no_speech".to_string())
@@ -1599,7 +1899,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
-        println!("[OpenTypeless] stop_transcribe_and_paste: already processing, skipping");
+        println!("[Voxink] stop_transcribe_and_paste: already processing, skipping");
         return;
     }
 
@@ -1607,23 +1907,30 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         let _ = overlay.emit("recording-status", "transcribing");
     }
 
-    println!("[OpenTypeless] ⏹️ Stopping recording...");
+    println!("[Voxink] ⏹️ Stopping recording...");
 
     let app_handle = app.clone();
     std::thread::spawn(move || {
         let pipeline_start = Instant::now();
         let state = app_handle.state::<AppState>();
 
-        let (auto_paste, polish_config, retention_days) = state
+        let (auto_paste, polish_config, retention_days, mut stt_config) = state
             .settings
             .lock()
-            .map(|s| (s.auto_paste, s.polish.clone(), s.history_retention_days))
-            .unwrap_or((true, polisher::PolishConfig::default(), 0));
+            .map(|s| (s.auto_paste, s.polish.clone(), s.history_retention_days, s.stt.clone()))
+            .unwrap_or((true, polisher::PolishConfig::default(), 0, SttConfig::default()));
 
-        match do_stop_recording(&state) {
+        // Inject STT API key from keychain for cloud mode
+        if stt_config.mode == SttMode::Cloud {
+            if let Ok(key) = keychain::load(stt_config.cloud.provider.as_key()) {
+                stt_config.cloud.api_key = key;
+            }
+        }
+
+        match do_stop_recording(&state, &stt_config) {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
-                println!("[OpenTypeless] ✅ Transcribed: {} (took {:.0?})", text, transcribe_elapsed);
+                println!("[Voxink] [timing] stop→transcribed: {:.0?} | text: {}", transcribe_elapsed, text);
                 let raw_text = text.clone();
                 let audio_duration_secs = samples_16k.len() as f64 / 16000.0;
 
@@ -1645,8 +1952,6 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                             polisher::PolishMode::Cloud => format!("Cloud ({})", polish_config.cloud.model_id),
                             polisher::PolishMode::Local => format!("Local ({})", polish_config.model.display_name()),
                         };
-                        println!("[OpenTypeless] ✨ Polishing with {}...", mode_label);
-
                         let context = state
                             .captured_context
                             .lock()
@@ -1662,10 +1967,10 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                             &context,
                             &text,
                         );
-                        println!("[OpenTypeless] ✨ Polished: {:?} (took {:.0?})", result.text, polish_start.elapsed());
+                        println!("[Voxink] [timing] polish ({}): {:.0?} | text: {:?}", mode_label, polish_start.elapsed(), result.text);
                         (result.text, result.reasoning)
                     } else {
-                        println!("[OpenTypeless] Polish enabled but not ready (model missing or no API key), skipping");
+                        println!("[Voxink] Polish enabled but not ready (model missing or no API key), skipping");
                         (text, None)
                     }
                 } else {
@@ -1681,14 +1986,14 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 let clipboard_ok = match arboard::Clipboard::new() {
                     Ok(mut clipboard) => {
                         if let Err(e) = clipboard.set_text(&text) {
-                            eprintln!("[OpenTypeless] Clipboard error: {}", e);
+                            eprintln!("[Voxink] Clipboard error: {}", e);
                             false
                         } else {
                             true
                         }
                     }
                     Err(e) => {
-                        eprintln!("[OpenTypeless] Clipboard init error: {}", e);
+                        eprintln!("[Voxink] Clipboard init error: {}", e);
                         false
                     }
                 };
@@ -1701,30 +2006,35 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                     if auto_paste {
                         let pasted = paste_with_cmd_v();
                         if pasted {
-                            println!("[OpenTypeless] 📋 Auto-pasted at cursor");
+                            println!("[Voxink] 📋 Auto-pasted at cursor");
                             if let Some(overlay) = app_handle.get_webview_window("overlay") {
                                 let _ = overlay.emit("recording-status", "pasted");
                             }
                         } else {
-                            println!("[OpenTypeless] 📋 Copied to clipboard (paste simulation failed)");
+                            println!("[Voxink] 📋 Copied to clipboard (paste simulation failed)");
                             if let Some(overlay) = app_handle.get_webview_window("overlay") {
                                 let _ = overlay.emit("recording-status", "copied");
                             }
                         }
                     } else {
-                        println!("[OpenTypeless] 📋 Copied to clipboard (auto-paste disabled)");
+                        println!("[Voxink] 📋 Copied to clipboard (auto-paste disabled)");
                         if let Some(overlay) = app_handle.get_webview_window("overlay") {
                             let _ = overlay.emit("recording-status", "copied");
                         }
                     }
                 }
 
-                println!("[OpenTypeless] ⏱️ Total pipeline: {:.0?} (from stop-recording to paste-done)", pipeline_start.elapsed());
+                println!("[Voxink] [timing] total pipeline: {:.0?}", pipeline_start.elapsed());
 
                 // ── Save to history ──
                 {
                     let entry_id = history::generate_id();
-                    let stt_model = "Whisper large-v3-turbo-zh-TW".to_string();
+                    let stt_model = match stt_config.mode {
+                        SttMode::Cloud => {
+                            format!("{} (Cloud/{})", stt_config.cloud.model_id, stt_config.cloud.provider.as_key())
+                        }
+                        SttMode::Local => "Whisper large-v3-turbo-zh-TW".to_string(),
+                    };
                     let polish_model_name = if polish_config.enabled {
                         match polish_config.mode {
                             polisher::PolishMode::Cloud => {
@@ -1753,14 +2063,14 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         has_audio,
                     };
                     history::add_entry(&history_dir(), &audio_dir(), entry, retention_days);
-                    println!("[OpenTypeless] 📝 History entry saved (audio={})", has_audio);
+                    println!("[Voxink] 📝 History entry saved (audio={})", has_audio);
                 }
             }
             Err(ref e) if e == "no_speech" => {
-                println!("[OpenTypeless] No speech detected, skipping (took {:.0?})", pipeline_start.elapsed());
+                println!("[Voxink] No speech detected, skipping (took {:.0?})", pipeline_start.elapsed());
             }
             Err(e) => {
-                eprintln!("[OpenTypeless] Transcription error: {} (after {:.0?})", e, pipeline_start.elapsed());
+                eprintln!("[Voxink] Transcription error: {} (after {:.0?})", e, pipeline_start.elapsed());
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "error");
                 }
@@ -2019,7 +2329,7 @@ pub fn run() {
                 match spawn_audio_thread(Arc::clone(&buffer), Arc::clone(&is_recording)) {
                     Ok(sr) => (true, Some(sr)),
                     Err(e) => {
-                        eprintln!("[OpenTypeless] Audio init failed: {}", e);
+                        eprintln!("[Voxink] Audio init failed: {}", e);
                         (false, None)
                     }
                 };
@@ -2053,11 +2363,15 @@ pub fn run() {
                     let warmup_start = Instant::now();
                     let state = app_handle.state::<AppState>();
 
-                    // Pre-warm Whisper
+                    // Pre-warm Whisper (only for local STT mode)
+                    let stt_mode = state.settings.lock()
+                        .map(|s| s.stt.mode.clone())
+                        .unwrap_or_default();
+                    if stt_mode == SttMode::Local {
                     if let Ok(model_path) = whisper_model_path() {
                         let mut ctx_guard = state.whisper_ctx.lock().unwrap();
                         if ctx_guard.is_none() {
-                            println!("[OpenTypeless] Pre-warming Whisper model...");
+                            println!("[Voxink] Pre-warming Whisper model...");
                             let mut ctx_params = WhisperContextParameters::new();
                             ctx_params.use_gpu(true);
                             match WhisperContext::new_with_params(
@@ -2066,13 +2380,14 @@ pub fn run() {
                             ) {
                                 Ok(ctx) => {
                                     *ctx_guard = Some(ctx);
-                                    println!("[OpenTypeless] Whisper model pre-warmed ({:.0?})", warmup_start.elapsed());
+                                    println!("[Voxink] Whisper model pre-warmed ({:.0?})", warmup_start.elapsed());
                                 }
                                 Err(e) => {
-                                    eprintln!("[OpenTypeless] Whisper pre-warm failed: {}", e);
+                                    eprintln!("[Voxink] Whisper pre-warm failed: {}", e);
                                 }
                             }
                         }
+                    }
                     }
 
                     // Pre-warm LLM (only for local mode)
@@ -2083,13 +2398,13 @@ pub fn run() {
                         let model_dir = models_dir();
                         if polisher::model_file_exists(&model_dir, &polish_config.model) {
                             let llm_start = Instant::now();
-                            println!("[OpenTypeless] Pre-warming LLM ({})...", polish_config.model.display_name());
+                            println!("[Voxink] Pre-warming LLM ({})...", polish_config.model.display_name());
                             polisher::ensure_model_loaded(&state.llm_model, &model_dir, &polish_config);
-                            println!("[OpenTypeless] LLM pre-warmed ({:.0?})", llm_start.elapsed());
+                            println!("[Voxink] LLM pre-warmed ({:.0?})", llm_start.elapsed());
                         }
                     }
 
-                    println!("[OpenTypeless] All models pre-warmed ({:.0?} total)", warmup_start.elapsed());
+                    println!("[Voxink] All models pre-warmed ({:.0?} total)", warmup_start.elapsed());
                 });
             }
 
@@ -2097,7 +2412,7 @@ pub fn run() {
             let settings_i =
                 MenuItem::with_id(app, "settings", "Settings...", true, None::<&str>)?;
             let quit_i =
-                MenuItem::with_id(app, "quit", "Quit OpenTypeless", true, None::<&str>)?;
+                MenuItem::with_id(app, "quit", "Quit Voxink", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&settings_i, &quit_i])?;
 
             let tooltip_label = hotkey_display_label(&hotkey_str);
@@ -2105,7 +2420,7 @@ pub fn run() {
                 .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png")).unwrap())
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .tooltip(format!("OpenTypeless – {} to record", tooltip_label))
+                .tooltip(format!("Voxink – {} to record", tooltip_label))
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "settings" => {
                         show_settings_window(app);
@@ -2206,7 +2521,8 @@ pub fn run() {
 
                                 match do_start_recording(&state) {
                                     Ok(()) => {
-                                        println!("[OpenTypeless] 🎙️ Recording started");
+                                        println!("[Voxink] 🎙️ Recording started (app: {:?}, bundle: {:?}, url: {:?})",
+                                            captured_ctx.app_name, captured_ctx.bundle_id, captured_ctx.url);
 
                                         // Store captured context for later use by polisher
                                         if let Ok(mut ctx) = state.captured_context.lock() {
@@ -2258,7 +2574,7 @@ pub fn run() {
                                             while state.is_recording.load(Ordering::SeqCst) {
                                                 // Auto-stop when max duration is reached
                                                 if recording_start.elapsed().as_secs() >= MAX_RECORDING_SECS {
-                                                    println!("[OpenTypeless] ⏱️ Max recording duration reached ({}s)", MAX_RECORDING_SECS);
+                                                    println!("[Voxink] ⏱️ Max recording duration reached ({}s)", MAX_RECORDING_SECS);
                                                     stop_transcribe_and_paste(&app_for_monitor);
                                                     return;
                                                 }
@@ -2295,7 +2611,7 @@ pub fn run() {
                                     }
                                     Err(e) => {
                                         eprintln!(
-                                            "[OpenTypeless] Failed to start recording: {}",
+                                            "[Voxink] Failed to start recording: {}",
                                             e
                                         );
                                         // Hide overlay on failure
@@ -2320,7 +2636,7 @@ pub fn run() {
                 app.global_shortcut().register(shortcut)?;
                 let label = hotkey_display_label(&hotkey_str);
                 println!(
-                    "[OpenTypeless] {} global shortcut registered",
+                    "[Voxink] {} global shortcut registered",
                     label
                 );
             }
