@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recording Indicator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            background: transparent;
+            overflow: hidden;
+            height: 100%;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* ── Capsule ── */
+        .capsule {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 22px;
+            height: 40px;
+            border-radius: 100px;
+            background: rgba(12, 12, 16, 0.88);
+            backdrop-filter: blur(40px) saturate(1.6);
+            -webkit-backdrop-filter: blur(40px) saturate(1.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.45),
+                0 0 0 0.5px rgba(255, 255, 255, 0.06),
+                inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.92);
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px) scale(0.96); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ── Recording dot ── */
+        .dot {
+            position: relative;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff3b30;
+            flex-shrink: 0;
+            animation: dotPulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .dot::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            background: rgba(255, 59, 48, 0.25);
+            animation: ringPulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes dotPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.55; }
+        }
+
+        @keyframes ringPulse {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.5); opacity: 0; }
+        }
+
+        /* ── Spinner ── */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            border-top-color: #a78bfa;
+            border-radius: 50%;
+            flex-shrink: 0;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ── Result icon (pure CSS) ── */
+        .icon-result {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            display: none;
+            position: relative;
+        }
+
+        /* Checkmark */
+        .icon-check {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #34c759;
+        }
+
+        .icon-check::after {
+            content: '';
+            position: absolute;
+            top: 3.5px;
+            left: 5.5px;
+            width: 4px;
+            height: 7px;
+            border: solid #fff;
+            border-width: 0 1.8px 1.8px 0;
+            transform: rotate(45deg);
+        }
+
+        /* Error X */
+        .icon-error {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ff3b30;
+        }
+
+        .icon-error::before,
+        .icon-error::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 1.8px;
+            background: #fff;
+            border-radius: 1px;
+        }
+
+        .icon-error::before {
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+
+        .icon-error::after {
+            transform: translate(-50%, -50%) rotate(-45deg);
+        }
+
+        /* ── Text ── */
+        .label {
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+            line-height: 1;
+        }
+
+        .timer {
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.4);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.02em;
+            margin-left: auto;
+            line-height: 1;
+        }
+
+        /* ── Waveform canvas ── */
+        .waveform {
+            display: none;
+            flex-shrink: 0;
+            width: 78px;
+            height: 24px;
+        }
+
+        /* ── State: Recording (orange → red gradient via --rec-progress) ── */
+        .capsule.recording {
+            --rec-progress: 0;
+            background: color-mix(
+                in srgb,
+                rgba(255, 140, 0, 0.92) calc((1 - var(--rec-progress)) * 100%),
+                rgba(255, 59, 48, 0.92)
+            );
+            border-color: rgba(255, 200, 100, 0.15);
+            box-shadow:
+                0 8px 32px color-mix(
+                    in srgb,
+                    rgba(255, 140, 0, 0.35) calc((1 - var(--rec-progress)) * 100%),
+                    rgba(255, 59, 48, 0.35)
+                ),
+                0 0 0 0.5px rgba(255, 255, 255, 0.08),
+                inset 0 0.5px 0 rgba(255, 255, 255, 0.12);
+        }
+
+        .capsule.recording .dot { display: none; }
+        .capsule.recording .spinner { display: none; }
+        .capsule.recording .waveform { display: block; }
+        .capsule.recording .icon-result { display: none; }
+
+        /* ── State: Preparing (hardware warming up) ── */
+        .capsule.preparing .dot { display: none; }
+        .capsule.preparing .spinner { display: block; }
+        .capsule.preparing .timer { display: none; }
+        .capsule.preparing .icon-result { display: none; }
+
+        /* ── State: Processing ── */
+        .capsule.processing .dot { display: none; }
+        .capsule.processing .spinner { display: block; }
+        .capsule.processing .timer { display: none; }
+        .capsule.processing .icon-result { display: none; }
+
+        /* ── State: Transcribing ── */
+        .capsule.transcribing .dot { display: none; }
+        .capsule.transcribing .spinner { display: block; }
+        .capsule.transcribing .timer { display: none; }
+        .capsule.transcribing .icon-result { display: none; }
+
+        /* ── State: Polishing (purple tint) ── */
+        .capsule.polishing {
+            border-color: rgba(167, 139, 250, 0.25);
+            box-shadow:
+                0 8px 32px rgba(167, 139, 250, 0.15),
+                0 0 0 0.5px rgba(255, 255, 255, 0.06),
+                inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+        }
+        .capsule.polishing .dot { display: none; }
+        .capsule.polishing .spinner {
+            display: block;
+            border-top-color: #c084fc;
+        }
+        .capsule.polishing .timer { display: none; }
+        .capsule.polishing .icon-result { display: none; }
+
+        /* ── State: Result ── */
+        .capsule.result .dot { display: none; }
+        .capsule.result .spinner { display: none; }
+        .capsule.result .timer { display: none; }
+        .capsule.result .icon-result { display: flex; }
+
+        .capsule.result.success {
+            border-color: rgba(52, 199, 89, 0.2);
+        }
+
+        .capsule.result.error-state {
+            border-color: rgba(255, 59, 48, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="capsule" class="capsule">
+        <div class="dot"></div>
+        <div class="spinner"></div>
+        <canvas class="waveform" id="waveform"></canvas>
+        <div class="icon-result" id="iconResult"></div>
+        <span class="label" id="label" data-i18n="overlay.recording">Recording</span>
+        <span class="timer" id="timer">0:00</span>
+    </div>
+
+    <script src="i18n.js"></script>
+    <script>
+        const capsule = document.getElementById('capsule');
+        const label = document.getElementById('label');
+        const timerEl = document.getElementById('timer');
+        const iconResult = document.getElementById('iconResult');
+
+        // ── Waveform setup ──
+        const NUM_BARS = 20;
+        const BAR_W = 2;
+        const BAR_GAP = 2;
+        const CW = NUM_BARS * (BAR_W + BAR_GAP) - BAR_GAP; // 78
+        const CH = 24;
+
+        const waveCanvas = document.getElementById('waveform');
+        const waveCtx = waveCanvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        waveCanvas.width = CW * dpr;
+        waveCanvas.height = CH * dpr;
+        waveCanvas.style.width = CW + 'px';
+        waveCanvas.style.height = CH + 'px';
+        waveCtx.scale(dpr, dpr);
+
+        let currentLevels = new Array(NUM_BARS).fill(0);
+        let targetLevels = new Array(NUM_BARS).fill(0);
+        let waveAnimId = null;
+
+        function animateWaveform() {
+            waveCtx.clearRect(0, 0, CW, CH);
+            waveCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            for (let i = 0; i < NUM_BARS; i++) {
+                currentLevels[i] += (targetLevels[i] - currentLevels[i]) * 0.25;
+                const h = Math.max(3, currentLevels[i] * CH);
+                const x = i * (BAR_W + BAR_GAP);
+                const y = (CH - h) / 2;
+                waveCtx.fillRect(x, y, BAR_W, h);
+            }
+            waveAnimId = requestAnimationFrame(animateWaveform);
+        }
+
+        function startWaveform() {
+            currentLevels.fill(0);
+            targetLevels.fill(0);
+            if (!waveAnimId) animateWaveform();
+        }
+
+        function stopWaveform() {
+            if (waveAnimId) {
+                cancelAnimationFrame(waveAnimId);
+                waveAnimId = null;
+            }
+        }
+
+        let startTime = Date.now();
+        let timerInterval = null;
+        let maxDuration = 30;
+
+        function startTimer() {
+            startTime = Date.now();
+            timerEl.textContent = '0:00';
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+                // Gradually transition to red as we approach the limit
+                const ratio = Math.min(elapsed / maxDuration, 1);
+                capsule.style.setProperty('--rec-progress', ratio);
+            }, 200);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function setPreparing() {
+            capsule.className = 'capsule preparing';
+            label.textContent = t('overlay.preparing');
+            iconResult.innerHTML = '';
+            iconResult.className = 'icon-result';
+        }
+
+        function setRecording() {
+            capsule.className = 'capsule recording';
+            label.textContent = t('overlay.recording');
+            iconResult.innerHTML = '';
+            iconResult.className = 'icon-result';
+            startTimer();
+            startWaveform();
+        }
+
+        function setProcessing() {
+            stopTimer();
+            stopWaveform();
+            capsule.className = 'capsule processing';
+            label.textContent = t('overlay.transcribing');
+            iconResult.innerHTML = '';
+            iconResult.className = 'icon-result';
+        }
+
+        function setTranscribing() {
+            stopTimer();
+            stopWaveform();
+            capsule.className = 'capsule transcribing';
+            label.textContent = t('overlay.transcribing');
+            iconResult.innerHTML = '';
+            iconResult.className = 'icon-result';
+        }
+
+        function setPolishing() {
+            stopTimer();
+            stopWaveform();
+            capsule.className = 'capsule polishing';
+            label.textContent = t('overlay.polishing');
+            iconResult.innerHTML = '';
+            iconResult.className = 'icon-result';
+        }
+
+        function setPasted() {
+            stopTimer();
+            stopWaveform();
+            capsule.className = 'capsule result success';
+            iconResult.innerHTML = '<div class="icon-check"></div>';
+            iconResult.className = 'icon-result';
+            iconResult.style.display = 'flex';
+            label.textContent = t('overlay.pasted');
+        }
+
+        function setCopied() {
+            stopTimer();
+            stopWaveform();
+            capsule.className = 'capsule result success';
+            iconResult.innerHTML = '<div class="icon-check"></div>';
+            iconResult.className = 'icon-result';
+            iconResult.style.display = 'flex';
+            label.textContent = t('overlay.copied');
+        }
+
+        function setError() {
+            stopTimer();
+            stopWaveform();
+            capsule.className = 'capsule result error-state';
+            iconResult.innerHTML = '<div class="icon-error"></div>';
+            iconResult.className = 'icon-result';
+            iconResult.style.display = 'flex';
+            label.textContent = t('overlay.failed');
+        }
+
+        // Init i18n from localStorage (synced from settings window), then show initial state
+        I18n.initI18n(localStorage.getItem('opentypeless-lang')).then(() => {
+            setPreparing();
+        });
+
+        if (window.__TAURI__) {
+            window.__TAURI__.event.listen('recording-status', (event) => {
+                switch (event.payload) {
+                    case 'preparing':    setPreparing();    break;
+                    case 'recording':    setRecording();    break;
+                    case 'processing':   setProcessing();   break;
+                    case 'transcribing': setTranscribing(); break;
+                    case 'polishing':    setPolishing();    break;
+                    case 'pasted':       setPasted();       break;
+                    case 'copied':       setCopied();       break;
+                    case 'error':        setError();        break;
+                }
+            });
+            window.__TAURI__.event.listen('recording-max-duration', (event) => {
+                maxDuration = event.payload;
+            });
+            window.__TAURI__.event.listen('audio-levels', (event) => {
+                targetLevels = event.payload;
+            });
+        }
+    </script>
+</body>
+
+</html>
