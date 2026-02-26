@@ -1,6 +1,6 @@
 [package]
 name = "voxink"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Your voice, in writing — AI-powered speech-to-text for macOS"
 
