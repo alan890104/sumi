@@ -296,7 +296,42 @@ fn chrono_free_format(epoch_secs: u64) -> String {
             tm.tm_sec,
         )
     }
-    #[cfg(not(unix))]
+    #[cfg(target_os = "windows")]
+    {
+        // Use Windows CRT _localtime64_s via extern C
+        #[repr(C)]
+        struct Tm {
+            tm_sec: i32,
+            tm_min: i32,
+            tm_hour: i32,
+            tm_mday: i32,
+            tm_mon: i32,
+            tm_year: i32,
+            tm_wday: i32,
+            tm_yday: i32,
+            tm_isdst: i32,
+        }
+        extern "C" {
+            fn _localtime64_s(result: *mut Tm, time: *const i64) -> i32;
+        }
+        let time = epoch_secs as i64;
+        let mut tm: Tm = unsafe { std::mem::zeroed() };
+        let err = unsafe { _localtime64_s(&mut tm, &time) };
+        if err == 0 {
+            format!(
+                "{:04}{:02}{:02}_{:02}{:02}{:02}",
+                tm.tm_year + 1900,
+                tm.tm_mon + 1,
+                tm.tm_mday,
+                tm.tm_hour,
+                tm.tm_min,
+                tm.tm_sec,
+            )
+        } else {
+            format!("{}", epoch_secs)
+        }
+    }
+    #[cfg(not(any(unix, target_os = "windows")))]
     {
         format!("{}", epoch_secs)
     }

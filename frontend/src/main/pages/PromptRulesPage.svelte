@@ -12,9 +12,7 @@
     getExpandedRuleIndex,
     setExpandedRuleIndex,
     toggleRuleExpand,
-    setCurrentPage,
   } from '$lib/stores/ui.svelte';
-  import { OUTPUT_LANGUAGES } from '$lib/constants';
   import { getDefaultPrompt, getDefaultPromptRules } from '$lib/api';
   import RuleCard from '../components/RuleCard.svelte';
   import RuleEditorModal from '../components/RuleEditorModal.svelte';
@@ -22,12 +20,6 @@
   let basePrompt = $state('');
   let editorVisible = $state(false);
   let editingIndex = $state(-1);
-
-  const outputLangLabel = $derived.by(() => {
-    const lang = getPolishConfig().output_language;
-    const found = OUTPUT_LANGUAGES.find((l) => l.value === lang);
-    return found ? found.labelKey : lang;
-  });
 
   const rules = $derived(getCurrentRules());
   const expandedIndex = $derived(getExpandedRuleIndex());
@@ -51,11 +43,10 @@
   });
 
   async function initDefaultRules() {
-    const polishConfig = getPolishConfig();
-    const lang = polishConfig.output_language;
-    if (!polishConfig.prompt_rules[lang] || polishConfig.prompt_rules[lang].length === 0) {
+    const currentRules = getCurrentRules();
+    if (!currentRules || currentRules.length === 0) {
       try {
-        const defaults = await getDefaultPromptRules(lang);
+        const defaults = await getDefaultPromptRules();
         if (defaults && defaults.length > 0) {
           setCurrentRules(defaults);
           await savePolish();
@@ -68,8 +59,7 @@
 
   async function loadBasePrompt() {
     try {
-      const polishConfig = getPolishConfig();
-      basePrompt = await getDefaultPrompt(polishConfig.output_language);
+      basePrompt = await getDefaultPrompt();
     } catch (e) {
       console.error('Failed to load base prompt:', e);
     }
@@ -119,11 +109,6 @@
 <div class="page">
   <h1 class="page-title">{t('promptRules.title')}</h1>
   <div class="prompt-rules-desc">{t('promptRules.desc')}</div>
-
-  <div class="lang-note">
-    <span class="lang-note-text">🌐 {t('promptRules.outputLangNote', { language: outputLangLabel })}</span>
-    <button class="lang-note-link" onclick={() => setCurrentPage('settings')}>{t('promptRules.changeLang')}</button>
-  </div>
 
   <div class="prompt-rules-header">
     <span></span>
@@ -184,40 +169,6 @@
     font-size: 12px;
     color: var(--text-secondary);
     margin-bottom: 16px;
-  }
-
-  .lang-note {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    margin-bottom: 16px;
-    background: var(--bg-sidebar);
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .lang-note-text {
-    flex: 1;
-  }
-
-  .lang-note-link {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
-    background: none;
-    border: none;
-    padding: 0;
-    font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--accent-blue);
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .lang-note-link:hover {
-    text-decoration: underline;
   }
 
   .prompt-rules-header {

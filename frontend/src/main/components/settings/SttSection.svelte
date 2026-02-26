@@ -270,9 +270,8 @@
   .sub-settings {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    margin-top: 16px;
-    padding-left: 24px;
+    gap: 12px;
+    margin-top: 12px;
   }
 
   .polish-model-card {

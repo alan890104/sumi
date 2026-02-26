@@ -19,9 +19,68 @@ pub fn detect_frontmost_app() -> AppContext {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+pub fn detect_frontmost_app() -> AppContext {
+    let app_name = get_foreground_app_name_windows();
+    AppContext {
+        app_name,
+        bundle_id: String::new(),
+        url: String::new(),
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn detect_frontmost_app() -> AppContext {
     AppContext::default()
+}
+
+/// Get the foreground application's executable name on Windows.
+#[cfg(target_os = "windows")]
+fn get_foreground_app_name_windows() -> String {
+    use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+    use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+    use windows::Win32::Foundation::CloseHandle;
+
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.0.is_null() {
+            return String::new();
+        }
+
+        let mut pid: u32 = 0;
+        windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        if pid == 0 {
+            return String::new();
+        }
+
+        let handle = match OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
+            Ok(h) => h,
+            Err(_) => return String::new(),
+        };
+
+        let mut buf = [0u16; 260];
+        let mut size = buf.len() as u32;
+        let ok = windows::Win32::System::Threading::QueryFullProcessImageNameW(
+            handle,
+            windows::Win32::System::Threading::PROCESS_NAME_WIN32,
+            windows::core::PWSTR(buf.as_mut_ptr()),
+            &mut size,
+        );
+        let _ = CloseHandle(handle);
+
+        if ok.is_ok() {
+            let path = String::from_utf16_lossy(&buf[..size as usize]);
+            // Extract just the filename without extension
+            path.rsplit('\\')
+                .next()
+                .unwrap_or("")
+                .strip_suffix(".exe")
+                .unwrap_or("")
+                .to_string()
+        } else {
+            String::new()
+        }
+    }
 }
 
 /// Uses Objective-C runtime to get the frontmost application's name and bundle ID.

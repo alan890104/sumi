@@ -51,6 +51,6 @@
   }
 
   .sub-row {
-    padding-left: 24px;
+    padding: 2px 0 2px 24px;
   }
 </style>

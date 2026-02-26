@@ -38,6 +38,7 @@
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import CloudConfigPanel from '$lib/components/CloudConfigPanel.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
+  import { isMac } from '$lib/constants';
 
   // ── State machine ──
 
@@ -560,7 +561,7 @@
               </div>
               <div class="setup-permission-info">
                 <div class="setup-permission-name">{t('setup.permAccName')}</div>
-                <div class="setup-permission-desc">{t('setup.permAccDesc')}</div>
+                <div class="setup-permission-desc">{t('setup.permAccDesc', { pasteShortcut: isMac ? 'Cmd+V' : 'Ctrl+V' })}</div>
               </div>
               <div class="setup-permission-action">
                 {#if accGranted}

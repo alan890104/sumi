@@ -1,13 +1,14 @@
 import type { CloudProvider, SttProvider, MatchType } from './types';
 
-// ── Modifier display symbols (macOS) ──
+// ── Modifier display symbols (platform-aware) ──
 
-export const MODIFIER_SYMBOLS: Record<string, string> = {
-  Alt: '⌥',
-  Control: '⌃',
-  Shift: '⇧',
-  Super: '⌘',
-};
+const isMac = typeof navigator !== 'undefined' && navigator.platform?.toLowerCase().includes('mac');
+
+export const MODIFIER_SYMBOLS: Record<string, string> = isMac
+  ? { Alt: '⌥', Control: '⌃', Shift: '⇧', Super: '⌘' }
+  : { Alt: 'Alt', Control: 'Ctrl', Shift: 'Shift', Super: 'Win' };
+
+export { isMac };
 
 export function formatHotkeyDisplay(hotkeyStr: string): string {
   return hotkeyStr
@@ -93,8 +94,7 @@ export const STT_CLOUD_PROVIDERS: Record<SttProvider, SttProviderMeta> = {
   },
   azure: {
     model: null,
-    apiKeyUrl:
-      'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/SpeechServices',
+    apiKeyUrl: 'https://ai.azure.com/nextgen',
   },
   custom: {
     model: { id: 'whisper', name: 'Whisper' },
@@ -171,9 +171,10 @@ export const RULE_ICON_KEYWORDS: { keys: string[]; icon: string }[] = [
   { keys: ['discord'], icon: 'discord' },
   { keys: ['vscode', 'visual studio code', 'code.app'], icon: 'vscode' },
   { keys: ['cursor'], icon: 'vscode' },
+  { keys: ['antigravity'], icon: 'vscode' },
   { keys: ['firefox'], icon: 'firefox' },
   { keys: ['github'], icon: 'github' },
-  { keys: ['twitter', 'x.com', 'tweetdeck'], icon: 'twitter' },
+  { keys: ['twitter', 'x.com', 'x (twitter)', 'tweetdeck'], icon: 'twitter' },
   { keys: ['youtube'], icon: 'youtube' },
   { keys: ['telegram'], icon: 'telegram' },
   { keys: ['whatsapp'], icon: 'whatsapp' },
@@ -220,17 +221,6 @@ export const STT_LANGUAGES = [
   { value: 'en', label: 'English' },
   { value: 'ja', label: '日本語' },
   { value: 'ko', label: '한국어' },
-];
-
-// ── Output languages (Polish) ──
-
-export const OUTPUT_LANGUAGES = [
-  { value: 'auto', labelKey: 'Auto' },
-  { value: 'traditional_chinese', labelKey: '繁體中文' },
-  { value: 'simplified_chinese', labelKey: '简体中文' },
-  { value: 'english', labelKey: 'English' },
-  { value: 'japanese', labelKey: '日本語' },
-  { value: 'korean', labelKey: '한국어' },
 ];
 
 // ── History retention options ──

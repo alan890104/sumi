@@ -31,14 +31,6 @@ export type CloudProvider =
 
 export type PolishModel = 'llama_taiwan' | 'qwen25';
 
-export type OutputLanguage =
-  | 'traditional_chinese'
-  | 'simplified_chinese'
-  | 'english'
-  | 'japanese'
-  | 'korean'
-  | 'auto';
-
 export type MatchType = 'app_name' | 'bundle_id' | 'url';
 
 export interface PromptRule {
@@ -69,7 +61,6 @@ export interface CloudConfig {
 export interface PolishConfig {
   enabled: boolean;
   model: PolishModel;
-  output_language: OutputLanguage;
   custom_prompt: string | null;
   mode: PolishMode;
   cloud: CloudConfig;

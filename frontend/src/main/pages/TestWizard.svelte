@@ -7,6 +7,7 @@
   import {
     setTestMode,
     setContextOverride,
+    setEditTextOverride,
     onTranscriptionResult,
     onHotkeyActivated,
   } from '$lib/api';
@@ -378,6 +379,13 @@
   let editUnlisten: UnlistenFn | null = null;
   let editBody = $state<HTMLElement | null>(null);
 
+  function handleEditSelection() {
+    if (!editBody) return;
+    const sel = window.getSelection();
+    const text = sel && editBody.contains(sel.anchorNode) ? sel.toString() : '';
+    setEditTextOverride(text).catch(() => {});
+  }
+
   async function setupEditTest() {
     cleanupEditTest();
 
@@ -392,6 +400,8 @@
 
     if (editBody) editBody.innerText = t('test.step5.prefill');
 
+    document.addEventListener('selectionchange', handleEditSelection);
+
     editUnlisten = await onTranscriptionResult((text: string) => {
       if (!text || !editBody) return;
       suppressNextPaste();
@@ -400,6 +410,8 @@
   }
 
   function cleanupEditTest() {
+    document.removeEventListener('selectionchange', handleEditSelection);
+    setEditTextOverride('').catch(() => {});
     if (editUnlisten) {
       editUnlisten();
       editUnlisten = null;

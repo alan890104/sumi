@@ -6,7 +6,6 @@ import type {
   SttCloudConfig,
   PromptRule,
   DictionaryConfig,
-  OutputLanguage,
   PolishModel,
   PolishMode,
   SttMode,
@@ -23,7 +22,6 @@ let settings = $state<Settings>({
   polish: {
     enabled: false,
     model: 'llama_taiwan',
-    output_language: 'traditional_chinese',
     custom_prompt: null,
     mode: 'local',
     cloud: { provider: 'groq', api_key: '', endpoint: '', model_id: 'qwen/qwen3-32b' },
@@ -145,10 +143,6 @@ export function setPolishReasoning(reasoning: boolean) {
   settings.polish.reasoning = reasoning;
 }
 
-export function setPolishOutputLanguage(lang: OutputLanguage) {
-  settings.polish.output_language = lang;
-}
-
 export function setPolishCloudProvider(provider: CloudProvider) {
   settings.polish.cloud.provider = provider;
 }
@@ -200,13 +194,25 @@ export function setAutoPaste(v: boolean) {
 // ── Prompt rules ──
 
 export function getCurrentRules(): PromptRule[] {
-  const lang = settings.polish.output_language;
-  return settings.polish.prompt_rules[lang] || [];
+  // Flatten all language-keyed rules, deduplicating by match_type+match_value
+  // (non-"auto" keys take priority since those are user-customized)
+  const seen = new Map<string, PromptRule>();
+  // Process "auto" first so it can be overwritten by customized rules
+  for (const rule of settings.polish.prompt_rules['auto'] ?? []) {
+    seen.set(`${rule.match_type}:${rule.match_value}`, rule);
+  }
+  for (const [key, rules] of Object.entries(settings.polish.prompt_rules)) {
+    if (key === 'auto') continue;
+    for (const rule of rules) {
+      seen.set(`${rule.match_type}:${rule.match_value}`, rule);
+    }
+  }
+  return Array.from(seen.values());
 }
 
 export function setCurrentRules(rules: PromptRule[]) {
-  const lang = settings.polish.output_language;
-  settings.polish.prompt_rules[lang] = rules;
+  // Store all rules under "auto" key, clear others
+  settings.polish.prompt_rules = { auto: rules };
 }
 
 // ── Dictionary ──

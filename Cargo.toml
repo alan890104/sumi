@@ -2,7 +2,12 @@
 name = "sumi"
 version = "0.1.2"
 edition = "2021"
-description = "Your voice, in writing — AI-powered speech-to-text for macOS"
+description = "Your voice, in writing — AI-powered speech-to-text"
+license = "GPL-3.0-or-later"
+
+[features]
+default = []
+metal = ["whisper-rs/metal", "llama-cpp-2/metal"]
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "macos-private-api", "image-png"] }
@@ -14,14 +19,25 @@ arboard = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 cpal = "0.15"
-whisper-rs = { version = "0.15", features = ["metal"] }
+whisper-rs = "0.15"
 reqwest = { version = "0.12", features = ["blocking", "multipart"] }
-llama-cpp-2 = { version = "0.1", default-features = false, features = ["metal", "sampler"] }
+llama-cpp-2 = { version = "0.1", default-features = false, features = ["sampler"] }
 hound = "3"
 dirs = "6"
-libc = "0.2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 base64 = "0.22"
+keyring = { version = "3", features = ["windows-native"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Foundation",
+    "Win32_System_Threading",
+] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

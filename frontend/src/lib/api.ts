@@ -28,11 +28,11 @@ export const updateEditHotkey = (hotkey: string) =>
 
 export const resetSettings = () => invoke<void>('reset_settings');
 
-export const getDefaultPrompt = (language: string) =>
-  invoke<string>('get_default_prompt', { language });
+export const getDefaultPrompt = () =>
+  invoke<string>('get_default_prompt');
 
-export const getDefaultPromptRules = (language: string) =>
-  invoke<PromptRule[]>('get_default_prompt_rules', { language });
+export const getDefaultPromptRules = () =>
+  invoke<PromptRule[]>('get_default_prompt_rules');
 
 // ── Recording ──
 
@@ -52,6 +52,9 @@ export const setContextOverride = (appName: string, bundleId: string, url: strin
   invoke<void>('set_context_override', { appName, bundleId, url });
 
 export const triggerUndo = () => invoke<void>('trigger_undo');
+
+export const setEditTextOverride = (text: string) =>
+  invoke<void>('set_edit_text_override', { text });
 
 // ── History ──
 

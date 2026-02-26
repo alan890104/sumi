@@ -7,7 +7,6 @@
     setPolishMode,
     setPolishModel,
     setPolishReasoning,
-    setPolishOutputLanguage,
     setPolishCloudProvider,
     setPolishCloudApiKey,
     setPolishCloudEndpoint,
@@ -20,13 +19,11 @@
     onLlmModelDownloadProgress,
     saveApiKey,
   } from '$lib/api';
-  import { OUTPUT_LANGUAGES } from '$lib/constants';
-  import type { PolishMode, PolishModel, OutputLanguage, DownloadProgress } from '$lib/types';
+  import type { PolishMode, PolishModel, DownloadProgress } from '$lib/types';
   import type { UnlistenFn } from '@tauri-apps/api/event';
   import SettingRow from '$lib/components/SettingRow.svelte';
   import Toggle from '$lib/components/Toggle.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
-  import Select from '$lib/components/Select.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import CloudConfigPanel from '$lib/components/CloudConfigPanel.svelte';
 
@@ -52,13 +49,6 @@
     { value: 'llama_taiwan', label: 'Llama 3 Taiwan' },
     { value: 'qwen25', label: 'Qwen 2.5' },
   ];
-
-  let outputLanguageOptions = $derived(
-    OUTPUT_LANGUAGES.map((lang) => ({
-      value: lang.value,
-      label: lang.labelKey,
-    }))
-  );
 
   let currentModelName = $derived(
     polishConfig.model === 'llama_taiwan' ? 'Llama 3 Taiwan 8B' : 'Qwen 2.5 7B'
@@ -184,11 +174,6 @@
       // Re-check status for the newly selected model
       checkStatus();
     }
-  }
-
-  function onOutputLanguageChange(value: string) {
-    setPolishOutputLanguage(value as OutputLanguage);
-    savePolish();
   }
 
   // ── Cloud config ──
@@ -323,14 +308,6 @@
         </div>
       {/if}
 
-      <!-- Output language (always visible) -->
-      <SettingRow name={t('settings.polish.outputLang')} sub>
-        <Select
-          options={outputLanguageOptions}
-          value={polishConfig.output_language}
-          onchange={onOutputLanguageChange}
-        />
-      </SettingRow>
     </div>
   {/if}
 </div>
@@ -371,16 +348,15 @@
   .sub-settings {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    margin-top: 16px;
+    gap: 12px;
+    margin-top: 12px;
   }
 
   .local-panel,
   .cloud-panel {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding-top: 4px;
+    gap: 12px;
   }
 
   .polish-model-card {

@@ -4,6 +4,9 @@
   import { getHotkey, getEditHotkey, setHotkey, setEditHotkey } from '$lib/stores/settings.svelte';
   import { updateHotkey, updateEditHotkey } from '$lib/api';
   import Keycaps from '$lib/components/Keycaps.svelte';
+  import { MODIFIER_SYMBOLS } from '$lib/constants';
+
+  const modifierHint = Object.values(MODIFIER_SYMBOLS).join(' ');
 
   // ── Primary hotkey capture ──
 
@@ -217,7 +220,7 @@
           <Keycaps hotkey={capturePreviewHotkey} />
         {/if}
       </div>
-      <div class="capture-hint">{t('settings.shortcuts.captureHint')}</div>
+      <div class="capture-hint">{t('settings.shortcuts.captureHint', { modifiers: modifierHint })}</div>
       <div class="capture-actions">
         <button class="btn-cancel" onclick={cancelCapture}>{t('settings.shortcuts.cancel')}</button>
       </div>
@@ -248,7 +251,7 @@
             <Keycaps hotkey={editCapturePreviewHotkey} />
           {/if}
         </div>
-        <div class="capture-hint">{t('settings.shortcuts.captureHint')}</div>
+        <div class="capture-hint">{t('settings.shortcuts.captureHint', { modifiers: modifierHint })}</div>
         <div class="capture-actions">
           <button class="btn-cancel" onclick={cancelEditCapture}>{t('settings.shortcuts.cancel')}</button>
         </div>

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { t } from '$lib/stores/i18n.svelte';
+  import { openUrl } from '@tauri-apps/plugin-opener';
+  import { getApiKey } from '$lib/api';
   import {
     CLOUD_PROVIDERS,
     STT_CLOUD_PROVIDERS,
@@ -105,7 +107,7 @@
       : polishModels.length > 0 || provider === 'custom' || provider === 'open_router' || provider === 'open_ai' || provider === 'gemini'
   );
 
-  function onProviderChange(e: Event) {
+  async function onProviderChange(e: Event) {
     const target = e.target as HTMLSelectElement;
     provider = target.value;
 
@@ -125,6 +127,14 @@
     } else {
       const meta = STT_CLOUD_PROVIDERS[provider as SttProvider];
       modelId = meta?.model?.id ?? '';
+    }
+
+    // Load API key from keychain for the new provider
+    const keychainKey = type === 'stt' ? 'stt_' + provider : provider;
+    try {
+      apiKey = await getApiKey(keychainKey);
+    } catch {
+      apiKey = '';
     }
 
     onchange();
@@ -167,12 +177,7 @@
   async function openApiKeyPage() {
     if (apiKeyUrl) {
       try {
-        const opener = (window as any).__TAURI__?.opener;
-        if (opener) {
-          await opener.openUrl(apiKeyUrl);
-        } else {
-          window.open(apiKeyUrl, '_blank');
-        }
+        await openUrl(apiKeyUrl);
       } catch {
         window.open(apiKeyUrl, '_blank');
       }
@@ -300,8 +305,7 @@
   .cloud-config {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding-top: 4px;
+    gap: 12px;
   }
 
   .cloud-row {
@@ -309,7 +313,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding-left: 8px;
+    padding: 2px 0 2px 8px;
   }
 
   .cloud-row .setting-info {

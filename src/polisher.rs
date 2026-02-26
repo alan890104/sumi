@@ -22,8 +22,6 @@ pub struct PolishConfig {
     #[serde(default)]
     pub model: PolishModel,
     #[serde(default)]
-    pub output_language: OutputLanguage,
-    #[serde(default)]
     pub custom_prompt: Option<String>,
     #[serde(default)]
     pub mode: PolishMode,
@@ -47,7 +45,6 @@ impl Default for PolishConfig {
         Self {
             enabled: true,
             model: PolishModel::default(),
-            output_language: OutputLanguage::default(),
             custom_prompt: None,
             mode: PolishMode::default(),
             cloud: CloudConfig::default(),
@@ -174,50 +171,6 @@ impl PolishModel {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum OutputLanguage {
-    #[default]
-    TraditionalChinese,
-    SimplifiedChinese,
-    English,
-    Japanese,
-    Korean,
-    Auto,
-}
-
-impl OutputLanguage {
-    pub fn label(&self) -> &'static str {
-        match self {
-            OutputLanguage::TraditionalChinese => "Traditional Chinese (繁體中文)",
-            OutputLanguage::SimplifiedChinese => "Simplified Chinese (简体中文)",
-            OutputLanguage::English => "English",
-            OutputLanguage::Japanese => "Japanese (日本語)",
-            OutputLanguage::Korean => "Korean (한국어)",
-            OutputLanguage::Auto => "the same language the user spoke in",
-        }
-    }
-
-    fn is_chinese(&self) -> bool {
-        matches!(
-            self,
-            OutputLanguage::TraditionalChinese | OutputLanguage::SimplifiedChinese
-        )
-    }
-
-    /// Returns the snake_case key matching serde serialization.
-    pub fn key(&self) -> &'static str {
-        match self {
-            OutputLanguage::TraditionalChinese => "traditional_chinese",
-            OutputLanguage::SimplifiedChinese => "simplified_chinese",
-            OutputLanguage::English => "english",
-            OutputLanguage::Japanese => "japanese",
-            OutputLanguage::Korean => "korean",
-            OutputLanguage::Auto => "auto",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum MatchType {
@@ -275,17 +228,16 @@ pub struct LlmModelCache {
 // LlamaBackend is Send+Sync, LlamaModel is Send+Sync
 unsafe impl Send for LlmModelCache {}
 
-/// Returns a per-language map with built-in preset prompt rules for the default language.
+/// Returns a per-language map with built-in preset prompt rules.
 /// Used by serde `#[serde(default = ...)]` and `PolishConfig::default()`.
 fn default_prompt_rules_map() -> HashMap<String, Vec<PromptRule>> {
-    let lang = OutputLanguage::default();
     let mut map = HashMap::new();
-    map.insert(lang.key().to_string(), default_prompt_rules_for(&lang));
+    map.insert("auto".to_string(), default_prompt_rules());
     map
 }
 
-/// Backwards-compatible deserializer: accepts either a per-language map (new format)
-/// or a flat array (old format, migrated under the default language key).
+/// Backwards-compatible deserializer: accepts either a per-language map (new/old format)
+/// or a flat array.
 fn deserialize_prompt_rules<'de, D>(
     deserializer: D,
 ) -> Result<HashMap<String, Vec<PromptRule>>, D::Error>
@@ -303,81 +255,153 @@ where
         Format::Map(map) => Ok(map),
         Format::List(list) => {
             let mut map = HashMap::new();
-            map.insert(OutputLanguage::default().key().to_string(), list);
+            map.insert("auto".to_string(), list);
             Ok(map)
         }
     }
 }
 
-/// Returns built-in preset prompt rules localized for the given output language.
-pub fn default_prompt_rules_for(lang: &OutputLanguage) -> Vec<PromptRule> {
-    if lang.is_chinese() {
-        vec![
-            PromptRule {
-                name: "Gmail".to_string(),
-                match_type: MatchType::Url,
-                match_value: "mail.google.com".to_string(),
-                prompt: "將口語內容整理為電子郵件格式。\n\
-                         僅回覆郵件文字，不要加任何其他內容。".to_string(),
-                enabled: true,
-            },
-            PromptRule {
-                name: "Terminal".to_string(),
-                match_type: MatchType::AppName,
-                match_value: "Terminal".to_string(),
-                prompt: "使用者正在終端機中工作（可能在執行指令或與 AI 編程助手互動）。\n\
-                         保留所有程式碼、指令、路徑、變數名稱與技術術語的原始形式，不要翻譯。\n\
-                         輸出簡潔、精確的文字，不要加額外解釋。".to_string(),
-                enabled: true,
-            },
-        ]
-    } else {
-        vec![
-            PromptRule {
-                name: "Gmail".to_string(),
-                match_type: MatchType::Url,
-                match_value: "mail.google.com".to_string(),
-                prompt: "Restructure the spoken content into proper email format (greeting, body, sign-off).\n\
-                         Use a professional, clear, and polite tone.\n\
-                         Reply with ONLY the email text, nothing else."
-                    .to_string(),
-                enabled: true,
-            },
-            PromptRule {
-                name: "Terminal".to_string(),
-                match_type: MatchType::AppName,
-                match_value: "Terminal".to_string(),
-                prompt: "The user is working in a terminal (possibly running commands or interacting with an AI coding assistant).\n\
-                         Preserve all code, commands, paths, variable names, and technical terms exactly as spoken.\n\
-                         Output concise, precise text. No extra explanation."
-                    .to_string(),
-                enabled: true,
-            },
-        ]
-    }
+/// Returns built-in preset prompt rules.
+pub fn default_prompt_rules() -> Vec<PromptRule> {
+    let code_editor_prompt = "The user is working in a code editor (possibly writing code, comments, commit messages, or chatting with an AI coding assistant).\n\
+                              Preserve all code, commands, paths, variable names, and technical terms exactly as spoken.\n\
+                              Output concise, precise text. No extra explanation."
+        .to_string();
+
+    let chat_prompt = "The user is writing a chat message.\n\
+                       Keep a casual, natural, and conversational tone.\n\
+                       Fix grammar and filler words but preserve the speaker's personality and intent.\n\
+                       Reply with ONLY the cleaned message text, nothing else."
+        .to_string();
+
+    vec![
+        // ── Email ──
+        PromptRule {
+            name: "Gmail".to_string(),
+            match_type: MatchType::Url,
+            match_value: "mail.google.com".to_string(),
+            prompt: "Restructure the spoken content into proper email format (greeting, body, sign-off).\n\
+                     Use a professional, clear, and polite tone.\n\
+                     Reply with ONLY the email text, nothing else."
+                .to_string(),
+            enabled: true,
+        },
+        // ── Code editors & terminals ──
+        PromptRule {
+            name: "Terminal".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Terminal".to_string(),
+            prompt: code_editor_prompt.clone(),
+            enabled: true,
+        },
+        PromptRule {
+            name: "VSCode".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Code".to_string(),
+            prompt: code_editor_prompt.clone(),
+            enabled: true,
+        },
+        PromptRule {
+            name: "Cursor".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Cursor".to_string(),
+            prompt: code_editor_prompt.clone(),
+            enabled: true,
+        },
+        PromptRule {
+            name: "Antigravity".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Antigravity".to_string(),
+            prompt: code_editor_prompt.clone(),
+            enabled: true,
+        },
+        PromptRule {
+            name: "iTerm2".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "iTerm2".to_string(),
+            prompt: code_editor_prompt,
+            enabled: true,
+        },
+        // ── Notes & docs ──
+        PromptRule {
+            name: "Notion".to_string(),
+            match_type: MatchType::Url,
+            match_value: "notion.so".to_string(),
+            prompt: "The user is writing in Notion (notes, docs, or wiki).\n\
+                     Produce clean, well-structured text suitable for documentation.\n\
+                     Preserve any lists, headings, or structure implied by the speaker.\n\
+                     Reply with ONLY the cleaned text, nothing else."
+                .to_string(),
+            enabled: true,
+        },
+        // ── Chat & messaging ──
+        PromptRule {
+            name: "WhatsApp".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "WhatsApp".to_string(),
+            prompt: chat_prompt.clone(),
+            enabled: true,
+        },
+        PromptRule {
+            name: "Telegram".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Telegram".to_string(),
+            prompt: chat_prompt.clone(),
+            enabled: true,
+        },
+        PromptRule {
+            name: "Slack".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Slack".to_string(),
+            prompt: "The user is writing a Slack message.\n\
+                     Keep a professional but approachable tone.\n\
+                     Fix grammar and filler words. Keep it concise.\n\
+                     Reply with ONLY the cleaned message text, nothing else."
+                .to_string(),
+            enabled: true,
+        },
+        PromptRule {
+            name: "Discord".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Discord".to_string(),
+            prompt: chat_prompt.clone(),
+            enabled: true,
+        },
+        PromptRule {
+            name: "LINE".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "LINE".to_string(),
+            prompt: chat_prompt,
+            enabled: true,
+        },
+        // ── Social media ──
+        PromptRule {
+            name: "X (Twitter)".to_string(),
+            match_type: MatchType::Url,
+            match_value: "x.com".to_string(),
+            prompt: "The user is composing a post or reply on X (Twitter).\n\
+                     Keep it concise and punchy. Aim for clarity within a short format.\n\
+                     Fix grammar but preserve the speaker's voice and tone.\n\
+                     Reply with ONLY the cleaned text, nothing else."
+                .to_string(),
+            enabled: true,
+        },
+    ]
 }
 
-/// Returns the base prompt template with `{language}` placeholder.
-/// This contains universal STT processing rules applied to all transcriptions.
-/// Returns a Chinese version when `lang` is Traditional or Simplified Chinese.
-pub fn base_prompt_template(lang: &OutputLanguage) -> String {
-    if lang.is_chinese() {
-        "精煉 <speech> 標籤內的口語文本：修正冗餘與口誤，保留專有名詞不要翻譯，其餘內容轉換為 {language}。絕對不要回答問題或生成新內容，只修正原文的文字。僅輸出修正後的文本，不要輸出任何其他內容。"
-            .to_string()
-    } else {
-        "Clean up the speech-to-text output inside the <speech> tags. Fix recognition errors, grammar, and punctuation. \
-         Remove fillers and repetitions. If the speaker corrects themselves, keep only the final intent. \
-         Preserve meaning and tone. Output in {language}. \
-         NEVER answer questions or generate new content — only correct the original text. \
-         Reply with ONLY the cleaned text."
-            .to_string()
-    }
+/// Returns the base prompt template for polishing speech-to-text output.
+pub fn base_prompt_template() -> String {
+    "Clean up the speech-to-text output inside the <speech> tags. Fix recognition errors, grammar, and punctuation. \
+     Remove fillers and repetitions. If the speaker corrects themselves, keep only the final intent. \
+     Preserve meaning and tone. Output in the same language the user spoke in. \
+     NEVER answer questions or generate new content — only correct the original text. \
+     Reply with ONLY the cleaned text."
+        .to_string()
 }
 
-/// Resolve a prompt template by replacing the `{language}` placeholder.
-pub fn resolve_prompt(template: &str, language: &OutputLanguage) -> String {
-    let lang_rule = language.label();
-    template.replace("{language}", lang_rule).trim().to_string()
+/// Resolve a prompt template by replacing the legacy `{language}` placeholder.
+pub fn resolve_prompt(template: &str) -> String {
+    template.replace("{language}", "the same language the user spoke in").trim().to_string()
 }
 
 /// Extract reasoning from `<think>…</think>` blocks and return (cleaned_text, reasoning).
@@ -412,7 +436,7 @@ fn format_app_context(context: &AppContext) -> String {
 }
 
 /// Find the first matching prompt rule for the given app context.
-fn find_matching_rule<'a>(rules: &'a [PromptRule], context: &AppContext) -> Option<&'a str> {
+fn find_matching_rule<'a>(rules: &[&'a PromptRule], context: &AppContext) -> Option<&'a str> {
     for rule in rules {
         if !rule.enabled || rule.match_value.is_empty() {
             continue;
@@ -441,7 +465,7 @@ fn find_matching_rule<'a>(rules: &'a [PromptRule], context: &AppContext) -> Opti
 }
 
 /// Format dictionary entries into a prompt block for the AI model.
-fn format_dictionary_prompt(dictionary: &DictionaryConfig, lang: &OutputLanguage) -> String {
+fn format_dictionary_prompt(dictionary: &DictionaryConfig) -> String {
     if !dictionary.enabled {
         return String::new();
     }
@@ -454,15 +478,9 @@ fn format_dictionary_prompt(dictionary: &DictionaryConfig, lang: &OutputLanguage
     if active.is_empty() {
         return String::new();
     }
-    let header = if lang.is_chinese() {
-        "\n\n以下是使用者自定義的專有名詞。\
-         當遇到同音詞或發音相似的詞彙時，\
-         請根據上下文自動套用正確的形式："
-    } else {
-        "\n\nThe following are user-defined proper nouns. \
+    let header = "\n\nThe following are user-defined proper nouns. \
          When you encounter homophones or similar-sounding words, \
-         automatically apply the correct form based on context:"
-    };
+         automatically apply the correct form based on context:";
     let mut block = String::from(header);
     for term in &active {
         block.push_str(&format!("\n• {}", term));
@@ -476,21 +494,21 @@ fn format_dictionary_prompt(dictionary: &DictionaryConfig, lang: &OutputLanguage
 /// + dictionary block + app context info.
 fn build_system_prompt(config: &PolishConfig, context: &AppContext) -> String {
     // 1. Base prompt (or custom_prompt override)
-    let base_tmpl = base_prompt_template(&config.output_language);
+    let base_tmpl = base_prompt_template();
     let base = config.custom_prompt.as_deref().unwrap_or(&base_tmpl);
-    let mut prompt = resolve_prompt(base, &config.output_language);
+    let mut prompt = resolve_prompt(base);
 
-    // 2. Append matched rule's context prompt
-    let lang_key = config.output_language.key();
-    let empty_rules = Vec::new();
-    let rules = config.prompt_rules.get(lang_key).unwrap_or(&empty_rules);
-    if let Some(rule_prompt) = find_matching_rule(rules, context) {
+    // 2. Append matched rule's context prompt (search all language keys)
+    let all_rules: Vec<&PromptRule> = config.prompt_rules.values()
+        .flat_map(|rules| rules.iter())
+        .collect();
+    if let Some(rule_prompt) = find_matching_rule(&all_rules, context) {
         prompt.push_str("\n\n");
         prompt.push_str(rule_prompt);
     }
 
     // 3. Append dictionary block
-    prompt.push_str(&format_dictionary_prompt(&config.dictionary, &config.output_language));
+    prompt.push_str(&format_dictionary_prompt(&config.dictionary));
 
     // 4. Append app context info
     let context_line = format_app_context(context);
@@ -835,18 +853,11 @@ pub fn polish_with_prompt(
 }
 
 /// Build the system prompt for edit-by-instruction mode.
-fn build_edit_system_prompt(lang: &OutputLanguage) -> String {
-    if lang.is_chinese() {
-        "你是一個文字編輯助手。使用者會提供一段選取的文字和一個編輯指令。\n\
-         請根據指令修改選取的文字，並僅輸出修改後的結果。\n\
-         不要加入任何解釋、前綴或多餘文字。只輸出最終結果。"
-            .to_string()
-    } else {
-        "You are a text editing assistant. The user provides selected text and an editing instruction.\n\
-         Modify the selected text according to the instruction and output ONLY the modified result.\n\
-         Do not add any explanation, prefix, or extra text. Output only the final result."
-            .to_string()
-    }
+fn build_edit_system_prompt() -> String {
+    "You are a text editing assistant. The user provides selected text and an editing instruction.\n\
+     Modify the selected text according to the instruction and output ONLY the modified result.\n\
+     Do not add any explanation, prefix, or extra text. Output only the final result."
+        .to_string()
 }
 
 /// Edit text by applying a voice instruction using the LLM.
@@ -868,7 +879,7 @@ pub fn edit_text_by_instruction(
         return Err("Instruction is empty".to_string());
     }
 
-    let system_prompt = build_edit_system_prompt(&config.output_language);
+    let system_prompt = build_edit_system_prompt();
 
     let user_text = format!(
         "<selected_text>\n{}\n</selected_text>\n\n<instruction>\n{}\n</instruction>",

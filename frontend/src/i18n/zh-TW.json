@@ -16,7 +16,7 @@
   "settings.shortcuts.hotkeyDesc": "按下以開始/停止錄音並轉錄",
   "settings.shortcuts.change": "更改",
   "settings.shortcuts.captureLabel": "請按下新的快捷鍵...",
-  "settings.shortcuts.captureHint": "請使用至少一個修飾鍵（\u2318 \u2325 \u2303 \u21E7）加上一個按鍵",
+  "settings.shortcuts.captureHint": "請使用至少一個修飾鍵（{modifiers}）加上一個按鍵",
   "settings.shortcuts.cancel": "取消",
   "settings.shortcuts.editHotkey": "語音編輯",
   "settings.shortcuts.editHotkeyDesc": "選取文字後按下此快捷鍵，說出編輯指令",
@@ -51,7 +51,6 @@
   "settings.polish.modeLocal": "本機",
   "settings.polish.modeCloud": "雲端 API",
   "settings.polish.model": "模型",
-  "settings.polish.outputLang": "輸出語言",
   "settings.polish.provider": "供應商",
   "settings.polish.apiKey": "API 金鑰",
   "settings.polish.endpoint": "端點",
@@ -95,8 +94,6 @@
   "promptRules.voiceEmpty": "未偵測到語音，請再試一次！",
   "promptRules.basePrompt": "基礎提示詞",
   "promptRules.basePromptDesc": "通用語音轉文字處理規則，自動套用於所有轉錄",
-  "promptRules.outputLangNote": "輸出語言：{language} — 提示詞以此語言撰寫，用於引導 AI。",
-  "promptRules.changeLang": "變更",
 
   "settings.danger": "危險區域",
   "settings.danger.reset": "重設為預設值",
@@ -163,7 +160,7 @@
 
   "about.title": "關於",
   "about.version": "版本 {version}",
-  "about.desc": "聲音成字。AI 驅動的 macOS 語音轉文字工具 — 按下快捷鍵錄音、轉錄，並貼上至游標位置。",
+  "about.desc": "聲音成字。AI 驅動的語音轉文字工具 — 按下快捷鍵錄音、轉錄，並貼上至游標位置。",
   "about.checkUpdate": "檢查更新",
   "about.checking": "正在檢查更新\u2026",
   "about.updateAvailable": "版本 {version} 可供更新",
@@ -181,7 +178,7 @@
   "setup.permMicName": "麥克風",
   "setup.permMicDesc": "錄製語音以進行轉錄",
   "setup.permAccName": "輔助使用",
-  "setup.permAccDesc": "使用 Cmd+V 將文字貼上至游標位置",
+  "setup.permAccDesc": "使用 {pasteShortcut} 將文字貼上至游標位置",
   "setup.permGrant": "授權",
   "setup.permContinue": "繼續",
 

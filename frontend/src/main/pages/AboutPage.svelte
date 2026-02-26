@@ -4,6 +4,7 @@
   import { getVersion } from '@tauri-apps/api/app';
   import { check } from '@tauri-apps/plugin-updater';
   import { relaunch } from '@tauri-apps/plugin-process';
+  import { isMac } from '$lib/constants';
 
   type UpdateState = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'upToDate';
 
@@ -156,7 +157,7 @@
         </div>
       {:else if updateState === 'ready'}
         <div class="about-update-status">{t('about.readyToRestart')}</div>
-        <div class="about-update-note">{t('about.gatekeeperNote')}</div>
+        {#if isMac}<div class="about-update-note">{t('about.gatekeeperNote')}</div>{/if}
       {:else if updateState === 'error'}
         <div class="about-update-status error">{t('about.updateError')}</div>
       {:else if updateState === 'upToDate'}
