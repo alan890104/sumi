@@ -260,6 +260,60 @@ mod macos_ffi {
 
         true
     }
+
+    /// Simulate Cmd+C via CGEvent (copy).
+    pub unsafe fn simulate_cmd_c() -> bool {
+        const COMBINED_STATE: i32 = 0;
+        const HID_EVENT_TAP: u32 = 0;
+        const FLAG_CMD: u64 = 0x100000;
+        const VK_C: u16 = 8;
+
+        let source = CGEventSourceCreate(COMBINED_STATE);
+        if source.is_null() {
+            return false;
+        }
+
+        let c_d = CGEventCreateKeyboardEvent(source, VK_C, true);
+        CGEventSetFlags(c_d, FLAG_CMD);
+        CGEventPost(HID_EVENT_TAP, c_d);
+
+        let c_u = CGEventCreateKeyboardEvent(source, VK_C, false);
+        CGEventSetFlags(c_u, FLAG_CMD);
+        CGEventPost(HID_EVENT_TAP, c_u);
+
+        CFRelease(c_d);
+        CFRelease(c_u);
+        CFRelease(source);
+
+        true
+    }
+
+    /// Simulate Cmd+Z via CGEvent (undo).
+    pub unsafe fn simulate_cmd_z() -> bool {
+        const COMBINED_STATE: i32 = 0;
+        const HID_EVENT_TAP: u32 = 0;
+        const FLAG_CMD: u64 = 0x100000;
+        const VK_Z: u16 = 6;
+
+        let source = CGEventSourceCreate(COMBINED_STATE);
+        if source.is_null() {
+            return false;
+        }
+
+        let z_d = CGEventCreateKeyboardEvent(source, VK_Z, true);
+        CGEventSetFlags(z_d, FLAG_CMD);
+        CGEventPost(HID_EVENT_TAP, z_d);
+
+        let z_u = CGEventCreateKeyboardEvent(source, VK_Z, false);
+        CGEventSetFlags(z_u, FLAG_CMD);
+        CGEventPost(HID_EVENT_TAP, z_u);
+
+        CFRelease(z_d);
+        CFRelease(z_u);
+        CFRelease(source);
+
+        true
+    }
 }
 
 // ── Keychain (macOS) ─────────────────────────────────────────────────────────
@@ -472,6 +526,12 @@ pub struct Settings {
     pub language: Option<String>,
     #[serde(default)]
     pub stt: SttConfig,
+    /// Optional hotkey for "Edit by Voice" — select text, speak editing instruction.
+    #[serde(default)]
+    pub edit_hotkey: Option<String>,
+    /// Whether the onboarding wizard has been completed. `false` triggers the setup overlay.
+    #[serde(default)]
+    pub onboarding_completed: bool,
 }
 
 impl Default for Settings {
@@ -483,6 +543,8 @@ impl Default for Settings {
             history_retention_days: 0, // forever
             language: None,
             stt: SttConfig::default(),
+            edit_hotkey: Some("Control+Alt+KeyZ".to_string()),
+            onboarding_completed: false,
         }
     }
 }
@@ -702,6 +764,13 @@ pub struct AppState {
     http_client: reqwest::blocking::Client,
     /// Cache for API keys loaded from macOS Keychain, keyed by provider name.
     api_key_cache: Mutex<HashMap<String, String>>,
+    /// When true, the stop path uses the edit-by-voice pipeline instead of
+    /// the normal transcribe-and-paste pipeline.
+    edit_mode: AtomicBool,
+    /// Stores the selected text captured via Cmd+C at edit hotkey press.
+    edit_selected_text: Mutex<Option<String>>,
+    /// Saves the original clipboard content so it can be restored after edit.
+    saved_clipboard: Mutex<Option<String>>,
 }
 
 /// Load an API key, checking the in-memory cache first before falling back
@@ -886,6 +955,8 @@ fn save_settings(
     current.polish = new_settings.polish;
     current.history_retention_days = new_settings.history_retention_days;
     current.stt = new_settings.stt;
+    current.edit_hotkey = new_settings.edit_hotkey;
+    current.onboarding_completed = new_settings.onboarding_completed;
     save_settings_to_disk(&current);
     Ok(())
 }
@@ -914,6 +985,13 @@ fn update_hotkey(
     settings.hotkey = new_hotkey.clone();
     save_settings_to_disk(&settings);
 
+    // Also re-register edit hotkey if it exists
+    if let Some(ref edit_hk) = settings.edit_hotkey {
+        if let Some(edit_shortcut) = parse_hotkey_string(edit_hk) {
+            let _ = app.global_shortcut().register(edit_shortcut);
+        }
+    }
+
     // Update tray tooltip
     let label = hotkey_display_label(&new_hotkey);
     if let Some(tray) = app.tray_by_id("main-tray") {
@@ -924,6 +1002,72 @@ fn update_hotkey(
         "[Voxink] Hotkey updated to: {} ({})",
         new_hotkey, label
     );
+    Ok(())
+}
+
+#[tauri::command]
+fn update_edit_hotkey(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    new_edit_hotkey: Option<String>,
+) -> Result<(), String> {
+    // Unregister all existing shortcuts first
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|e| format!("Failed to unregister shortcuts: {}", e))?;
+
+    let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+
+    // Validate and update edit hotkey
+    if let Some(ref hk) = new_edit_hotkey {
+        if !hk.is_empty() {
+            let _ = parse_hotkey_string(hk)
+                .ok_or_else(|| "Invalid edit hotkey string".to_string())?;
+        }
+    }
+    settings.edit_hotkey = new_edit_hotkey.filter(|s| !s.is_empty());
+
+    // Re-register primary hotkey
+    let primary = parse_hotkey_string(&settings.hotkey)
+        .ok_or_else(|| "Invalid primary hotkey".to_string())?;
+    app.global_shortcut()
+        .register(primary)
+        .map_err(|e| format!("Failed to register primary shortcut: {}", e))?;
+
+    // Register edit hotkey if set
+    if let Some(ref edit_hk) = settings.edit_hotkey {
+        if let Some(shortcut) = parse_hotkey_string(edit_hk) {
+            app.global_shortcut()
+                .register(shortcut)
+                .map_err(|e| format!("Failed to register edit shortcut: {}", e))?;
+            println!("[Voxink] Edit hotkey registered: {}", edit_hk);
+        }
+    }
+
+    save_settings_to_disk(&settings);
+    println!("[Voxink] Edit hotkey updated to: {:?}", settings.edit_hotkey);
+    Ok(())
+}
+
+#[tauri::command]
+fn trigger_undo(app: AppHandle) -> Result<(), String> {
+    let app_handle = app.clone();
+    std::thread::spawn(move || {
+        undo_with_cmd_z();
+        println!("[Voxink] ↩️ Undo triggered from overlay");
+        // Hide overlay after undo
+        let app_for_hide = app_handle.clone();
+        let _ = app_handle.run_on_main_thread(move || {
+            if let Some(overlay) = app_for_hide.get_webview_window("overlay") {
+                #[cfg(target_os = "macos")]
+                if let Ok(ns_win) = overlay.ns_window() {
+                    unsafe { macos_ffi::hide_window(ns_win); }
+                }
+                #[cfg(not(target_os = "macos"))]
+                let _ = overlay.hide();
+            }
+        });
+    });
     Ok(())
 }
 
@@ -2074,6 +2218,30 @@ fn paste_with_cmd_v() -> bool {
     }
 }
 
+/// Simulate Cmd+C to copy the current selection to clipboard.
+fn copy_with_cmd_c() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        unsafe { macos_ffi::simulate_cmd_c() }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
+
+/// Simulate Cmd+Z to undo the last action.
+fn undo_with_cmd_z() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        unsafe { macos_ffi::simulate_cmd_z() }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
+
 /// Shared logic: stop recording, transcribe, copy/paste, and hide the overlay.
 /// Called by both the hotkey handler and the auto-stop timer.
 fn stop_transcribe_and_paste(app: &AppHandle) {
@@ -2334,6 +2502,203 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
     });
 }
 
+/// Edit-by-voice pipeline: stop recording, transcribe instruction, edit text, replace.
+fn stop_edit_and_replace(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    if state
+        .is_processing
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        println!("[Voxink] stop_edit_and_replace: already processing, skipping");
+        return;
+    }
+
+    // Reset edit_mode immediately
+    state.edit_mode.store(false, Ordering::SeqCst);
+
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.emit("recording-status", "transcribing");
+    }
+
+    println!("[Voxink] ⏹️ Stopping edit-by-voice recording...");
+
+    let app_handle = app.clone();
+    std::thread::spawn(move || {
+        let pipeline_start = Instant::now();
+        let state = app_handle.state::<AppState>();
+
+        let (polish_config, mut stt_config) = state
+            .settings
+            .lock()
+            .map(|s| (s.polish.clone(), s.stt.clone()))
+            .unwrap_or((polisher::PolishConfig::default(), SttConfig::default()));
+
+        // Inject STT API key
+        if stt_config.mode == SttMode::Cloud {
+            let key = get_cached_api_key(&state.api_key_cache, stt_config.cloud.provider.as_key());
+            if !key.is_empty() {
+                stt_config.cloud.api_key = key;
+            }
+        }
+
+        // Take the selected text
+        let selected_text = state
+            .edit_selected_text
+            .lock()
+            .ok()
+            .and_then(|mut t| t.take())
+            .unwrap_or_default();
+
+        if selected_text.is_empty() {
+            eprintln!("[Voxink] Edit-by-voice: no selected text");
+            if let Some(overlay) = app_handle.get_webview_window("overlay") {
+                let _ = overlay.emit("recording-status", "error");
+            }
+            state.is_processing.store(false, Ordering::SeqCst);
+            // Restore clipboard
+            restore_clipboard(&state);
+            hide_overlay_delayed(&app_handle, 1500);
+            return;
+        }
+
+        // Transcribe the voice instruction
+        match do_stop_recording(&state, &stt_config) {
+            Ok((instruction, _samples)) => {
+                println!("[Voxink] Edit instruction: {:?}", instruction);
+
+                // Emit polishing status
+                if let Some(overlay) = app_handle.get_webview_window("overlay") {
+                    let _ = overlay.emit("recording-status", "polishing");
+                }
+
+                // Inject polish API key
+                let mut polish_config = polish_config;
+                if polish_config.mode == polisher::PolishMode::Cloud {
+                    let key = get_cached_api_key(
+                        &state.api_key_cache,
+                        polish_config.cloud.provider.as_key(),
+                    );
+                    if !key.is_empty() {
+                        polish_config.cloud.api_key = key;
+                    }
+                }
+
+                let model_dir = models_dir();
+                if !polisher::is_polish_ready(&model_dir, &polish_config) {
+                    eprintln!("[Voxink] Edit-by-voice: LLM not configured");
+                    if let Some(overlay) = app_handle.get_webview_window("overlay") {
+                        let _ = overlay.emit("recording-status", "error");
+                    }
+                    state.is_processing.store(false, Ordering::SeqCst);
+                    restore_clipboard(&state);
+                    hide_overlay_delayed(&app_handle, 1500);
+                    return;
+                }
+
+                match polisher::edit_text_by_instruction(
+                    &state.llm_model,
+                    &model_dir,
+                    &polish_config,
+                    &selected_text,
+                    &instruction,
+                    &state.http_client,
+                ) {
+                    Ok(edited_text) => {
+                        println!(
+                            "[Voxink] Edit result: {:?} (took {:.0?})",
+                            edited_text,
+                            pipeline_start.elapsed()
+                        );
+
+                        // Set clipboard to edited text and paste
+                        let clipboard_ok = match arboard::Clipboard::new() {
+                            Ok(mut clipboard) => clipboard.set_text(&edited_text).is_ok(),
+                            Err(_) => false,
+                        };
+
+                        if clipboard_ok {
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            paste_with_cmd_v();
+                            println!("[Voxink] ✏️ Edited text pasted");
+                        }
+
+                        // Restore original clipboard content
+                        restore_clipboard(&state);
+
+                        // Emit undo state
+                        if let Some(overlay) = app_handle.get_webview_window("overlay") {
+                            let _ = overlay.emit("recording-status", "edited");
+                        }
+
+                        state.is_processing.store(false, Ordering::SeqCst);
+
+                        // Hide overlay after 5.5s (undo window is 5s)
+                        hide_overlay_delayed(&app_handle, 5500);
+                    }
+                    Err(e) => {
+                        eprintln!("[Voxink] Edit-by-voice LLM error: {}", e);
+                        if let Some(overlay) = app_handle.get_webview_window("overlay") {
+                            let _ = overlay.emit("recording-status", "error");
+                        }
+                        state.is_processing.store(false, Ordering::SeqCst);
+                        restore_clipboard(&state);
+                        hide_overlay_delayed(&app_handle, 1500);
+                    }
+                }
+            }
+            Err(ref e) if e == "no_speech" => {
+                println!("[Voxink] Edit-by-voice: no speech detected");
+                state.is_processing.store(false, Ordering::SeqCst);
+                restore_clipboard(&state);
+                hide_overlay_delayed(&app_handle, 0);
+            }
+            Err(e) => {
+                eprintln!("[Voxink] Edit-by-voice transcription error: {}", e);
+                if let Some(overlay) = app_handle.get_webview_window("overlay") {
+                    let _ = overlay.emit("recording-status", "error");
+                }
+                state.is_processing.store(false, Ordering::SeqCst);
+                restore_clipboard(&state);
+                hide_overlay_delayed(&app_handle, 1500);
+            }
+        }
+    });
+}
+
+/// Restore original clipboard content from saved_clipboard.
+fn restore_clipboard(state: &AppState) {
+    if let Ok(mut saved) = state.saved_clipboard.lock() {
+        if let Some(original) = saved.take() {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                let _ = clipboard.set_text(&original);
+            }
+        }
+    }
+}
+
+/// Hide overlay after a delay (in ms). 0 means hide immediately.
+fn hide_overlay_delayed(app: &AppHandle, delay_ms: u64) {
+    let app_handle = app.clone();
+    std::thread::spawn(move || {
+        if delay_ms > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+        }
+        let app_for_hide = app_handle.clone();
+        let _ = app_handle.run_on_main_thread(move || {
+            if let Some(overlay) = app_for_hide.get_webview_window("overlay") {
+                #[cfg(target_os = "macos")]
+                if let Ok(ns_win) = overlay.ns_window() {
+                    unsafe { macos_ffi::hide_window(ns_win); }
+                }
+                #[cfg(not(target_os = "macos"))]
+                let _ = overlay.hide();
+            }
+        });
+    });
+}
+
 // ── Permissions ─────────────────────────────────────────────────────────────
 
 #[cfg(target_os = "macos")]
@@ -2547,6 +2912,8 @@ pub fn run() {
             check_permissions,
             open_permission_settings,
             generate_rule_from_description,
+            update_edit_hotkey,
+            trigger_undo,
         ])
         .setup(|app| {
             // ── Hide Dock icon (menu-bar-only app) ──
@@ -2597,6 +2964,9 @@ pub fn run() {
                 last_hotkey_time: Mutex::new(Instant::now() - std::time::Duration::from_secs(1)),
                 http_client,
                 api_key_cache: Mutex::new(HashMap::new()),
+                edit_mode: AtomicBool::new(false),
+                edit_selected_text: Mutex::new(None),
+                saved_clipboard: Mutex::new(None),
             });
 
             // ── Auto-show settings when model is missing ──
@@ -2722,17 +3092,23 @@ pub fn run() {
             // ── Global Shortcut ──
             #[cfg(desktop)]
             {
-                let shortcut = parse_hotkey_string(&hotkey_str)
+                let primary_shortcut = parse_hotkey_string(&hotkey_str)
                     .unwrap_or(Shortcut::new(Some(Modifiers::ALT | Modifiers::SUPER), Code::KeyR));
+                let edit_shortcut = settings.edit_hotkey.as_deref().and_then(parse_hotkey_string);
+                let edit_shortcut_clone = edit_shortcut;
 
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
-                        .with_handler(move |app, _shortcut, event| {
+                        .with_handler(move |app, shortcut, event| {
                             if event.state() != ShortcutState::Pressed {
                                 return;
                             }
 
                             let state = app.state::<AppState>();
+
+                            // Determine if this is the edit hotkey
+                            let is_edit_hotkey = edit_shortcut_clone
+                                .is_some_and(|es| *shortcut == es);
 
                             // In test mode, only emit the event — skip recording entirely
                             if state.test_mode.load(Ordering::SeqCst) {
@@ -2743,9 +3119,6 @@ pub fn run() {
                             }
 
                             // Debounce: ignore key-repeat events from macOS.
-                            // Key-repeat fires additional Pressed events ~500 ms after
-                            // the initial press; a 300 ms guard prevents accidental
-                            // start-then-immediate-stop toggles.
                             {
                                 let now = Instant::now();
                                 if let Ok(mut last) = state.last_hotkey_time.lock() {
@@ -2757,8 +3130,6 @@ pub fn run() {
                             }
 
                             // Block re-entry while the transcription pipeline is running.
-                            // This prevents accidental double-paste from key repeats or
-                            // rapid double-presses of the hotkey.
                             if state.is_processing.load(Ordering::SeqCst) {
                                 return;
                             }
@@ -2767,16 +3138,54 @@ pub fn run() {
 
                             if !is_recording {
                                 // ── Start Recording ──
-                                //
-                                // CRITICAL: start capturing audio FIRST, before any
-                                // UI work.  The stream is always-on, so this just
-                                // flips a flag — true zero latency.
-                                // Capture frontmost app context BEFORE starting recording,
-                                // while the user is still in their target app.
+
+                                // For edit hotkey: capture selection first
+                                if is_edit_hotkey {
+                                    // Save current clipboard content
+                                    let original_clipboard = arboard::Clipboard::new()
+                                        .ok()
+                                        .and_then(|mut cb| cb.get_text().ok());
+
+                                    if let Ok(mut saved) = state.saved_clipboard.lock() {
+                                        *saved = original_clipboard;
+                                    }
+
+                                    // Simulate Cmd+C to copy selection
+                                    copy_with_cmd_c();
+                                    std::thread::sleep(std::time::Duration::from_millis(100));
+
+                                    // Read clipboard = selected text
+                                    let selected = arboard::Clipboard::new()
+                                        .ok()
+                                        .and_then(|mut cb| cb.get_text().ok())
+                                        .unwrap_or_default();
+
+                                    // Check if clipboard changed (i.e. something was selected)
+                                    let saved_text = state.saved_clipboard.lock()
+                                        .ok()
+                                        .and_then(|s| s.clone())
+                                        .unwrap_or_default();
+
+                                    if selected.is_empty() || selected == saved_text {
+                                        // Nothing was selected — abort
+                                        println!("[Voxink] Edit-by-voice: no text selected, aborting");
+                                        restore_clipboard(&state);
+                                        return;
+                                    }
+
+                                    // Store selected text and set edit mode
+                                    if let Ok(mut et) = state.edit_selected_text.lock() {
+                                        *et = Some(selected.clone());
+                                    }
+                                    state.edit_mode.store(true, Ordering::SeqCst);
+                                    println!("[Voxink] ✏️ Edit-by-voice: captured {} chars", selected.len());
+                                }
+
+                                // Capture frontmost app context BEFORE starting recording
                                 let captured_ctx = state.context_override.lock()
                                     .ok()
                                     .and_then(|ctx| ctx.clone())
-                                    .unwrap_or_else(|| context_detect::detect_frontmost_app());
+                                    .unwrap_or_else(context_detect::detect_frontmost_app);
 
                                 match do_start_recording(&state) {
                                     Ok(()) => {
@@ -2830,15 +3239,18 @@ pub fn run() {
                                             let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100) as usize;
                                             let recording_start = Instant::now();
 
-                                            // Stream audio levels at ~50 ms intervals
                                             const NUM_BARS: usize = 20;
-                                            let samples_per_bar = sr / 20; // 50 ms of audio
+                                            let samples_per_bar = sr / 20;
 
                                             while state.is_recording.load(Ordering::SeqCst) {
-                                                // Auto-stop when max duration is reached
                                                 if recording_start.elapsed().as_secs() >= MAX_RECORDING_SECS {
                                                     println!("[Voxink] ⏱️ Max recording duration reached ({}s)", MAX_RECORDING_SECS);
-                                                    stop_transcribe_and_paste(&app_for_monitor);
+                                                    // Dispatch to correct pipeline based on edit_mode
+                                                    if state.edit_mode.load(Ordering::SeqCst) {
+                                                        stop_edit_and_replace(&app_for_monitor);
+                                                    } else {
+                                                        stop_transcribe_and_paste(&app_for_monitor);
+                                                    }
                                                     return;
                                                 }
                                                 let levels: Vec<f32> = if let Ok(buf) = state.buffer.lock() {
@@ -2868,7 +3280,6 @@ pub fn run() {
                                                 if let Some(ov) = app_for_monitor.get_webview_window("overlay") {
                                                     let _ = ov.emit("audio-levels", &levels);
                                                 }
-                                                // Forward audio levels to main window for voice rule waveform
                                                 if state.voice_rule_mode.load(Ordering::SeqCst) {
                                                     if let Some(main_win) = app_for_monitor.get_webview_window("main") {
                                                         let _ = main_win.emit("voice-rule-levels", &levels);
@@ -2879,11 +3290,12 @@ pub fn run() {
                                         });
                                     }
                                     Err(e) => {
-                                        eprintln!(
-                                            "[Voxink] Failed to start recording: {}",
-                                            e
-                                        );
-                                        // Hide overlay on failure
+                                        eprintln!("[Voxink] Failed to start recording: {}", e);
+                                        // Clean up edit mode on failure
+                                        if is_edit_hotkey {
+                                            state.edit_mode.store(false, Ordering::SeqCst);
+                                            restore_clipboard(&state);
+                                        }
                                         if let Some(overlay) = app.get_webview_window("overlay") {
                                             #[cfg(target_os = "macos")]
                                             if let Ok(ns_win) = overlay.ns_window() {
@@ -2895,19 +3307,29 @@ pub fn run() {
                                     }
                                 }
                             } else {
-                                // ── Stop Recording + Transcribe ──
-                                stop_transcribe_and_paste(app);
+                                // ── Stop Recording ──
+                                // Dispatch based on edit_mode
+                                if state.edit_mode.load(Ordering::SeqCst) {
+                                    stop_edit_and_replace(app);
+                                } else {
+                                    stop_transcribe_and_paste(app);
+                                }
                             }
                         })
                         .build(),
                 )?;
 
-                app.global_shortcut().register(shortcut)?;
+                app.global_shortcut().register(primary_shortcut)?;
                 let label = hotkey_display_label(&hotkey_str);
-                println!(
-                    "[Voxink] {} global shortcut registered",
-                    label
-                );
+                println!("[Voxink] {} global shortcut registered", label);
+
+                // Register edit hotkey if configured
+                if let Some(edit_sc) = edit_shortcut {
+                    app.global_shortcut().register(edit_sc)?;
+                    if let Some(ref edit_hk) = settings.edit_hotkey {
+                        println!("[Voxink] {} edit shortcut registered", hotkey_display_label(edit_hk));
+                    }
+                }
             }
 
             Ok(())

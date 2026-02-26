@@ -1592,8 +1592,12 @@
       transition: background 0.15s ease;
     }
 
-    .setup-download-btn:hover {
+    .setup-download-btn:hover:not(:disabled) {
       background: #0066d6;
+    }
+    .setup-download-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     .setup-skip-link {
@@ -1716,6 +1720,25 @@
 
     .setup-retry-btn:hover {
       background: #0066d6;
+    }
+
+    /* STT mode segmented control in setup */
+    .setup-stt-mode-control {
+      margin: 12px auto 16px;
+      width: fit-content;
+    }
+
+    /* Cloud config form inside setup card */
+    .setup-cloud-config {
+      text-align: left;
+      margin: 0 auto 16px;
+      max-width: 360px;
+    }
+    .setup-cloud-config .cloud-row {
+      margin-bottom: 10px;
+    }
+    .setup-cloud-config .cloud-row:last-child {
+      margin-bottom: 0;
     }
 
     /* ── Test Wizard ── */
@@ -1965,7 +1988,16 @@
     .test-instruction-card span {
       font-size: 13px;
       color: var(--text-primary);
-      line-height: 1.4;
+      line-height: 1.8;
+    }
+
+    .test-instruction-card kbd {
+      min-width: 22px;
+      height: 22px;
+      padding: 0 5px;
+      font-size: 11px;
+      vertical-align: middle;
+      margin: 0 1px;
     }
 
     .test-sample-text {
@@ -2764,8 +2796,8 @@
         <button class="setup-continue-btn" id="permContinueBtn" onclick="permissionsContinue()" disabled data-i18n="setup.permContinue">Continue</button>
       </div>
 
-      <!-- Initial state -->
-      <div id="setupInitial" class="setup-state active">
+      <!-- STT Choice state -->
+      <div id="setupSttChoice" class="setup-state">
         <div class="setup-mic-wrap">
           <div class="wave"></div>
           <div class="wave"></div>
@@ -2780,11 +2812,74 @@
             <line x1="25" y1="53" x2="39" y2="53" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </div>
-        <div class="setup-title" data-i18n="setup.initialTitle">Set Up Speech Recognition</div>
-        <div class="setup-desc" data-i18n="setup.initialDesc">
-          Voxink needs to download a speech recognition model (~1.5 GB) for fully offline transcription. This only happens once.
+        <div class="setup-title" data-i18n="setup.sttChoiceTitle">Set Up Speech Recognition</div>
+        <div class="setup-desc" data-i18n="setup.sttChoiceDesc">
+          Choose how Voxink transcribes your voice.
         </div>
-        <button class="setup-download-btn" onclick="startModelDownload()" data-i18n="setup.downloadBtn">Download Model</button>
+        <div class="segmented-control setup-stt-mode-control">
+          <button class="active" onclick="selectSetupSttMode('local')" data-i18n="setup.sttLocal">Local</button>
+          <button onclick="selectSetupSttMode('cloud')" data-i18n="setup.sttCloud">Cloud API</button>
+        </div>
+        <!-- STT Local panel -->
+        <div id="setupSttLocalPanel">
+          <div class="setup-polish-panel-desc" data-i18n="setup.sttLocalDesc">Fully offline, ~1.5 GB download. Your audio never leaves this device.</div>
+          <button class="setup-download-btn" onclick="startModelDownload()" data-i18n="setup.downloadBtn">Download Model</button>
+        </div>
+        <!-- STT Cloud panel -->
+        <div id="setupSttCloudPanel" style="display:none">
+          <div class="setup-polish-panel-desc" data-i18n="setup.sttCloudDesc">Faster, less resource-intensive. Audio is sent to an external server.</div>
+          <div class="setup-cloud-config">
+            <div class="cloud-row">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.provider">Provider</div>
+              </div>
+              <select class="cloud-select" id="setupSttProviderSelect" onchange="onSetupSttProviderChange()">
+                <option value="deepgram">Deepgram</option>
+                <option value="groq">Groq</option>
+                <option value="open_ai">OpenAI</option>
+                <option value="azure">Azure</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="cloud-row">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.apiKey">API Key</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;flex:1;max-width:280px">
+                <input type="password" class="cloud-input" id="setupSttApiKeyInput" placeholder="sk-..." style="max-width:none" oninput="validateSetupSttCloud()" />
+                <button class="provider-link-btn" id="setupSttGetKeyBtn" onclick="openSetupSttProviderApiPage()" title="Get API Key">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="cloud-row" id="setupSttAzureRegionRow" style="display:none">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.azureRegion">Region</div>
+              </div>
+              <input type="text" class="cloud-input" id="setupSttAzureRegionInput" placeholder="eastus" oninput="validateSetupSttCloud()" />
+            </div>
+            <div class="cloud-row" id="setupSttEndpointRow" style="display:none">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.endpoint">Endpoint</div>
+              </div>
+              <input type="text" class="cloud-input" id="setupSttEndpointInput" placeholder="https://api.example.com/v1/audio/transcriptions" oninput="validateSetupSttCloud()" />
+            </div>
+            <div class="cloud-row">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.stt.language">Language</div>
+              </div>
+              <select class="cloud-select" id="setupSttLanguageSelect">
+                <option value="zh-TW">繁體中文</option>
+                <option value="zh-CN">简体中文</option>
+                <option value="en">English</option>
+                <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
+                <option value="">Auto</option>
+              </select>
+            </div>
+          </div>
+          <button class="setup-download-btn" id="setupSttCloudContinueBtn" onclick="setupSttCloudContinue()" data-i18n="setup.sttCloudContinue" style="margin-top:18px" disabled>Continue</button>
+        </div>
       </div>
 
       <!-- Downloading state -->
@@ -2857,7 +2952,51 @@
         </div>
         <div id="setupPolishCloudPanel" class="setup-polish-panel" style="display:none">
           <div class="setup-polish-panel-desc" data-i18n="setup.polishCloudDesc">Faster, but text is sent to an external server. Requires an API key.</div>
-          <button class="setup-download-btn" onclick="setupChooseCloud()" data-i18n="setup.polishCloudContinue">Continue</button>
+          <div class="setup-cloud-config">
+            <div class="cloud-row">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.polish.provider">Provider</div>
+              </div>
+              <select class="cloud-select" id="setupPolishProviderSelect" onchange="onSetupPolishProviderChange()">
+                <option value="groq">Groq</option>
+                <option value="open_router">OpenRouter</option>
+                <option value="open_ai">OpenAI</option>
+                <option value="gemini">Gemini</option>
+                <option value="samba_nova">SambaNova</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="cloud-row">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.polish.apiKey">API Key</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;flex:1;max-width:280px">
+                <input type="password" class="cloud-input" id="setupPolishApiKeyInput" placeholder="sk-..." style="max-width:none" oninput="validateSetupPolishCloud()" />
+                <button class="provider-link-btn" id="setupPolishGetKeyBtn" onclick="openSetupPolishProviderApiPage()" title="Get API Key">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="cloud-row" id="setupPolishEndpointRow" style="display:none">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.polish.endpoint">Endpoint</div>
+              </div>
+              <input type="text" class="cloud-input" id="setupPolishEndpointInput" placeholder="https://api.example.com/v1/chat/completions" oninput="validateSetupPolishCloud()" />
+            </div>
+            <div class="cloud-row" id="setupPolishModelSelectRow">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.polish.cloudModel">Model</div>
+              </div>
+              <select class="cloud-select" id="setupPolishModelSelect" onchange="onSetupPolishModelChange()"></select>
+            </div>
+            <div class="cloud-row" id="setupPolishModelIdRow" style="display:none">
+              <div class="setting-info">
+                <div class="setting-name sub-name" data-i18n="settings.polish.modelId">Model ID</div>
+              </div>
+              <input type="text" class="cloud-input" id="setupPolishModelIdInput" placeholder="google/gemma-3n-e2b-it:free" />
+            </div>
+          </div>
+          <button class="setup-download-btn" id="setupPolishCloudContinueBtn" onclick="setupPolishCloudContinue()" data-i18n="setup.polishCloudContinue" style="margin-top:18px" disabled>Continue</button>
         </div>
         <button class="setup-skip-link" onclick="skipLlmDownload()" data-i18n="setup.polishSkip">Skip for now</button>
       </div>
@@ -2980,6 +3119,29 @@
             <div class="capture-hint" data-i18n="settings.shortcuts.captureHint">Use at least one modifier (&#8984; &#8997; &#8963; &#8679;) + a key</div>
             <div class="capture-actions">
               <button class="btn-cancel" onclick="cancelCapture()" data-i18n="settings.shortcuts.cancel">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Edit by Voice Hotkey -->
+          <div style="margin-top: 16px;">
+            <div style="margin-bottom: 8px;">
+              <div style="font-size: 13px; font-weight: 500; color: var(--text-primary);" data-i18n="settings.shortcuts.editHotkey">Edit by Voice</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" data-i18n="settings.shortcuts.editHotkeyDesc">Select text, press this shortcut, speak an editing instruction</div>
+            </div>
+            <div class="hotkey-row" id="editHotkeyDisplay">
+              <div class="keycaps" id="editKeycaps"><span style="font-size: 13px; color: var(--text-tertiary);" data-i18n="settings.shortcuts.notSet">Not set</span></div>
+              <div style="display: flex; gap: 6px;">
+                <button class="hotkey-btn" onclick="startEditCapture()" data-i18n="settings.shortcuts.change">Change</button>
+                <button class="hotkey-btn" id="editClearBtn" onclick="clearEditHotkey()" style="display: none;" data-i18n="settings.shortcuts.clear">Clear</button>
+              </div>
+            </div>
+            <div class="hotkey-capture" id="editHotkeyCapture">
+              <div class="capture-label" data-i18n="settings.shortcuts.captureLabel">Press your new shortcut...</div>
+              <div class="capture-preview" id="editCapturePreview"></div>
+              <div class="capture-hint" data-i18n="settings.shortcuts.captureHint">Use at least one modifier (&#8984; &#8997; &#8963; &#8679;) + a key</div>
+              <div class="capture-actions">
+                <button class="btn-cancel" onclick="cancelEditCapture()" data-i18n="settings.shortcuts.cancel">Cancel</button>
+              </div>
             </div>
           </div>
         </div>
@@ -3384,6 +3546,8 @@
             <span class="test-breadcrumb-item" id="testBc3" data-i18n="test.breadcrumb.general">General</span>
             <span class="test-breadcrumb-sep">&rsaquo;</span>
             <span class="test-breadcrumb-item" id="testBc4" data-i18n="test.breadcrumb.gmail">Gmail</span>
+            <span class="test-breadcrumb-sep">&rsaquo;</span>
+            <span class="test-breadcrumb-item" id="testBc5" data-i18n="test.breadcrumb.editByVoice">Edit by Voice</span>
           </div>
           <div class="test-progress-bar">
             <div class="test-progress-fill" id="testProgressFill" style="width: 25%"></div>
@@ -3483,7 +3647,7 @@
                 </div>
                 <div class="test-left-spacer"></div>
                 <div class="test-actions">
-                  <button class="test-btn-filled" onclick="switchPage('settings')" data-i18n="test.step4.done">Done</button>
+                  <button class="test-btn-filled" onclick="goToTestStep(5)" data-i18n="test.step3.next">Next</button>
                 </div>
               </div>
               <div class="test-right">
@@ -3505,6 +3669,40 @@
                         <span title="Attach">&#128206;</span>
                       </span>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 5: Edit by Voice -->
+          <div class="test-step" id="testStep5">
+            <div class="test-layout">
+              <div class="test-left">
+                <button class="test-back" onclick="testGoBack(5)" data-i18n="test.back">&larr; Back</button>
+                <div class="test-left-spacer"></div>
+                <div class="test-title" data-i18n="test.step5.title">Edit by Voice</div>
+                <div class="test-instruction-card">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <span id="testEditInstruction">Select all text, press the edit hotkey, speak your instruction, then press again to apply</span>
+                </div>
+                <div class="test-sample-text" data-i18n="test.step5.sampleText">
+                  Try saying: &ldquo;Translate to English&rdquo; or &ldquo;Make it more formal&rdquo;
+                </div>
+                <div class="test-left-spacer"></div>
+                <div class="test-actions">
+                  <button class="test-btn-filled" onclick="switchPage('settings')" data-i18n="test.step5.done">Done</button>
+                </div>
+              </div>
+              <div class="test-right">
+                <div style="display:flex; flex-direction:column; align-items:center; width:92%; max-width:420px;">
+                  <div class="test-plain-editor">
+                    <div class="test-plain-titlebar">
+                      <div class="test-plain-dots"><span></span><span></span><span></span></div>
+                      <span class="test-plain-title" data-i18n="test.step5.editorTitle">Edit Test</span>
+                      <span style="width:38px"></span>
+                    </div>
+                    <div class="test-plain-body" id="testEditBody" contenteditable="true" spellcheck="false"></div>
                   </div>
                 </div>
               </div>
@@ -3626,7 +3824,9 @@
     const APP_VERSION = window.__TAURI__.app ? window.__TAURI__.app.getVersion() : Promise.resolve('0.0.0');
 
     let currentHotkey = '';
+    let currentEditHotkey = '';
     let isCapturing = false;
+    let isEditCapturing = false;
     let capturedKeys = { modifiers: new Set(), code: '' };
     let polishConfig = {
       enabled: false,
@@ -3810,6 +4010,18 @@
       });
     }
 
+    function hotkeyKeycapsHtml(hotkeyStr) {
+      if (!hotkeyStr) return '';
+      return hotkeyStr.split('+').map(part => {
+        const sym = modifierSymbols[part];
+        if (sym) {
+          return `<kbd>${sym}</kbd>`;
+        } else {
+          return `<kbd class="accent">${keyCodeToLabel(part)}</kbd>`;
+        }
+      }).join('');
+    }
+
     // ── Load settings on init ──
 
     async function loadSettings() {
@@ -3817,6 +4029,10 @@
         const settings = await invoke('get_settings');
         currentHotkey = settings.hotkey;
         renderKeycaps(document.getElementById('keycaps'), currentHotkey);
+
+        // Edit hotkey
+        currentEditHotkey = settings.edit_hotkey || '';
+        renderEditKeycaps();
 
         // Polish settings
         const polish = settings.polish || {};
@@ -3905,6 +4121,9 @@
         const versionEl = document.querySelector('[data-i18n="about.version"]');
         if (versionEl) versionEl.textContent = t('about.version', { version: appVer });
         document.getElementById('sidebarVersion').textContent = 'v' + appVer;
+
+        // Onboarding flag
+        onboardingCompleted = settings.onboarding_completed || false;
 
         updatePolishUI();
         updateSttUI();
@@ -4034,6 +4253,113 @@
       cancelCapture();
     }
 
+    // ── Edit hotkey capture ──
+
+    function renderEditKeycaps() {
+      const container = document.getElementById('editKeycaps');
+      const clearBtn = document.getElementById('editClearBtn');
+      if (!currentEditHotkey) {
+        container.innerHTML = `<span style="font-size: 13px; color: var(--text-tertiary);" data-i18n="settings.shortcuts.notSet">${t('settings.shortcuts.notSet')}</span>`;
+        clearBtn.style.display = 'none';
+        return;
+      }
+      renderKeycaps(container, currentEditHotkey);
+      clearBtn.style.display = '';
+    }
+
+    function startEditCapture() {
+      isEditCapturing = true;
+      capturedKeys = { modifiers: new Set(), code: '' };
+      document.getElementById('editHotkeyDisplay').classList.add('hidden');
+      document.getElementById('editHotkeyCapture').classList.add('active');
+      document.getElementById('editCapturePreview').innerHTML = '';
+      document.addEventListener('keydown', onEditCaptureKeydown);
+      document.addEventListener('keyup', onEditCaptureKeyup);
+    }
+
+    function cancelEditCapture() {
+      isEditCapturing = false;
+      document.getElementById('editHotkeyDisplay').classList.remove('hidden');
+      document.getElementById('editHotkeyCapture').classList.remove('active');
+      document.removeEventListener('keydown', onEditCaptureKeydown);
+      document.removeEventListener('keyup', onEditCaptureKeyup);
+    }
+
+    function onEditCaptureKeydown(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === 'Escape') { cancelEditCapture(); return; }
+
+      capturedKeys.modifiers = new Set();
+      if (e.altKey) capturedKeys.modifiers.add('Alt');
+      if (e.ctrlKey) capturedKeys.modifiers.add('Control');
+      if (e.shiftKey) capturedKeys.modifiers.add('Shift');
+      if (e.metaKey) capturedKeys.modifiers.add('Super');
+
+      const nonModifiers = ['Alt', 'Control', 'Shift', 'Meta'];
+      if (!nonModifiers.includes(e.key)) {
+        capturedKeys.code = e.code;
+      }
+
+      // Render preview in edit capture area
+      const preview = document.getElementById('editCapturePreview');
+      preview.innerHTML = '';
+      for (const mod of ['Control', 'Alt', 'Shift', 'Super']) {
+        if (capturedKeys.modifiers.has(mod)) {
+          const kbd = document.createElement('kbd');
+          kbd.textContent = modifierSymbols[mod];
+          preview.appendChild(kbd);
+        }
+      }
+      if (capturedKeys.code) {
+        const kbd = document.createElement('kbd');
+        kbd.textContent = keyCodeToLabel(capturedKeys.code);
+        kbd.classList.add('accent');
+        preview.appendChild(kbd);
+      }
+
+      if (capturedKeys.code) {
+        confirmEditCapture();
+      }
+    }
+
+    function onEditCaptureKeyup(e) { /* wait for non-modifier key */ }
+
+    async function confirmEditCapture() {
+      const parts = [];
+      for (const mod of ['Control', 'Alt', 'Shift', 'Super']) {
+        if (capturedKeys.modifiers.has(mod)) parts.push(mod);
+      }
+      parts.push(capturedKeys.code);
+      const newEditHotkey = parts.join('+');
+
+      // Validate: must differ from primary hotkey
+      if (newEditHotkey === currentHotkey) {
+        console.warn('Edit hotkey must differ from primary hotkey');
+        cancelEditCapture();
+        return;
+      }
+
+      try {
+        await invoke('update_edit_hotkey', { newEditHotkey: newEditHotkey });
+        currentEditHotkey = newEditHotkey;
+        renderEditKeycaps();
+      } catch (e) {
+        console.error('Failed to update edit hotkey:', e);
+      }
+      cancelEditCapture();
+    }
+
+    async function clearEditHotkey() {
+      try {
+        await invoke('update_edit_hotkey', { newEditHotkey: null });
+        currentEditHotkey = '';
+        renderEditKeycaps();
+      } catch (e) {
+        console.error('Failed to clear edit hotkey:', e);
+      }
+    }
+
     function buildSettingsPayload() {
       return {
         hotkey: currentHotkey,
@@ -4062,6 +4388,8 @@
             language: sttConfig.cloud.language,
           },
         },
+        edit_hotkey: currentEditHotkey || null,
+        onboarding_completed: onboardingCompleted,
       };
     }
 
@@ -5175,6 +5503,7 @@
     // ── Setup overlay (first-launch model download) ──
 
     let setupUnlisten = null;
+    let onboardingCompleted = false;
 
     function formatBytes(bytes) {
       if (bytes < 1024) return bytes + ' B';
@@ -5192,7 +5521,7 @@
       const overlay = document.getElementById('setupOverlay');
       overlay.style.display = '';
       overlay.classList.remove('fade-out');
-      showSetupState('setupInitial');
+      showSetupState('setupSttChoice');
     }
 
     function hideSetupOverlay() {
@@ -5271,18 +5600,8 @@
 
     async function permissionsContinue() {
       stopPermissionPolling();
-      // Check if model needs download
-      try {
-        const status = await invoke('check_model_status');
-        if (status.engine === 'whisper' && !status.model_exists) {
-          showSetupState('setupInitial');
-        } else {
-          hideSetupOverlay();
-        }
-      } catch (e) {
-        console.error('Failed to check model status:', e);
-        hideSetupOverlay();
-      }
+      // Always go to STT choice after permissions
+      showSetupState('setupSttChoice');
     }
 
     async function showSetupWithPermCheck() {
@@ -5296,19 +5615,16 @@
     }
 
     async function checkFirstLaunch() {
+      if (onboardingCompleted) return;
       try {
-        const status = await invoke('check_model_status');
-        const needsModel = status.engine === 'whisper' && !status.model_exists;
-        if (needsModel) {
-          // Always show permissions page first before model download
-          const perms = await checkPermissions();
-          const overlay = document.getElementById('setupOverlay');
-          overlay.style.display = '';
-          overlay.classList.remove('fade-out');
-          showSetupState('setupPermissions');
-          updatePermissionUI(perms);
-          startPermissionPolling();
-        }
+        // Show permissions page first, then the full onboarding wizard
+        const perms = await checkPermissions();
+        const overlay = document.getElementById('setupOverlay');
+        overlay.style.display = '';
+        overlay.classList.remove('fade-out');
+        showSetupState('setupPermissions');
+        updatePermissionUI(perms);
+        startPermissionPolling();
       } catch (e) {
         console.error('Failed to check first launch:', e);
       }
@@ -5330,10 +5646,8 @@
             formatBytes(d.downloaded) + ' / ' + formatBytes(d.total);
         } else if (d.status === 'complete') {
           showSetupState('setupComplete');
-          // After 1.5s, show polish choice screen
-          setTimeout(() => {
-            showSetupState('setupPolishChoice');
-          }, 1500);
+          // After 1.5s, advance to polish choice (phase 2)
+          setTimeout(() => goToSetupPhase2(), 1500);
         } else if (d.status === 'error') {
           document.getElementById('setupErrorMsg').textContent = d.message || t('setup.errorDefault');
           showSetupState('setupError');
@@ -5375,11 +5689,11 @@
             setupLlmUnlisten();
             setupLlmUnlisten = null;
           }
-          setTimeout(() => hideSetupOverlay(), 1500);
+          setTimeout(() => finishSetup(), 1500);
         } else if (d.status === 'error') {
           console.error('LLM setup download error:', d.message);
-          // On error, just close the overlay — user can download from settings later
-          hideSetupOverlay();
+          // On error, advance to test — user can download from settings later
+          finishSetup();
           if (setupLlmUnlisten) {
             setupLlmUnlisten();
             setupLlmUnlisten = null;
@@ -5391,12 +5705,12 @@
         await invoke('download_llm_model');
       } catch (e) {
         console.error('Failed to start LLM setup download:', e);
-        hideSetupOverlay();
+        finishSetup();
       }
     }
 
     function skipLlmDownload() {
-      hideSetupOverlay();
+      finishSetup();
     }
 
     function selectSetupPolishMode(mode) {
@@ -5405,17 +5719,301 @@
       btns[mode === 'local' ? 0 : 1].classList.add('active');
       document.getElementById('setupPolishLocalPanel').style.display = mode === 'local' ? '' : 'none';
       document.getElementById('setupPolishCloudPanel').style.display = mode === 'cloud' ? '' : 'none';
+      if (mode === 'cloud') {
+        // Pre-populate from existing settings
+        if (polishConfig.cloud.provider) {
+          document.getElementById('setupPolishProviderSelect').value = polishConfig.cloud.provider;
+        }
+        if (polishConfig.cloud.endpoint) {
+          document.getElementById('setupPolishEndpointInput').value = polishConfig.cloud.endpoint;
+        }
+        onSetupPolishProviderChange();
+      }
     }
 
-    async function setupChooseCloud() {
-      polishConfig.mode = 'cloud';
-      polishConfig.enabled = true;
+    // ── STT Choice functions ──
+
+    function detectSttLanguage() {
+      const lang = (navigator.language || '').toLowerCase();
+      if (lang.startsWith('zh-tw') || lang === 'zh-hant') return 'zh-TW';
+      if (lang.startsWith('zh')) return 'zh-CN';
+      if (lang.startsWith('ja')) return 'ja';
+      if (lang.startsWith('ko')) return 'ko';
+      if (lang.startsWith('en')) return 'en';
+      return '';
+    }
+
+    function selectSetupSttMode(mode) {
+      const btns = document.querySelectorAll('.setup-stt-mode-control button');
+      btns.forEach(b => b.classList.remove('active'));
+      btns[mode === 'local' ? 0 : 1].classList.add('active');
+      document.getElementById('setupSttLocalPanel').style.display = mode === 'local' ? '' : 'none';
+      document.getElementById('setupSttCloudPanel').style.display = mode === 'cloud' ? '' : 'none';
+      if (mode === 'cloud') {
+        // Pre-populate from existing settings
+        if (sttConfig.cloud.provider) {
+          document.getElementById('setupSttProviderSelect').value = sttConfig.cloud.provider;
+        }
+        if (sttConfig.cloud.endpoint) {
+          document.getElementById('setupSttEndpointInput').value = sttConfig.cloud.endpoint;
+          document.getElementById('setupSttAzureRegionInput').value = sttConfig.cloud.endpoint;
+        }
+        // Set language: use saved value, or detect from system locale
+        const langSelect = document.getElementById('setupSttLanguageSelect');
+        const savedLang = sttConfig.cloud.language;
+        langSelect.value = savedLang !== undefined && savedLang !== null ? savedLang : detectSttLanguage();
+        // If value didn't match any option, fall back to detected
+        if (!langSelect.value && savedLang) langSelect.value = detectSttLanguage();
+
+        onSetupSttProviderChange();
+      }
+    }
+
+    function onSetupSttProviderChange() {
+      const provider = document.getElementById('setupSttProviderSelect').value;
+      const isAzure = provider === 'azure';
+      const isCustom = provider === 'custom';
+      document.getElementById('setupSttAzureRegionRow').style.display = isAzure ? '' : 'none';
+      document.getElementById('setupSttEndpointRow').style.display = isCustom ? '' : 'none';
+
+      // Show/hide Get Key button
+      const providerData = STT_CLOUD_PROVIDERS[provider];
+      document.getElementById('setupSttGetKeyBtn').style.display = (providerData && providerData.apiKeyUrl) ? '' : 'none';
+
+      loadSetupSttApiKey();
+    }
+
+    async function loadSetupSttApiKey() {
+      const provider = document.getElementById('setupSttProviderSelect').value;
+      try {
+        const key = await invoke('get_api_key', { provider: 'stt_' + provider });
+        document.getElementById('setupSttApiKeyInput').value = key || '';
+      } catch (e) {
+        document.getElementById('setupSttApiKeyInput').value = '';
+      }
+      validateSetupSttCloud();
+    }
+
+    function validateSetupSttCloud() {
+      const apiKey = document.getElementById('setupSttApiKeyInput').value.trim();
+      const provider = document.getElementById('setupSttProviderSelect').value;
+      let valid = !!apiKey;
+      if (provider === 'azure') {
+        valid = valid && !!document.getElementById('setupSttAzureRegionInput').value.trim();
+      } else if (provider === 'custom') {
+        valid = valid && !!document.getElementById('setupSttEndpointInput').value.trim();
+      }
+      document.getElementById('setupSttCloudContinueBtn').disabled = !valid;
+    }
+
+    async function openSetupSttProviderApiPage() {
+      const provider = document.getElementById('setupSttProviderSelect').value;
+      const providerData = STT_CLOUD_PROVIDERS[provider];
+      if (providerData && providerData.apiKeyUrl) {
+        await window.__TAURI__.opener.openUrl(providerData.apiKeyUrl);
+      }
+    }
+
+    async function setupSttCloudContinue() {
+      const provider = document.getElementById('setupSttProviderSelect').value;
+      const apiKey = document.getElementById('setupSttApiKeyInput').value.trim();
+
+      let endpoint = '';
+      if (provider === 'azure') {
+        endpoint = document.getElementById('setupSttAzureRegionInput').value.trim();
+      } else if (provider === 'custom') {
+        endpoint = document.getElementById('setupSttEndpointInput').value.trim();
+      }
+
+      const providerData = STT_CLOUD_PROVIDERS[provider] || { model: null };
+      const modelId = providerData.model ? providerData.model.id : '';
+
+      const language = document.getElementById('setupSttLanguageSelect').value;
+
+      // Update sttConfig
+      sttConfig.mode = 'cloud';
+      sttConfig.cloud.provider = provider;
+      sttConfig.cloud.api_key = apiKey;
+      sttConfig.cloud.endpoint = endpoint;
+      sttConfig.cloud.model_id = modelId;
+      sttConfig.cloud.language = language;
+
+      // Save API key to keychain
+      if (apiKey) {
+        try {
+          await invoke('save_api_key', { provider: 'stt_' + provider, key: apiKey });
+        } catch (e) {
+          console.error('Failed to save STT API key:', e);
+        }
+      }
+
+      // Save settings
       try {
         await invoke('save_settings', { newSettings: buildSettingsPayload() });
       } catch (e) {
-        console.error('Failed to save cloud polish settings:', e);
+        console.error('Failed to save STT settings:', e);
+      }
+
+      // Sync Settings page UI
+      document.getElementById('sttProviderSelect').value = provider;
+      document.getElementById('sttApiKeyInput').value = apiKey;
+      document.getElementById('sttLanguageSelect').value = language;
+      document.getElementById('sttEndpointInput').value = endpoint;
+      document.getElementById('sttAzureRegionInput').value = endpoint;
+      populateSttModels();
+      updateSttUI();
+
+      goToSetupPhase2();
+    }
+
+    function goToSetupPhase2() {
+      showSetupState('setupPolishChoice');
+      // Initialize the polish cloud form
+      populateSetupPolishModels(document.getElementById('setupPolishProviderSelect').value);
+    }
+
+    // ── Polish cloud form functions ──
+
+    function onSetupPolishProviderChange() {
+      const provider = document.getElementById('setupPolishProviderSelect').value;
+      const isCustom = provider === 'custom';
+      document.getElementById('setupPolishEndpointRow').style.display = isCustom ? '' : 'none';
+
+      // Show/hide Get Key button
+      const providerData = CLOUD_PROVIDERS[provider];
+      document.getElementById('setupPolishGetKeyBtn').style.display = (providerData && providerData.apiKeyUrl) ? '' : 'none';
+
+      populateSetupPolishModels(provider);
+      loadSetupPolishApiKey();
+    }
+
+    async function loadSetupPolishApiKey() {
+      const provider = document.getElementById('setupPolishProviderSelect').value;
+      try {
+        const key = await invoke('get_api_key', { provider: provider });
+        document.getElementById('setupPolishApiKeyInput').value = key || '';
+      } catch (e) {
+        document.getElementById('setupPolishApiKeyInput').value = '';
+      }
+      validateSetupPolishCloud();
+    }
+
+    function validateSetupPolishCloud() {
+      const apiKey = document.getElementById('setupPolishApiKeyInput').value.trim();
+      const provider = document.getElementById('setupPolishProviderSelect').value;
+      let valid = !!apiKey;
+      if (provider === 'custom') {
+        valid = valid && !!document.getElementById('setupPolishEndpointInput').value.trim();
+      }
+      document.getElementById('setupPolishCloudContinueBtn').disabled = !valid;
+    }
+
+    function populateSetupPolishModels(provider) {
+      const select = document.getElementById('setupPolishModelSelect');
+      const providerData = CLOUD_PROVIDERS[provider] || { models: [] };
+      select.innerHTML = '';
+
+      providerData.models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        select.appendChild(opt);
+      });
+
+      // Always add "Custom..." option
+      const customOpt = document.createElement('option');
+      customOpt.value = '__custom__';
+      customOpt.textContent = 'Custom...';
+      select.appendChild(customOpt);
+
+      // Try to select the previously saved model
+      const savedModelId = polishConfig.cloud.model_id;
+      const hasMatchingModel = savedModelId && providerData.models.some(m => m.id === savedModelId);
+
+      if (hasMatchingModel) {
+        select.value = savedModelId;
+        document.getElementById('setupPolishModelIdRow').style.display = 'none';
+      } else if (savedModelId && provider === polishConfig.cloud.provider) {
+        // Custom model ID for this provider
+        select.value = '__custom__';
+        document.getElementById('setupPolishModelIdInput').value = savedModelId;
+        document.getElementById('setupPolishModelIdRow').style.display = '';
+      } else if (providerData.models.length > 0) {
+        select.value = providerData.models[0].id;
+        document.getElementById('setupPolishModelIdRow').style.display = 'none';
+      } else {
+        select.value = '__custom__';
+        document.getElementById('setupPolishModelIdRow').style.display = '';
+      }
+    }
+
+    function onSetupPolishModelChange() {
+      const val = document.getElementById('setupPolishModelSelect').value;
+      document.getElementById('setupPolishModelIdRow').style.display = val === '__custom__' ? '' : 'none';
+    }
+
+    async function openSetupPolishProviderApiPage() {
+      const provider = document.getElementById('setupPolishProviderSelect').value;
+      const providerData = CLOUD_PROVIDERS[provider];
+      if (providerData && providerData.apiKeyUrl) {
+        await window.__TAURI__.opener.openUrl(providerData.apiKeyUrl);
+      }
+    }
+
+    async function setupPolishCloudContinue() {
+      const provider = document.getElementById('setupPolishProviderSelect').value;
+      const apiKey = document.getElementById('setupPolishApiKeyInput').value.trim();
+      const endpoint = document.getElementById('setupPolishEndpointInput').value.trim();
+      let modelId = document.getElementById('setupPolishModelSelect').value;
+      if (modelId === '__custom__') {
+        modelId = document.getElementById('setupPolishModelIdInput').value.trim();
+      }
+
+      // Update polishConfig
+      polishConfig.mode = 'cloud';
+      polishConfig.enabled = true;
+      polishConfig.cloud.provider = provider;
+      polishConfig.cloud.api_key = apiKey;
+      polishConfig.cloud.endpoint = endpoint;
+      polishConfig.cloud.model_id = modelId || 'qwen/qwen3-32b';
+
+      // Save API key to keychain
+      if (apiKey) {
+        try {
+          await invoke('save_api_key', { provider: provider, key: apiKey });
+        } catch (e) {
+          console.error('Failed to save polish API key:', e);
+        }
+      }
+
+      // Save settings
+      try {
+        await invoke('save_settings', { newSettings: buildSettingsPayload() });
+      } catch (e) {
+        console.error('Failed to save polish settings:', e);
+      }
+
+      // Sync Settings page UI
+      document.getElementById('polishToggle').checked = true;
+      document.getElementById('cloudProviderSelect').value = provider;
+      document.getElementById('cloudApiKeyInput').value = apiKey;
+      document.getElementById('cloudEndpointInput').value = endpoint;
+      populateCloudModels();
+      updatePolishUI();
+
+      finishSetup();
+    }
+
+    async function finishSetup() {
+      onboardingCompleted = true;
+      try {
+        await invoke('save_settings', { newSettings: buildSettingsPayload() });
+      } catch (e) {
+        console.error('Failed to save onboarding completed:', e);
       }
       hideSetupOverlay();
+      switchPage('test');
+      startTestWizard();
     }
 
     // ── Test Wizard ──
@@ -5453,6 +6051,7 @@
       // Clean up Try It listeners
       cleanupGeneral();
       cleanupGmail();
+      cleanupEditTest();
       // Ensure test mode is disabled when leaving the wizard
       invoke('set_test_mode', { enabled: false }).catch(() => {});
     }
@@ -5461,7 +6060,7 @@
       testStep = n;
 
       // Update breadcrumb
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= 5; i++) {
         const bc = document.getElementById('testBc' + i);
         bc.classList.remove('active', 'done');
         if (i === n) bc.classList.add('active');
@@ -5469,10 +6068,10 @@
       }
 
       // Update progress bar
-      document.getElementById('testProgressFill').style.width = (n / 4 * 100) + '%';
+      document.getElementById('testProgressFill').style.width = (n / 5 * 100) + '%';
 
       // Show/hide steps
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= 5; i++) {
         const step = document.getElementById('testStep' + i);
         step.classList.toggle('active', i === n);
       }
@@ -5489,6 +6088,9 @@
 
       if (n === 4) setupGmail();
       else cleanupGmail();
+
+      if (n === 5) setupEditTest();
+      else cleanupEditTest();
     }
 
     function testGoBack(fromStep) {
@@ -5702,10 +6304,9 @@
     let testGeneralUnlisten = null;
 
     async function setupGeneral() {
-      const parts = currentHotkey.split('+');
-      const label = parts.map(p => modifierSymbols[p] || keyCodeToLabel(p)).join(' + ');
+      const keycaps = hotkeyKeycapsHtml(currentHotkey);
       const instrEl = document.getElementById('testGeneralInstruction');
-      if (instrEl) instrEl.innerHTML = t('test.step3.instruction', { hotkey: label });
+      if (instrEl) instrEl.innerHTML = t('test.step3.instruction', { hotkey: keycaps });
 
       // Disable test mode — let the hotkey actually record + transcribe
       try { await invoke('set_test_mode', { enabled: false }); } catch (e) {}
@@ -5758,10 +6359,9 @@
     let testGmailUnlisten = null;
 
     async function setupGmail() {
-      const parts = currentHotkey.split('+');
-      const label = parts.map(p => modifierSymbols[p] || keyCodeToLabel(p)).join(' + ');
+      const keycaps = hotkeyKeycapsHtml(currentHotkey);
       const instrEl = document.getElementById('testTryInstruction');
-      if (instrEl) instrEl.innerHTML = t('test.step4.instruction', { hotkey: label });
+      if (instrEl) instrEl.innerHTML = t('test.step4.instruction', { hotkey: keycaps });
 
       // Disable test mode — let the hotkey actually record + transcribe
       try { await invoke('set_test_mode', { enabled: false }); } catch (e) {}
@@ -5820,6 +6420,52 @@
         testGmailUnlisten = null;
       }
       invoke('set_context_override', { appName: '', bundleId: '', url: '' }).catch(() => {});
+    }
+
+    // -- Step 5: Edit by Voice --
+
+    let testEditUnlisten = null;
+
+    async function setupEditTest() {
+      // Build edit hotkey keycap UI
+      const editHk = currentEditHotkey || '';
+      if (editHk) {
+        const keycaps = hotkeyKeycapsHtml(editHk);
+        const instrEl = document.getElementById('testEditInstruction');
+        if (instrEl) instrEl.innerHTML = t('test.step5.instruction', { hotkey: keycaps });
+      }
+
+      // Disable test mode — let the hotkey actually record + transcribe + edit
+      try { await invoke('set_test_mode', { enabled: false }); } catch (e) {}
+
+      // No context override
+      try {
+        await invoke('set_context_override', { appName: '', bundleId: '', url: '' });
+      } catch (e) { console.warn('set_context_override failed:', e); }
+
+      // Pre-fill the editor with sample text
+      const body = document.getElementById('testEditBody');
+      if (body) body.innerText = t('test.step5.prefill');
+
+      // Listen for transcription result and replace editor content
+      cleanupEditTest();
+      window.__TAURI__.event.listen('transcription-result', (event) => {
+        const text = event.payload;
+        if (!text) return;
+        const body = document.getElementById('testEditBody');
+        if (!body) return;
+        suppressNextPaste();
+        body.innerText = text;
+      }).then(unlisten => {
+        testEditUnlisten = unlisten;
+      });
+    }
+
+    function cleanupEditTest() {
+      if (testEditUnlisten) {
+        testEditUnlisten();
+        testEditUnlisten = null;
+      }
     }
 
     // ── History ──

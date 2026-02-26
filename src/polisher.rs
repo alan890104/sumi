@@ -834,6 +834,76 @@ pub fn polish_with_prompt(
     Ok(cleaned.trim().to_string())
 }
 
+/// Build the system prompt for edit-by-instruction mode.
+fn build_edit_system_prompt(lang: &OutputLanguage) -> String {
+    if lang.is_chinese() {
+        "你是一個文字編輯助手。使用者會提供一段選取的文字和一個編輯指令。\n\
+         請根據指令修改選取的文字，並僅輸出修改後的結果。\n\
+         不要加入任何解釋、前綴或多餘文字。只輸出最終結果。"
+            .to_string()
+    } else {
+        "You are a text editing assistant. The user provides selected text and an editing instruction.\n\
+         Modify the selected text according to the instruction and output ONLY the modified result.\n\
+         Do not add any explanation, prefix, or extra text. Output only the final result."
+            .to_string()
+    }
+}
+
+/// Edit text by applying a voice instruction using the LLM.
+///
+/// Takes the selected text and a spoken instruction (e.g. "translate to English",
+/// "rewrite in formal tone"), and returns the modified text.
+pub fn edit_text_by_instruction(
+    llm_cache: &Mutex<Option<LlmModelCache>>,
+    model_dir: &std::path::Path,
+    config: &PolishConfig,
+    selected_text: &str,
+    instruction: &str,
+    client: &reqwest::blocking::Client,
+) -> Result<String, String> {
+    if selected_text.trim().is_empty() {
+        return Err("Selected text is empty".to_string());
+    }
+    if instruction.trim().is_empty() {
+        return Err("Instruction is empty".to_string());
+    }
+
+    let system_prompt = build_edit_system_prompt(&config.output_language);
+
+    let user_text = format!(
+        "<selected_text>\n{}\n</selected_text>\n\n<instruction>\n{}\n</instruction>",
+        selected_text, instruction
+    );
+
+    // Prepend /no_think to suppress model reasoning unless enabled
+    let user_text = if config.reasoning {
+        user_text
+    } else {
+        format!("/no_think\n{}", user_text)
+    };
+
+    let raw_output = match config.mode {
+        PolishMode::Cloud => run_cloud_inference(&config.cloud, &system_prompt, &user_text, client)?,
+        PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, &system_prompt, &user_text)?,
+    };
+
+    let (cleaned, _reasoning) = extract_think_tags(&raw_output);
+
+    // Strip any XML tags the LLM may have echoed back
+    let cleaned = cleaned
+        .replace("<selected_text>", "")
+        .replace("</selected_text>", "")
+        .replace("<instruction>", "")
+        .replace("</instruction>", "");
+    let cleaned = cleaned.trim().to_string();
+
+    if cleaned.is_empty() {
+        return Err("LLM returned empty result".to_string());
+    }
+
+    Ok(cleaned)
+}
+
 /// Ensure the LLM model is loaded into the cache (for pre-warming at startup).
 pub fn ensure_model_loaded(
     llm_cache: &Mutex<Option<LlmModelCache>>,

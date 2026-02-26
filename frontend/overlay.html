@@ -162,6 +162,32 @@
             transform: translate(-50%, -50%) rotate(-45deg);
         }
 
+        /* ── Undo icon ── */
+        .icon-undo {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            display: none;
+        }
+
+        /* ── Undo countdown bar ── */
+        .undo-bar {
+            position: absolute;
+            bottom: 0;
+            left: 16px;
+            right: 16px;
+            height: 2px;
+            border-radius: 1px;
+            background: rgba(255, 149, 0, 0.5);
+            transform-origin: left;
+            display: none;
+        }
+
+        @keyframes undoCountdown {
+            from { transform: scaleX(1); }
+            to   { transform: scaleX(0); }
+        }
+
         /* ── Text ── */
         .label {
             font-size: 13px;
@@ -260,6 +286,32 @@
         .capsule.result.error-state {
             border-color: rgba(255, 59, 48, 0.2);
         }
+
+        /* ── State: Undo ── */
+        .capsule.undo-state {
+            position: relative;
+            cursor: pointer;
+            border-color: rgba(255, 149, 0, 0.3);
+            box-shadow:
+                0 8px 32px rgba(255, 149, 0, 0.15),
+                0 0 0 0.5px rgba(255, 255, 255, 0.06),
+                inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+            transition: all 0.15s ease;
+        }
+        .capsule.undo-state:hover {
+            background: rgba(30, 30, 36, 0.92);
+            border-color: rgba(255, 149, 0, 0.5);
+        }
+        .capsule.undo-state:active {
+            transform: scale(0.97);
+        }
+        .capsule.undo-state .dot { display: none; }
+        .capsule.undo-state .spinner { display: none; }
+        .capsule.undo-state .waveform { display: none; }
+        .capsule.undo-state .timer { display: none; }
+        .capsule.undo-state .icon-result { display: none; }
+        .capsule.undo-state .icon-undo { display: block; }
+        .capsule.undo-state .undo-bar { display: block; }
     </style>
 </head>
 
@@ -269,8 +321,13 @@
         <div class="spinner"></div>
         <canvas class="waveform" id="waveform"></canvas>
         <div class="icon-result" id="iconResult"></div>
+        <svg class="icon-undo" viewBox="0 0 24 24" fill="none" stroke="rgba(255, 149, 0, 0.9)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+        </svg>
         <span class="label" id="label" data-i18n="overlay.recording">Recording</span>
         <span class="timer" id="timer">0:00</span>
+        <div class="undo-bar" id="undoBar"></div>
     </div>
 
     <script src="i18n.js"></script>
@@ -279,6 +336,7 @@
         const label = document.getElementById('label');
         const timerEl = document.getElementById('timer');
         const iconResult = document.getElementById('iconResult');
+        const undoBar = document.getElementById('undoBar');
 
         // ── Waveform setup ──
         const NUM_BARS = 20;
@@ -329,6 +387,7 @@
         let startTime = Date.now();
         let timerInterval = null;
         let maxDuration = 30;
+        let undoTimeout = null;
 
         function startTimer() {
             startTime = Date.now();
@@ -352,77 +411,163 @@
             }
         }
 
+        function clearUndoTimeout() {
+            if (undoTimeout) {
+                clearTimeout(undoTimeout);
+                undoTimeout = null;
+            }
+        }
+
         function setPreparing() {
+            clearUndoTimeout();
             capsule.className = 'capsule preparing';
+            capsule.onclick = null;
             label.textContent = t('overlay.preparing');
             iconResult.innerHTML = '';
             iconResult.className = 'icon-result';
+            undoBar.style.display = 'none';
         }
 
         function setRecording() {
+            clearUndoTimeout();
             capsule.className = 'capsule recording';
+            capsule.onclick = null;
             label.textContent = t('overlay.recording');
             iconResult.innerHTML = '';
             iconResult.className = 'icon-result';
+            undoBar.style.display = 'none';
             startTimer();
             startWaveform();
         }
 
         function setProcessing() {
+            clearUndoTimeout();
             stopTimer();
             stopWaveform();
             capsule.className = 'capsule processing';
+            capsule.onclick = null;
             label.textContent = t('overlay.transcribing');
             iconResult.innerHTML = '';
             iconResult.className = 'icon-result';
+            undoBar.style.display = 'none';
         }
 
         function setTranscribing() {
+            clearUndoTimeout();
             stopTimer();
             stopWaveform();
             capsule.className = 'capsule transcribing';
+            capsule.onclick = null;
             label.textContent = t('overlay.transcribing');
             iconResult.innerHTML = '';
             iconResult.className = 'icon-result';
+            undoBar.style.display = 'none';
         }
 
         function setPolishing() {
+            clearUndoTimeout();
             stopTimer();
             stopWaveform();
             capsule.className = 'capsule polishing';
+            capsule.onclick = null;
             label.textContent = t('overlay.polishing');
             iconResult.innerHTML = '';
             iconResult.className = 'icon-result';
+            undoBar.style.display = 'none';
         }
 
         function setPasted() {
+            clearUndoTimeout();
             stopTimer();
             stopWaveform();
             capsule.className = 'capsule result success';
+            capsule.onclick = null;
             iconResult.innerHTML = '<div class="icon-check"></div>';
             iconResult.className = 'icon-result';
             iconResult.style.display = 'flex';
             label.textContent = t('overlay.pasted');
+            undoBar.style.display = 'none';
         }
 
         function setCopied() {
+            clearUndoTimeout();
             stopTimer();
             stopWaveform();
             capsule.className = 'capsule result success';
+            capsule.onclick = null;
             iconResult.innerHTML = '<div class="icon-check"></div>';
             iconResult.className = 'icon-result';
             iconResult.style.display = 'flex';
             label.textContent = t('overlay.copied');
+            undoBar.style.display = 'none';
         }
 
         function setError() {
+            clearUndoTimeout();
             stopTimer();
             stopWaveform();
             capsule.className = 'capsule result error-state';
+            capsule.onclick = null;
             iconResult.innerHTML = '<div class="icon-error"></div>';
             iconResult.className = 'icon-result';
             iconResult.style.display = 'flex';
             label.textContent = t('overlay.failed');
+            undoBar.style.display = 'none';
+        }
+
+        function setEdited() {
+            clearUndoTimeout();
+            stopTimer();
+            stopWaveform();
+            // Brief "Edited" success state, then transition to undo
+            capsule.className = 'capsule result success';
+            capsule.onclick = null;
+            iconResult.innerHTML = '<div class="icon-check"></div>';
+            iconResult.className = 'icon-result';
+            iconResult.style.display = 'flex';
+            label.textContent = t('overlay.edited');
+            undoBar.style.display = 'none';
+
+            // After 500ms, show undo button
+            setTimeout(() => setUndo(), 500);
+        }
+
+        function setUndo() {
+            capsule.className = 'capsule undo-state';
+            iconResult.innerHTML = '';
+            iconResult.className = 'icon-result';
+            iconResult.style.display = 'none';
+            label.textContent = t('overlay.undo');
+
+            // Start countdown bar animation (5s)
+            undoBar.style.display = 'block';
+            undoBar.style.animation = 'none';
+            // Force reflow
+            void undoBar.offsetWidth;
+            undoBar.style.animation = 'undoCountdown 5s linear forwards';
+
+            // Set click handler
+            capsule.onclick = handleUndoClick;
+
+            // Auto-hide after 5s
+            undoTimeout = setTimeout(() => {
+                capsule.onclick = null;
+                undoBar.style.display = 'none';
+            }, 5000);
+        }
+
+        async function handleUndoClick() {
+            clearUndoTimeout();
+            capsule.onclick = null;
+            undoBar.style.display = 'none';
+
+            if (window.__TAURI__) {
+                try {
+                    await window.__TAURI__.core.invoke('trigger_undo');
+                } catch (e) {
+                    console.error('Undo failed:', e);
+                }
+            }
         }
 
         // Init i18n from localStorage (synced from settings window), then show initial state
@@ -441,6 +586,7 @@
                     case 'pasted':       setPasted();       break;
                     case 'copied':       setCopied();       break;
                     case 'error':        setError();        break;
+                    case 'edited':       setEdited();       break;
                 }
             });
             window.__TAURI__.event.listen('recording-max-duration', (event) => {
