@@ -2181,6 +2181,132 @@
       border-color: rgba(0, 0, 0, 0.15);
     }
 
+    /* ── Voice Rule Panel ── */
+    .voice-rule-panel {
+      margin-bottom: 16px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    /* Idle state: instruction card (same style as .test-instruction-card) */
+    .voice-rule-idle {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: #f0f7ff;
+      border-radius: var(--radius-md);
+    }
+
+    .voice-rule-idle svg { flex-shrink: 0; }
+
+    .voice-rule-idle-text {
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    .voice-rule-idle-text kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #fff;
+      border: 1px solid var(--border-subtle);
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-primary);
+      box-shadow: 0 1px 1px rgba(0,0,0,0.06);
+    }
+
+    .voice-rule-example {
+      display: block;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      border-left: 2px solid var(--accent-blue);
+      padding-left: 10px;
+      line-height: 1.5;
+    }
+
+    /* Recording state: waveform + hint */
+    .voice-rule-recording {
+      display: none;
+      flex-direction: column;
+      align-items: stretch;
+      padding: 16px;
+      background: #f0f7ff;
+      border-radius: var(--radius-md);
+      gap: 12px;
+    }
+
+    .voice-rule-recording.active { display: flex; }
+
+    .voice-rule-canvas-wrap {
+      width: 100%;
+      height: 64px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .voice-rule-canvas-wrap canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .voice-rule-rec-hint {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .voice-rule-rec-hint kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #fff;
+      border: 1px solid var(--border-subtle);
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-primary);
+      box-shadow: 0 1px 1px rgba(0,0,0,0.06);
+    }
+
+    /* Processing state: spinner + label */
+    .voice-rule-processing {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 18px;
+      background: #f0f7ff;
+      border-radius: var(--radius-md);
+    }
+
+    .voice-rule-processing.active { display: flex; }
+
+    .voice-rule-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0, 122, 255, 0.2);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: voiceRuleSpin 0.6s linear infinite;
+    }
+
+    @keyframes voiceRuleSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    .voice-rule-processing-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
     .prompt-rules-list {
       display: flex;
       flex-direction: column;
@@ -2951,7 +3077,7 @@
               <div class="setting-info">
                 <div class="setting-name sub-name" data-i18n="settings.stt.azureRegion">Region</div>
               </div>
-              <input type="text" class="cloud-input" id="sttAzureRegionInput" placeholder="eastus" onchange="onSttCloudConfigChange()" />
+              <input type="text" class="cloud-input" id="sttAzureRegionInput" placeholder="eastus" oninput="onSttCloudConfigChange()" />
             </div>
             <div class="cloud-row" id="sttEndpointRow" style="display:none">
               <div class="setting-info">
@@ -2963,14 +3089,8 @@
               <div class="setting-info">
                 <div class="setting-name sub-name" data-i18n="settings.stt.cloudModel">Model</div>
               </div>
-              <select class="cloud-select" id="sttModelSelect" onchange="onSttModelChange()">
+              <select class="cloud-select" id="sttModelSelect" disabled>
               </select>
-            </div>
-            <div class="cloud-row" id="sttCustomModelRow" style="display:none">
-              <div class="setting-info">
-                <div class="setting-name sub-name" data-i18n="settings.stt.modelId">Model ID</div>
-              </div>
-              <input type="text" class="cloud-input" id="sttCustomModelInput" placeholder="whisper-large-v3-turbo" oninput="onSttCustomModelInput()" onchange="onSttCloudConfigChange()" />
             </div>
             <div class="cloud-row">
               <div class="setting-info">
@@ -3239,10 +3359,8 @@
           <div class="about-name">Voxink</div>
           <div class="about-version" data-i18n="about.version">Version 0.1.0</div>
           <div class="about-desc" data-i18n="about.desc">
-            Privacy-first, fully offline speech-to-text for macOS.
-            Press a hotkey to record, release to transcribe and paste at your cursor.
+            Your voice, in writing. AI-powered speech-to-text for macOS — press a hotkey to record, transcribe, and paste at your cursor.
           </div>
-          <div class="about-engine" id="aboutEngine" data-i18n="about.engine">Engine: Whisper &middot; Fully on-device</div>
           <div class="about-update" id="aboutUpdate">
             <button class="about-update-btn" id="updateBtn" onclick="checkForUpdates()" data-i18n="about.checkUpdate">Check for Updates</button>
             <div class="about-update-status" id="updateStatus" style="display:none"></div>
@@ -3435,6 +3553,29 @@
     <div class="rule-editor-backdrop" onclick="closeRuleEditor()"></div>
     <div class="rule-editor-card">
       <div class="rule-editor-title" id="ruleEditorTitle" data-i18n="settings.polish.addRule">+ Add Rule</div>
+      <div class="voice-rule-panel" id="voiceRulePanel" style="display:none;">
+        <!-- Idle: instruction card -->
+        <div class="voice-rule-idle" id="voiceRuleIdle">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+          <div class="voice-rule-idle-text">
+            <span id="voiceRuleIdleText"></span>
+            <span class="voice-rule-example" id="voiceRuleExample"></span>
+          </div>
+        </div>
+        <!-- Recording: waveform + hint -->
+        <div class="voice-rule-recording" id="voiceRuleRecording">
+          <div class="voice-rule-canvas-wrap">
+            <canvas id="voiceRuleCanvas"></canvas>
+          </div>
+          <div class="voice-rule-rec-hint" id="voiceRuleRecHint"></div>
+          <span class="voice-rule-example" id="voiceRuleRecExample"></span>
+        </div>
+        <!-- Processing: spinner -->
+        <div class="voice-rule-processing" id="voiceRuleProcessing">
+          <div class="voice-rule-spinner"></div>
+          <span class="voice-rule-processing-text" id="voiceRuleProcessingText"></span>
+        </div>
+      </div>
       <div class="rule-editor-field">
         <div class="rule-editor-label" data-i18n="settings.polish.ruleName">Name</div>
         <input type="text" class="rule-editor-input" id="ruleNameInput" data-i18n-placeholder="settings.polish.ruleNamePlaceholder" placeholder="e.g. Slack — casual tone" />
@@ -3552,32 +3693,23 @@
     // ── STT Cloud Config ──
     const STT_CLOUD_PROVIDERS = {
       deepgram: {
-        models: [
-          { id: 'whisper', name: 'Whisper' },
-        ],
+        model: { id: 'whisper', name: 'Whisper' },
         apiKeyUrl: 'https://console.deepgram.com/api-keys',
       },
       groq: {
-        models: [
-          { id: 'whisper-large-v3-turbo', name: 'Whisper Large v3 Turbo' },
-          { id: 'distil-whisper-large-v3-en', name: 'Distil Whisper Large v3 (EN)' },
-        ],
+        model: { id: 'whisper-large-v3-turbo', name: 'Whisper' },
         apiKeyUrl: 'https://console.groq.com/keys',
       },
       open_ai: {
-        models: [
-          { id: 'whisper-1', name: 'Whisper 1' },
-          { id: 'gpt-4o-transcribe', name: 'GPT-4o Transcribe' },
-          { id: 'gpt-4o-mini-transcribe', name: 'GPT-4o Mini Transcribe' },
-        ],
+        model: { id: 'whisper-1', name: 'Whisper' },
         apiKeyUrl: 'https://platform.openai.com/api-keys',
       },
       azure: {
-        models: [],
+        model: null,
         apiKeyUrl: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/SpeechServices',
       },
       custom: {
-        models: [],
+        model: { id: 'whisper', name: 'Whisper' },
       },
     };
     let sttConfig = { mode: 'local', cloud: { provider: 'deepgram', api_key: '', endpoint: '', model_id: 'whisper', language: 'zh-TW' } };
@@ -3586,6 +3718,11 @@
     // ── Page navigation ──
 
     function switchPage(pageId) {
+      // Clean up voice recording when leaving prompt rules page
+      if (voiceRuleModeActive && pageId !== 'promptRules') {
+        disableVoiceRuleMode();
+      }
+
       // Clean up test wizard when leaving
       const currentTestPage = document.getElementById('pageTest');
       if (currentTestPage && currentTestPage.classList.contains('active') && pageId !== 'test') {
@@ -4194,62 +4331,39 @@
     function populateSttModels() {
       const select = document.getElementById('sttModelSelect');
       const selectRow = document.getElementById('sttModelSelectRow');
-      const customRow = document.getElementById('sttCustomModelRow');
-      const customInput = document.getElementById('sttCustomModelInput');
       const provider = sttConfig.cloud.provider;
-      const providerData = STT_CLOUD_PROVIDERS[provider] || { models: [] };
+      const providerData = STT_CLOUD_PROVIDERS[provider] || { model: null };
 
-      // Azure has no model parameter — hide both model rows
-      if (provider === 'azure') {
+      // Azure has no model parameter — hide model row
+      if (!providerData.model) {
         selectRow.style.display = 'none';
-        customRow.style.display = 'none';
-        return;
-      }
-
-      if (providerData.models.length === 0) {
-        selectRow.style.display = 'none';
-        customRow.style.display = '';
-        customInput.value = sttConfig.cloud.model_id || '';
         return;
       }
 
       selectRow.style.display = '';
       select.innerHTML = '';
 
-      for (const m of providerData.models) {
-        const opt = document.createElement('option');
-        opt.value = m.id;
-        opt.textContent = m.name;
-        select.appendChild(opt);
-      }
-
-      // Add "Custom..." option
-      const customOpt = document.createElement('option');
-      customOpt.value = '__custom__';
-      customOpt.textContent = 'Custom...';
-      select.appendChild(customOpt);
-
-      const knownIds = providerData.models.map(m => m.id);
-      if (knownIds.includes(sttConfig.cloud.model_id)) {
-        select.value = sttConfig.cloud.model_id;
-        customRow.style.display = 'none';
-      } else {
-        select.value = '__custom__';
-        customInput.value = sttConfig.cloud.model_id || '';
-        customRow.style.display = '';
-      }
+      const opt = document.createElement('option');
+      opt.value = providerData.model.id;
+      opt.textContent = providerData.model.name;
+      select.appendChild(opt);
+      select.value = providerData.model.id;
+      sttConfig.cloud.model_id = providerData.model.id;
     }
 
     async function onSttProviderChange() {
       const provider = document.getElementById('sttProviderSelect').value;
       sttConfig.cloud.provider = provider;
 
-      const providerData = STT_CLOUD_PROVIDERS[provider] || { models: [] };
-      if (providerData.models.length > 0) {
-        sttConfig.cloud.model_id = providerData.models[0].id;
-      } else {
-        sttConfig.cloud.model_id = '';
+      // Clear endpoint when switching to a provider with a known default
+      // (endpoint is only user-editable for Custom and Azure)
+      if (provider !== 'custom' && provider !== 'azure') {
+        sttConfig.cloud.endpoint = '';
+        document.getElementById('sttEndpointInput').value = '';
       }
+
+      const providerData = STT_CLOUD_PROVIDERS[provider] || { model: null };
+      sttConfig.cloud.model_id = providerData.model ? providerData.model.id : '';
 
       // Load API key from keychain for the new provider
       try {
@@ -4264,19 +4378,6 @@
 
       populateSttModels();
       updateSttUI();
-      saveSttSettings();
-    }
-
-    function onSttModelChange() {
-      const select = document.getElementById('sttModelSelect');
-      const customRow = document.getElementById('sttCustomModelRow');
-      if (select.value === '__custom__') {
-        customRow.style.display = '';
-        sttConfig.cloud.model_id = document.getElementById('sttCustomModelInput').value;
-      } else {
-        customRow.style.display = 'none';
-        sttConfig.cloud.model_id = select.value;
-      }
       saveSttSettings();
     }
 
@@ -4298,16 +4399,7 @@
         }
       }
 
-      const select = document.getElementById('sttModelSelect');
-      if (select.value === '__custom__') {
-        sttConfig.cloud.model_id = document.getElementById('sttCustomModelInput').value;
-      }
-
       saveSttSettings();
-    }
-
-    function onSttCustomModelInput() {
-      sttConfig.cloud.model_id = document.getElementById('sttCustomModelInput').value;
     }
 
     async function openSttProviderApiPage() {
@@ -4611,6 +4703,20 @@
     }
 
     async function renderPromptRules() {
+      // Initialize default rules for current language if empty
+      const lang = polishConfig.output_language;
+      if (!polishConfig.prompt_rules[lang] || polishConfig.prompt_rules[lang].length === 0) {
+        try {
+          const defaults = await invoke('get_default_prompt_rules', { language: lang });
+          if (defaults && defaults.length > 0) {
+            polishConfig.prompt_rules[lang] = defaults;
+            await invoke('save_settings', { newSettings: buildSettingsPayload() });
+          }
+        } catch (e) {
+          console.error('Failed to load default prompt rules:', e);
+        }
+      }
+
       // Render base prompt card first
       const defaultCard = document.getElementById('defaultPromptCard');
       if (defaultCard) {
@@ -4691,6 +4797,7 @@
     function openRuleEditor(index) {
       editingRuleIndex = index;
       const titleEl = document.getElementById('ruleEditorTitle');
+      const panel = document.getElementById('voiceRulePanel');
       if (index >= 0) {
         const rule = getCurrentRules()[index];
         titleEl.textContent = t('settings.polish.editRule');
@@ -4705,12 +4812,181 @@
         document.getElementById('ruleMatchValueInput').value = '';
         document.getElementById('rulePromptInput').value = '';
       }
+      panel.style.display = '';
+      updateVoiceRuleTexts();
+      setVoiceRuleState('idle');
+      enableVoiceRuleMode();
       document.getElementById('ruleEditorOverlay').classList.add('active');
     }
 
     function closeRuleEditor() {
+      disableVoiceRuleMode();
       document.getElementById('ruleEditorOverlay').classList.remove('active');
       editingRuleIndex = -1;
+    }
+
+    // ── Voice Add Rule ──────────────────────────────────────────────────────
+    let voiceRuleModeActive = false;
+    let voiceRuleUnlisteners = [];
+    let voiceRuleWaveAnim = null;
+    let voiceRuleLevels = new Float32Array(20);
+
+    function formatHotkeyForDisplay(hotkeyStr) {
+      const map = { Alt: '⌥', Control: '⌃', Shift: '⇧', Super: '⌘' };
+      return hotkeyStr.split('+').map(p => {
+        if (map[p]) return map[p];
+        return p.replace(/^Key/, '').replace(/^Digit/, '');
+      }).join(' ');
+    }
+
+    function setVoiceRuleState(state) {
+      const idle = document.getElementById('voiceRuleIdle');
+      const rec = document.getElementById('voiceRuleRecording');
+      const proc = document.getElementById('voiceRuleProcessing');
+      idle.style.display = state === 'idle' ? 'flex' : 'none';
+      rec.classList.toggle('active', state === 'recording');
+      proc.classList.toggle('active', state === 'processing');
+
+      if (state === 'recording') {
+        startVoiceRuleWaveform();
+      } else {
+        stopVoiceRuleWaveform();
+      }
+    }
+
+    function startVoiceRuleWaveform() {
+      const canvas = document.getElementById('voiceRuleCanvas');
+      const wrap = canvas.parentElement;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = wrap.getBoundingClientRect();
+      canvas.width = Math.round(rect.width) * dpr;
+      canvas.height = Math.round(rect.height) * dpr;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width, h = rect.height;
+      const barWidth = 3, barGap = 2;
+      const numBars = Math.floor((w + barGap) / (barWidth + barGap));
+      const maxBarH = h * 0.8;
+
+      function draw() {
+        voiceRuleWaveAnim = requestAnimationFrame(draw);
+        ctx.clearRect(0, 0, w, h);
+        const totalW = numBars * barWidth + (numBars - 1) * barGap;
+        const startX = (w - totalW) / 2;
+        const cy = h / 2;
+
+        // Map 20 backend levels → numBars
+        for (let i = 0; i < numBars; i++) {
+          const srcIdx = Math.floor(i * voiceRuleLevels.length / numBars);
+          const level = voiceRuleLevels[srcIdx] || 0;
+          const bh = Math.max(3, level * maxBarH);
+          const x = startX + i * (barWidth + barGap);
+          const y = cy - bh / 2;
+          ctx.fillStyle = level > 0.05 ? '#007AFF' : '#e0e0e0';
+          ctx.beginPath();
+          ctx.roundRect(x, y, barWidth, bh, barWidth / 2);
+          ctx.fill();
+        }
+      }
+      draw();
+    }
+
+    function stopVoiceRuleWaveform() {
+      if (voiceRuleWaveAnim) {
+        cancelAnimationFrame(voiceRuleWaveAnim);
+        voiceRuleWaveAnim = null;
+      }
+      voiceRuleLevels = new Float32Array(20);
+    }
+
+    function updateVoiceRuleTexts() {
+      const hotkey = currentHotkey || 'Alt+KeyZ';
+      const kbd = '<kbd>' + formatHotkeyForDisplay(hotkey) + '</kbd>';
+      document.getElementById('voiceRuleIdleText').innerHTML =
+        t('promptRules.voiceTipMain').replace('{hotkey}', kbd);
+      document.getElementById('voiceRuleExample').textContent =
+        t('promptRules.voiceTipExample');
+      document.getElementById('voiceRuleRecHint').innerHTML =
+        t('promptRules.voiceRecHint').replace('{hotkey}', kbd);
+      document.getElementById('voiceRuleRecExample').textContent =
+        t('promptRules.voiceTipExample');
+    }
+
+    async function enableVoiceRuleMode() {
+      if (voiceRuleModeActive) return;
+      voiceRuleModeActive = true;
+
+      await invoke('set_voice_rule_mode', { enabled: true });
+
+      const { listen } = window.__TAURI__.event;
+
+      // Listen for recording status changes
+      voiceRuleUnlisteners.push(await listen('voice-rule-status', (event) => {
+        if (!voiceRuleModeActive) return;
+        if (event.payload === 'recording') {
+          setVoiceRuleState('recording');
+        } else if (event.payload === 'transcribing') {
+          setVoiceRuleState('processing');
+          document.getElementById('voiceRuleProcessingText').textContent =
+            t('promptRules.voiceTranscribing');
+        }
+      }));
+
+      // Listen for audio levels for waveform
+      voiceRuleUnlisteners.push(await listen('voice-rule-levels', (event) => {
+        if (voiceRuleModeActive && event.payload) {
+          voiceRuleLevels = new Float32Array(event.payload);
+        }
+      }));
+
+      // Listen for transcript result
+      voiceRuleUnlisteners.push(await listen('voice-rule-transcript', async (event) => {
+        const transcript = event.payload;
+        if (!transcript || !transcript.trim()) {
+          // Nothing was said — silently return to idle
+          if (voiceRuleModeActive) setVoiceRuleState('idle');
+          return;
+        }
+
+        // Show generating state
+        setVoiceRuleState('processing');
+        document.getElementById('voiceRuleProcessingText').textContent =
+          t('promptRules.voiceGenerating');
+
+        try {
+          const rule = await invoke('generate_rule_from_description', { description: transcript.trim() });
+          fillRuleEditorFields(rule);
+        } catch (e) {
+          fillRuleEditorFields({
+            name: '',
+            match_type: 'app_name',
+            match_value: '',
+            prompt: transcript.trim(),
+          });
+        }
+
+        if (voiceRuleModeActive) setVoiceRuleState('idle');
+      }));
+    }
+
+    async function disableVoiceRuleMode() {
+      if (!voiceRuleModeActive) return;
+      voiceRuleModeActive = false;
+
+      stopVoiceRuleWaveform();
+      try { await invoke('set_voice_rule_mode', { enabled: false }); } catch (e) {}
+      for (const unlisten of voiceRuleUnlisteners) unlisten();
+      voiceRuleUnlisteners = [];
+    }
+
+    function fillRuleEditorFields(data) {
+      document.getElementById('ruleNameInput').value = data.name || '';
+      document.getElementById('ruleMatchTypeSelect').value = data.match_type || 'app_name';
+      document.getElementById('ruleMatchValueInput').value = data.match_value || '';
+      document.getElementById('rulePromptInput').value = data.prompt || '';
     }
 
     async function saveRuleEditor() {

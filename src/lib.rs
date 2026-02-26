@@ -4,6 +4,7 @@ mod polisher;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -690,9 +691,37 @@ pub struct AppState {
     context_override: Mutex<Option<context_detect::AppContext>>,
     /// When true, the global hotkey only emits `hotkey-activated` without recording.
     test_mode: AtomicBool,
+    /// When true, the hotkey stop path emits `voice-rule-transcript` instead of
+    /// polishing/pasting — used by the "voice add rule" flow in the settings UI.
+    voice_rule_mode: AtomicBool,
     /// Debounce: timestamp of the last processed hotkey event.
     /// Prevents macOS key-repeat from toggling recording on/off too quickly.
     last_hotkey_time: Mutex<Instant>,
+    /// Shared HTTP client reused across STT and polish calls to avoid
+    /// per-request TCP+TLS handshake overhead.
+    http_client: reqwest::blocking::Client,
+    /// Cache for API keys loaded from macOS Keychain, keyed by provider name.
+    api_key_cache: Mutex<HashMap<String, String>>,
+}
+
+/// Load an API key, checking the in-memory cache first before falling back
+/// to the macOS Keychain.  Avoids spawning a `security` CLI process on
+/// every recording stop.
+fn get_cached_api_key(cache: &Mutex<HashMap<String, String>>, provider: &str) -> String {
+    if let Ok(map) = cache.lock() {
+        if let Some(key) = map.get(provider) {
+            return key.clone();
+        }
+    }
+    match keychain::load(provider) {
+        Ok(key) => {
+            if let Ok(mut map) = cache.lock() {
+                map.insert(provider.to_string(), key.clone());
+            }
+            key
+        }
+        Err(_) => String::new(),
+    }
 }
 
 /// Spawn a persistent audio thread that builds and immediately starts the cpal
@@ -951,18 +980,24 @@ fn get_default_prompt_rules(language: Option<String>) -> Vec<polisher::PromptRul
 }
 
 #[tauri::command]
-fn save_api_key(provider: String, key: String) -> Result<(), String> {
+fn save_api_key(state: State<'_, AppState>, provider: String, key: String) -> Result<(), String> {
     if key.is_empty() {
         keychain::delete(&provider)?;
+        if let Ok(mut map) = state.api_key_cache.lock() {
+            map.remove(&provider);
+        }
     } else {
         keychain::save(&provider, &key)?;
+        if let Ok(mut map) = state.api_key_cache.lock() {
+            map.insert(provider, key);
+        }
     }
     Ok(())
 }
 
 #[tauri::command]
-fn get_api_key(provider: String) -> Result<String, String> {
-    keychain::load(&provider)
+fn get_api_key(state: State<'_, AppState>, provider: String) -> Result<String, String> {
+    Ok(get_cached_api_key(&state.api_key_cache, &provider))
 }
 
 #[tauri::command]
@@ -1005,8 +1040,16 @@ fn test_polish(
     test_text: String,
     custom_prompt: String,
 ) -> Result<TestPolishResult, String> {
-    let config = state.settings.lock().map_err(|e| e.to_string())?.polish.clone();
+    let mut config = state.settings.lock().map_err(|e| e.to_string())?.polish.clone();
     let model_dir = models_dir();
+
+    // Inject API key from cache/keychain for cloud mode
+    if config.mode == polisher::PolishMode::Cloud {
+        let key = get_cached_api_key(&state.api_key_cache, config.cloud.provider.as_key());
+        if !key.is_empty() {
+            config.cloud.api_key = key;
+        }
+    }
 
     // Default built-in prompt
     let default_tmpl = polisher::base_prompt_template(&config.output_language);
@@ -1023,6 +1066,7 @@ fn test_polish(
         &config,
         &default_system_prompt,
         &test_text,
+        &state.http_client,
     )?;
 
     let custom_result = polisher::polish_with_prompt(
@@ -1031,12 +1075,138 @@ fn test_polish(
         &config,
         &custom_system_prompt,
         &test_text,
+        &state.http_client,
     )?;
 
     Ok(TestPolishResult {
         current_result: default_result,
         edited_result: custom_result,
     })
+}
+
+// ── Voice Add Rule ────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+struct GeneratedRule {
+    name: String,
+    match_type: String,
+    match_value: String,
+    prompt: String,
+}
+
+fn parse_generated_rule(raw: &str) -> Result<GeneratedRule, String> {
+    // Strip markdown code fences if present
+    let stripped = raw.trim();
+    let stripped = if stripped.starts_with("```") {
+        let s = stripped
+            .trim_start_matches("```json")
+            .trim_start_matches("```");
+        s.strip_suffix("```").unwrap_or(s)
+    } else {
+        stripped
+    }
+    .trim();
+
+    // Find the first { ... } block
+    let start = stripped.find('{').ok_or("No JSON object found in LLM response")?;
+    let end = stripped.rfind('}').ok_or("No closing brace found in LLM response")?;
+    if end <= start {
+        return Err("Invalid JSON structure".to_string());
+    }
+    let json_str = &stripped[start..=end];
+
+    let val: serde_json::Value =
+        serde_json::from_str(json_str).map_err(|e| format!("JSON parse error: {e}"))?;
+
+    let name = val
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let match_type = val
+        .get("match_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("app_name")
+        .to_string();
+    let match_value = val
+        .get("match_value")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let prompt = val
+        .get("prompt")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // Validate match_type
+    let match_type = match match_type.as_str() {
+        "app_name" | "bundle_id" | "url" => match_type,
+        _ => "app_name".to_string(),
+    };
+
+    Ok(GeneratedRule {
+        name,
+        match_type,
+        match_value,
+        prompt,
+    })
+}
+
+#[tauri::command]
+fn generate_rule_from_description(
+    state: State<'_, AppState>,
+    description: String,
+) -> Result<GeneratedRule, String> {
+    let mut config = state
+        .settings
+        .lock()
+        .map_err(|e| e.to_string())?
+        .polish
+        .clone();
+    let model_dir = models_dir();
+
+    // Inject API key from cache/keychain for cloud mode
+    if config.mode == polisher::PolishMode::Cloud {
+        let key = get_cached_api_key(&state.api_key_cache, config.cloud.provider.as_key());
+        if !key.is_empty() {
+            config.cloud.api_key = key;
+        }
+    }
+
+    if !polisher::is_polish_ready(&model_dir, &config) {
+        return Err("LLM not configured".to_string());
+    }
+
+    let lang_hint = config.output_language.label();
+
+    let system_prompt = format!(
+        r#"You are a JSON generator. The user will describe a prompt rule for a speech-to-text app. Your job is to convert the description into a structured JSON object.
+
+Return ONLY a single JSON object with these fields:
+- "name": a short descriptive name for the rule (max 30 chars)
+- "match_type": one of "app_name", "bundle_id", or "url"
+- "match_value": the value to match against (e.g. app name, bundle ID, or URL pattern)
+- "prompt": the detailed instruction for AI polishing when this rule matches
+
+If the user mentions a specific app, use "app_name" as match_type and the app name as match_value.
+If the user mentions a website or URL, use "url" as match_type.
+If you cannot determine the match target, leave match_value empty and use "app_name".
+
+Write the "name" and "prompt" fields in {lang_hint}.
+Do NOT include any explanation, only the JSON object."#
+    );
+
+    let result = polisher::polish_with_prompt(
+        &state.llm_model,
+        &model_dir,
+        &config,
+        &system_prompt,
+        &description,
+        &state.http_client,
+    )?;
+
+    parse_generated_rule(&result)
 }
 
 // Keep Tauri commands for potential future use from frontend
@@ -1049,7 +1219,8 @@ fn start_recording(state: State<'_, AppState>) -> Result<(), String> {
 fn stop_recording(state: State<'_, AppState>) -> Result<String, String> {
     let mut stt_config = state.settings.lock().map_err(|e| e.to_string())?.stt.clone();
     if stt_config.mode == SttMode::Cloud {
-        if let Ok(key) = keychain::load(stt_config.cloud.provider.as_key()) {
+        let key = get_cached_api_key(&state.api_key_cache, stt_config.cloud.provider.as_key());
+        if !key.is_empty() {
             stt_config.cloud.api_key = key;
         }
     }
@@ -1059,6 +1230,11 @@ fn stop_recording(state: State<'_, AppState>) -> Result<String, String> {
 #[tauri::command]
 fn set_test_mode(state: State<'_, AppState>, enabled: bool) {
     state.test_mode.store(enabled, Ordering::SeqCst);
+}
+
+#[tauri::command]
+fn set_voice_rule_mode(state: State<'_, AppState>, enabled: bool) {
+    state.voice_rule_mode.store(enabled, Ordering::SeqCst);
 }
 
 #[tauri::command]
@@ -1558,7 +1734,7 @@ fn transcribe_with_cached_whisper(
 }
 
 /// Transcribe audio via a cloud STT API (OpenAI-compatible `/v1/audio/transcriptions`).
-fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32]) -> Result<String, String> {
+fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32], client: &reqwest::blocking::Client) -> Result<String, String> {
     if stt_cloud.api_key.is_empty() {
         return Err("Cloud STT API key is not set. Please configure it in Settings.".to_string());
     }
@@ -1574,19 +1750,35 @@ fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32]) -> Result<Stri
             "https://{}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1",
             region
         )
-    } else if stt_cloud.endpoint.is_empty() {
-        stt_cloud.provider.default_endpoint().to_string()
-    } else {
+    } else if stt_cloud.provider == SttProvider::Custom {
+        // Custom provider: user must supply the endpoint
+        if stt_cloud.endpoint.is_empty() {
+            return Err("Cloud STT endpoint is not configured.".to_string());
+        }
         stt_cloud.endpoint.clone()
+    } else {
+        // For providers with known defaults (Deepgram, Groq, OpenAI),
+        // always use the default endpoint. The endpoint field may contain
+        // stale values from a previous provider selection.
+        let default_ep = stt_cloud.provider.default_endpoint();
+        if default_ep.is_empty() {
+            stt_cloud.endpoint.clone()
+        } else {
+            default_ep.to_string()
+        }
     };
     if endpoint.is_empty() {
         return Err("Cloud STT endpoint is not configured.".to_string());
     }
 
-    let model_id = if stt_cloud.model_id.is_empty() {
-        stt_cloud.provider.default_model().to_string()
-    } else {
-        stt_cloud.model_id.clone()
+    // Always use the provider's default Whisper model
+    let model_id = {
+        let default = stt_cloud.provider.default_model();
+        if default.is_empty() {
+            stt_cloud.model_id.clone()
+        } else {
+            default.to_string()
+        }
     };
 
     // Encode f32 samples → 16-bit PCM WAV in-memory (manual header)
@@ -1620,11 +1812,6 @@ fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32]) -> Result<Stri
         }
         buf
     };
-
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let language = &stt_cloud.language;
 
@@ -1833,7 +2020,7 @@ fn do_stop_recording(state: &AppState, stt_config: &SttConfig) -> Result<(String
             result
         }
         SttMode::Cloud => {
-            let result = run_cloud_stt(&stt_config.cloud, &samples_16k)?;
+            let result = run_cloud_stt(&stt_config.cloud, &samples_16k, &state.http_client)?;
             println!("[Voxink] [timing] STT (cloud {}): {:.0?}", stt_config.cloud.provider.as_key(), stt_start.elapsed());
             result
         }
@@ -1906,6 +2093,15 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.emit("recording-status", "transcribing");
     }
+    // Forward transcribing status to main window for voice rule UI
+    {
+        let vrm = app.state::<AppState>();
+        if vrm.voice_rule_mode.load(Ordering::SeqCst) {
+            if let Some(main_win) = app.get_webview_window("main") {
+                let _ = main_win.emit("voice-rule-status", "transcribing");
+            }
+        }
+    }
 
     println!("[Voxink] ⏹️ Stopping recording...");
 
@@ -1920,9 +2116,10 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
             .map(|s| (s.auto_paste, s.polish.clone(), s.history_retention_days, s.stt.clone()))
             .unwrap_or((true, polisher::PolishConfig::default(), 0, SttConfig::default()));
 
-        // Inject STT API key from keychain for cloud mode
+        // Inject STT API key from cache/keychain for cloud mode
         if stt_config.mode == SttMode::Cloud {
-            if let Ok(key) = keychain::load(stt_config.cloud.provider.as_key()) {
+            let key = get_cached_api_key(&state.api_key_cache, stt_config.cloud.provider.as_key());
+            if !key.is_empty() {
                 stt_config.cloud.api_key = key;
             }
         }
@@ -1931,18 +2128,44 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
                 println!("[Voxink] [timing] stop→transcribed: {:.0?} | text: {}", transcribe_elapsed, text);
+
+                // ── Voice Rule Mode: emit transcript to main window and return ──
+                if state.voice_rule_mode.compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+                    println!("[Voxink] Voice rule mode: emitting transcript to main window");
+                    if let Some(main_win) = app_handle.get_webview_window("main") {
+                        let _ = main_win.emit("voice-rule-transcript", &text);
+                    }
+                    state.is_processing.store(false, Ordering::SeqCst);
+                    // Hide overlay
+                    let app_for_hide = app_handle.clone();
+                    let _ = app_handle.run_on_main_thread(move || {
+                        if let Some(overlay) = app_for_hide.get_webview_window("overlay") {
+                            #[cfg(target_os = "macos")]
+                            if let Ok(ns_win) = overlay.ns_window() {
+                                unsafe { macos_ffi::hide_window(ns_win); }
+                            }
+                            #[cfg(not(target_os = "macos"))]
+                            let _ = overlay.hide();
+                        }
+                    });
+                    return;
+                }
+
                 let raw_text = text.clone();
                 let audio_duration_secs = samples_16k.len() as f64 / 16000.0;
 
                 // ── AI Polishing ──
                 let mut polish_config = polish_config;
-                // Inject API key from keychain for cloud mode
+                // Inject API key from cache/keychain for cloud mode
                 if polish_config.enabled && polish_config.mode == polisher::PolishMode::Cloud {
-                    if let Ok(key) = keychain::load(polish_config.cloud.provider.as_key()) {
+                    let key = get_cached_api_key(&state.api_key_cache, polish_config.cloud.provider.as_key());
+                    if !key.is_empty() {
                         polish_config.cloud.api_key = key;
                     }
                 }
-                let (final_text, reasoning) = if polish_config.enabled {
+                let stt_elapsed_ms = transcribe_elapsed.as_millis() as u64;
+
+                let (final_text, reasoning, polish_elapsed_ms) = if polish_config.enabled {
                     let model_dir = models_dir();
                     if polisher::is_polish_ready(&model_dir, &polish_config) {
                         if let Some(overlay) = app_handle.get_webview_window("overlay") {
@@ -1966,15 +2189,17 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                             &polish_config,
                             &context,
                             &text,
+                            &state.http_client,
                         );
+                        let p_elapsed = polish_start.elapsed().as_millis() as u64;
                         println!("[Voxink] [timing] polish ({}): {:.0?} | text: {:?}", mode_label, polish_start.elapsed(), result.text);
-                        (result.text, result.reasoning)
+                        (result.text, result.reasoning, Some(p_elapsed))
                     } else {
                         println!("[Voxink] Polish enabled but not ready (model missing or no API key), skipping");
-                        (text, None)
+                        (text, None, None)
                     }
                 } else {
-                    (text, None)
+                    (text, None, None)
                 };
                 let text = final_text;
 
@@ -2024,6 +2249,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                     }
                 }
 
+                let total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
                 println!("[Voxink] [timing] total pipeline: {:.0?}", pipeline_start.elapsed());
 
                 // ── Save to history ──
@@ -2061,6 +2287,9 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         polish_model: polish_model_name,
                         duration_secs: audio_duration_secs,
                         has_audio,
+                        stt_elapsed_ms,
+                        polish_elapsed_ms,
+                        total_elapsed_ms,
                     };
                     history::add_entry(&history_dir(), &audio_dir(), entry, retention_days);
                     println!("[Voxink] 📝 History entry saved (audio={})", has_audio);
@@ -2068,12 +2297,20 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
             }
             Err(ref e) if e == "no_speech" => {
                 println!("[Voxink] No speech detected, skipping (took {:.0?})", pipeline_start.elapsed());
+                // Reset voice rule mode on no speech
+                if state.voice_rule_mode.compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+                    if let Some(main_win) = app_handle.get_webview_window("main") {
+                        let _ = main_win.emit("voice-rule-transcript", "");
+                    }
+                }
             }
             Err(e) => {
                 eprintln!("[Voxink] Transcription error: {} (after {:.0?})", e, pipeline_start.elapsed());
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "error");
                 }
+                // Reset voice rule mode on error
+                state.voice_rule_mode.store(false, Ordering::SeqCst);
             }
         }
 
@@ -2286,6 +2523,7 @@ pub fn run() {
             stop_recording,
             cancel_recording,
             set_test_mode,
+            set_voice_rule_mode,
             set_context_override,
             get_settings,
             save_settings,
@@ -2308,6 +2546,7 @@ pub fn run() {
             get_history_storage_path,
             check_permissions,
             open_permission_settings,
+            generate_rule_from_description,
         ])
         .setup(|app| {
             // ── Hide Dock icon (menu-bar-only app) ──
@@ -2319,6 +2558,9 @@ pub fn run() {
             // ── Load settings ──
             let settings = load_settings();
             let hotkey_str = settings.hotkey.clone();
+
+            // ── Migrate legacy JSON history to SQLite ──
+            history::migrate_from_json(&history_dir(), &audio_dir());
 
             // ── Pre-initialise audio pipeline ──
             // Spawn a persistent audio thread that builds the cpal stream once.
@@ -2334,6 +2576,11 @@ pub fn run() {
                     }
                 };
 
+            let http_client = reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(60))
+                .build()
+                .expect("Failed to create shared HTTP client");
+
             app.manage(AppState {
                 is_recording,
                 is_processing: AtomicBool::new(false),
@@ -2346,7 +2593,10 @@ pub fn run() {
                 captured_context: Mutex::new(None),
                 context_override: Mutex::new(None),
                 test_mode: AtomicBool::new(false),
+                voice_rule_mode: AtomicBool::new(false),
                 last_hotkey_time: Mutex::new(Instant::now() - std::time::Duration::from_secs(1)),
+                http_client,
+                api_key_cache: Mutex::new(HashMap::new()),
             });
 
             // ── Auto-show settings when model is missing ──
@@ -2372,6 +2622,15 @@ pub fn run() {
                         let mut ctx_guard = state.whisper_ctx.lock().unwrap();
                         if ctx_guard.is_none() {
                             println!("[Voxink] Pre-warming Whisper model...");
+                            // Suppress verbose C-level model architecture logs
+                            unsafe extern "C" fn noop_log(
+                                _level: u32,
+                                _text: *const std::ffi::c_char,
+                                _user_data: *mut std::ffi::c_void,
+                            ) {}
+                            unsafe {
+                                whisper_rs::set_log_callback(Some(noop_log), std::ptr::null_mut());
+                            }
                             let mut ctx_params = WhisperContextParameters::new();
                             ctx_params.use_gpu(true);
                             match WhisperContext::new_with_params(
@@ -2532,6 +2791,10 @@ pub fn run() {
                                         // Notify the main (settings) window so the Test wizard can react
                                         if let Some(main_win) = app.get_webview_window("main") {
                                             let _ = main_win.emit("hotkey-activated", true);
+                                            // Voice rule mode: also forward recording status
+                                            if state.voice_rule_mode.load(Ordering::SeqCst) {
+                                                let _ = main_win.emit("voice-rule-status", "recording");
+                                            }
                                         }
 
                                         // Now show the overlay (non-blocking from audio's perspective)
@@ -2604,6 +2867,12 @@ pub fn run() {
 
                                                 if let Some(ov) = app_for_monitor.get_webview_window("overlay") {
                                                     let _ = ov.emit("audio-levels", &levels);
+                                                }
+                                                // Forward audio levels to main window for voice rule waveform
+                                                if state.voice_rule_mode.load(Ordering::SeqCst) {
+                                                    if let Some(main_win) = app_for_monitor.get_webview_window("main") {
+                                                        let _ = main_win.emit("voice-rule-levels", &levels);
+                                                    }
                                                 }
                                                 std::thread::sleep(std::time::Duration::from_millis(50));
                                             }

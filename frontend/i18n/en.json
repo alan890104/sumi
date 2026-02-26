@@ -34,7 +34,6 @@
   "settings.stt.endpoint": "Endpoint",
   "settings.stt.azureRegion": "Region",
   "settings.stt.cloudModel": "Model",
-  "settings.stt.modelId": "Model ID",
   "settings.stt.language": "Language",
 
   "settings.polish": "AI Polishing",
@@ -82,6 +81,12 @@
 
   "promptRules.title": "Prompt Rules",
   "promptRules.desc": "Rules are matched by the frontmost app — the first matching rule's instructions are appended to the base prompt.",
+  "promptRules.voiceTipMain": "Press {hotkey} to describe your rule by voice.",
+  "promptRules.voiceTipExample": "e.g. \u201CI want to add a rule for LINE \u2014 use a casual, friendly tone with emoji.\u201D",
+  "promptRules.voiceRecHint": "Speak now \u2014 press {hotkey} again to finish.",
+  "promptRules.voiceTranscribing": "Transcribing\u2026",
+  "promptRules.voiceGenerating": "Generating rule\u2026",
+  "promptRules.voiceEmpty": "No speech detected. Try again!",
   "promptRules.basePrompt": "Base Prompt",
   "promptRules.basePromptDesc": "Universal STT processing rules, automatically applied to all transcriptions",
 
@@ -144,7 +149,6 @@
   "about.title": "About",
   "about.version": "Version {version}",
   "about.desc": "Your voice, in writing. AI-powered speech-to-text for macOS — press a hotkey to record, transcribe, and paste at your cursor.",
-  "about.engine": "Engine: Whisper \u00B7 Fully on-device",
   "about.checkUpdate": "Check for Updates",
   "about.checking": "Checking for updates\u2026",
   "about.updateAvailable": "Version {version} is available",

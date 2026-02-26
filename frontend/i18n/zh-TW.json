@@ -34,7 +34,6 @@
   "settings.stt.endpoint": "端點",
   "settings.stt.azureRegion": "區域",
   "settings.stt.cloudModel": "模型",
-  "settings.stt.modelId": "模型 ID",
   "settings.stt.language": "語言",
 
   "settings.polish": "AI 潤飾",
@@ -82,6 +81,12 @@
 
   "promptRules.title": "提示規則",
   "promptRules.desc": "規則依據前台應用程式比對 — 第一個符合的規則指示會附加在基礎提示詞之後。",
+  "promptRules.voiceTipMain": "按下 {hotkey} 以語音的方式描述規則。",
+  "promptRules.voiceTipExample": "例如：「我想要新增一個 LINE 的規則，用輕鬆一點的語氣，加一些表情符號」",
+  "promptRules.voiceRecHint": "說出你想要的規則 — 再按一次 {hotkey} 結束錄音。",
+  "promptRules.voiceTranscribing": "轉錄中\u2026",
+  "promptRules.voiceGenerating": "正在生成規則\u2026",
+  "promptRules.voiceEmpty": "未偵測到語音，請再試一次！",
   "promptRules.basePrompt": "基礎提示詞",
   "promptRules.basePromptDesc": "通用語音轉文字處理規則，自動套用於所有轉錄",
 
@@ -144,7 +149,6 @@
   "about.title": "關於",
   "about.version": "版本 {version}",
   "about.desc": "聲音成字。AI 驅動的 macOS 語音轉文字工具 — 按下快捷鍵錄音、轉錄，並貼上至游標位置。",
-  "about.engine": "引擎：Whisper · 完全在裝置上運行",
   "about.checkUpdate": "檢查更新",
   "about.checking": "正在檢查更新\u2026",
   "about.updateAvailable": "版本 {version} 可供更新",

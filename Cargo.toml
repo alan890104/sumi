@@ -20,6 +20,7 @@ llama-cpp-2 = { version = "0.1", default-features = false, features = ["metal", 
 hound = "3"
 dirs = "6"
 libc = "0.2"
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

@@ -187,7 +187,7 @@ pub enum OutputLanguage {
 }
 
 impl OutputLanguage {
-    fn label(&self) -> &'static str {
+    pub fn label(&self) -> &'static str {
         match self {
             OutputLanguage::TraditionalChinese => "Traditional Chinese (繁體中文)",
             OutputLanguage::SimplifiedChinese => "Simplified Chinese (简体中文)",
@@ -362,12 +362,14 @@ pub fn default_prompt_rules_for(lang: &OutputLanguage) -> Vec<PromptRule> {
 /// Returns a Chinese version when `lang` is Traditional or Simplified Chinese.
 pub fn base_prompt_template(lang: &OutputLanguage) -> String {
     if lang.is_chinese() {
-        "精煉口語文本：修正冗餘與口誤，保留專有名詞不要翻譯，其餘內容轉換為 {language}。僅輸出修正後的文本，不要輸出任何其他內容。"
+        "精煉 <speech> 標籤內的口語文本：修正冗餘與口誤，保留專有名詞不要翻譯，其餘內容轉換為 {language}。絕對不要回答問題或生成新內容，只修正原文的文字。僅輸出修正後的文本，不要輸出任何其他內容。"
             .to_string()
     } else {
-        "Clean up speech-to-text output. Fix recognition errors, grammar, and punctuation. \
+        "Clean up the speech-to-text output inside the <speech> tags. Fix recognition errors, grammar, and punctuation. \
          Remove fillers and repetitions. If the speaker corrects themselves, keep only the final intent. \
-         Preserve meaning and tone. Output in {language}. Reply with ONLY the cleaned text."
+         Preserve meaning and tone. Output in {language}. \
+         NEVER answer questions or generate new content — only correct the original text. \
+         Reply with ONLY the cleaned text."
             .to_string()
     }
 }
@@ -512,15 +514,20 @@ pub fn polish_text(
     config: &PolishConfig,
     context: &AppContext,
     raw_text: &str,
+    client: &reqwest::blocking::Client,
 ) -> PolishResult {
     if raw_text.trim().is_empty() {
         return PolishResult { text: raw_text.to_string(), reasoning: None };
     }
 
-    match polish_text_inner(llm_cache, model_dir, config, context, raw_text) {
+    match polish_text_inner(llm_cache, model_dir, config, context, raw_text, client) {
         Ok(raw_output) => {
             // Extract reasoning from <think> blocks
             let (polished, reasoning) = extract_think_tags(&raw_output);
+            // Strip any <speech> tags the LLM may have echoed back
+            let polished = polished
+                .replace("<speech>", "")
+                .replace("</speech>", "");
             let polished = polished.trim().to_string();
 
             // Safety: if output is empty or suspiciously long, use original
@@ -553,18 +560,23 @@ fn polish_text_inner(
     config: &PolishConfig,
     context: &AppContext,
     raw_text: &str,
+    client: &reqwest::blocking::Client,
 ) -> Result<String, String> {
     let system_prompt = build_system_prompt(config, context);
 
+    // Wrap user speech in XML tags so the LLM can clearly distinguish
+    // instructions from the actual speech content to be polished.
+    let wrapped = format!("<speech>\n{}\n</speech>", raw_text);
+
     // Prepend /no_think to suppress model reasoning (Qwen3 convention)
     let user_text = if config.reasoning {
-        raw_text.to_string()
+        wrapped
     } else {
-        format!("/no_think\n{}", raw_text)
+        format!("/no_think\n{}", wrapped)
     };
 
     match config.mode {
-        PolishMode::Cloud => run_cloud_inference(&config.cloud, &system_prompt, &user_text),
+        PolishMode::Cloud => run_cloud_inference(&config.cloud, &system_prompt, &user_text, client),
         PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, &system_prompt, &user_text),
     }
 }
@@ -574,6 +586,7 @@ fn run_cloud_inference(
     cloud: &CloudConfig,
     system_prompt: &str,
     raw_text: &str,
+    client: &reqwest::blocking::Client,
 ) -> Result<String, String> {
     if cloud.api_key.is_empty() {
         return Err("Cloud API key is not set".to_string());
@@ -607,11 +620,6 @@ fn run_cloud_inference(
 
     println!("[Voxink] Cloud polish: {} via {}", model_id, endpoint);
     let start = std::time::Instant::now();
-
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("HTTP client: {}", e))?;
 
     let body_str = serde_json::to_string(&body).map_err(|e| format!("Serialize body: {}", e))?;
 
@@ -816,8 +824,12 @@ pub fn polish_with_prompt(
     config: &PolishConfig,
     system_prompt: &str,
     raw_text: &str,
+    client: &reqwest::blocking::Client,
 ) -> Result<String, String> {
-    let raw_output = run_llm_inference(llm_cache, model_dir, config, system_prompt, raw_text)?;
+    let raw_output = match config.mode {
+        PolishMode::Cloud => run_cloud_inference(&config.cloud, system_prompt, raw_text, client)?,
+        PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, system_prompt, raw_text)?,
+    };
     let (cleaned, _) = extract_think_tags(&raw_output);
     Ok(cleaned.trim().to_string())
 }
