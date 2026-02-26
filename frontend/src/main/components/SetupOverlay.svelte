@@ -7,6 +7,7 @@
     getSttConfig,
     getPolishConfig,
     setSttMode,
+    setSttWhisperModel,
     setSttCloudProvider,
     setSttCloudApiKey,
     setSttCloudEndpoint,
@@ -30,11 +31,16 @@
     downloadLlmModel,
     onModelDownloadProgress,
     onLlmModelDownloadProgress,
+    listWhisperModels,
+    getWhisperModelRecommendation,
+    switchWhisperModel,
+    downloadWhisperModel,
+    onWhisperModelDownloadProgress,
     saveApiKey,
     getApiKey,
     saveSettings as saveSettingsApi,
   } from '$lib/api';
-  import type { DownloadProgress, PermissionStatus } from '$lib/types';
+  import type { DownloadProgress, PermissionStatus, WhisperModelId } from '$lib/types';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import CloudConfigPanel from '$lib/components/CloudConfigPanel.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
@@ -105,14 +111,27 @@
 
   let sttMode = $state<string>('local');
   let sttModelAlreadyDownloaded = $state(false);
+  let recommendedModelId = $state<WhisperModelId>('large_v3_turbo');
+  let recommendedModelSize = $state('1.5 GB');
+
+  async function fetchRecommendedModel() {
+    try {
+      const rec = await getWhisperModelRecommendation() as WhisperModelId;
+      recommendedModelId = rec;
+      // Find size from the model list
+      const models = await listWhisperModels();
+      const model = models.find(m => m.id === rec);
+      if (model) {
+        recommendedModelSize = formatBytes(model.size_bytes);
+        sttModelAlreadyDownloaded = model.downloaded;
+      }
+    } catch {
+      // Fallback to defaults
+    }
+  }
 
   async function checkSttModelExists() {
-    try {
-      const status = await checkModelStatus();
-      sttModelAlreadyDownloaded = status.model_exists;
-    } catch {
-      sttModelAlreadyDownloaded = false;
-    }
+    await fetchRecommendedModel();
   }
 
   // Cloud config bindings for STT
@@ -200,12 +219,20 @@
     goToPolishChoice();
   }
 
-  function onSttLocalDownload() {
+  async function onSttLocalDownload() {
+    setSttMode('local');
+    setSttWhisperModel(recommendedModelId);
+    try {
+      await switchWhisperModel(recommendedModelId);
+    } catch (e) {
+      console.error('Failed to switch whisper model:', e);
+    }
+    // Check if recommended model already exists
     if (sttModelAlreadyDownloaded) {
       goToPolishChoice();
-    } else {
-      startSttDownload();
+      return;
     }
+    startSttDownload();
   }
 
   // ── STT Download ──
@@ -227,7 +254,7 @@
       sttDownloadUnlisten = null;
     }
 
-    sttDownloadUnlisten = await onModelDownloadProgress((p: DownloadProgress) => {
+    sttDownloadUnlisten = await onWhisperModelDownloadProgress((p: DownloadProgress) => {
       if (p.status === 'downloading') {
         const total = p.total || 1;
         const downloaded = p.downloaded || 0;
@@ -246,7 +273,7 @@
     });
 
     try {
-      await downloadModel();
+      await downloadWhisperModel(recommendedModelId);
     } catch (e) {
       errorMessage = String(e);
       lastFailedDownload = 'stt';
@@ -448,37 +475,6 @@
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   }
 
-  // ── Step indicator ──
-
-  type StepId = 'stt' | 'polish' | 'test';
-
-  let currentStep = $derived<StepId>(
-    currentState === 'sttChoice' || currentState === 'downloading'
-      ? 'stt'
-      : currentState === 'complete'
-        ? 'stt'
-        : currentState === 'polishChoice' || currentState === 'llmDownloading'
-          ? 'polish'
-          : 'stt'
-  );
-
-  function stepClass(step: StepId): string {
-    const order: StepId[] = ['stt', 'polish', 'test'];
-    const currentIdx = order.indexOf(currentStep);
-    const stepIdx = order.indexOf(step);
-    if (stepIdx === currentIdx) return 'setup-step-item active';
-    if (stepIdx < currentIdx) return 'setup-step-item done';
-    return 'setup-step-item';
-  }
-
-  let showStepIndicator = $derived(
-    currentState === 'sttChoice' ||
-    currentState === 'downloading' ||
-    currentState === 'complete' ||
-    currentState === 'polishChoice' ||
-    currentState === 'llmDownloading'
-  );
-
   // ── Lifecycle ──
 
   // Use $effect to react to getShowSetup() changes, since App.svelte
@@ -591,15 +587,6 @@
       {#if currentState === 'sttChoice'}
         <div class="setup-state-content" style="animation: setupFadeIn 0.4s ease">
           <!-- Step indicator -->
-          {#if showStepIndicator}
-            <div class="setup-step-indicator">
-              <span class={stepClass('stt')}>{t('setup.stepStt')}</span>
-              <span class="setup-step-sep">&rsaquo;</span>
-              <span class={stepClass('polish')}>{t('setup.stepPolish')}</span>
-              <span class="setup-step-sep">&rsaquo;</span>
-              <span class={stepClass('test')}>{t('setup.stepTest')}</span>
-            </div>
-          {/if}
 
           <!-- Mic illustration with wave effects -->
           <div class="setup-mic-wrap">
@@ -628,9 +615,13 @@
           </div>
 
           {#if sttMode === 'local'}
-            <div class="setup-panel-desc">{t('setup.sttLocalDesc')}</div>
-            <button class="setup-download-btn" onclick={onSttLocalDownload}>
-              {sttModelAlreadyDownloaded ? t('setup.permContinue') : t('setup.downloadBtn')}
+            <div class="setup-panel-desc">{t('setup.sttLocalDesc', { size: recommendedModelSize })}</div>
+            <button
+              class="setup-download-btn"
+              class:downloaded={sttModelAlreadyDownloaded}
+              onclick={onSttLocalDownload}
+            >
+              {sttModelAlreadyDownloaded ? t('settings.stt.downloaded') : t('setup.downloadBtn')}
             </button>
           {:else}
             <div class="setup-panel-desc">{t('setup.sttCloudDesc')}</div>
@@ -660,15 +651,6 @@
       <!-- ═══ Downloading STT Model ═══ -->
       {#if currentState === 'downloading'}
         <div class="setup-state-content" style="animation: setupFadeIn 0.4s ease">
-          {#if showStepIndicator}
-            <div class="setup-step-indicator">
-              <span class={stepClass('stt')}>{t('setup.stepStt')}</span>
-              <span class="setup-step-sep">&rsaquo;</span>
-              <span class={stepClass('polish')}>{t('setup.stepPolish')}</span>
-              <span class="setup-step-sep">&rsaquo;</span>
-              <span class={stepClass('test')}>{t('setup.stepTest')}</span>
-            </div>
-          {/if}
 
           <div class="setup-mic-wrap">
             <div class="wave"></div>
@@ -714,15 +696,6 @@
       <!-- ═══ Polish Choice ═══ -->
       {#if currentState === 'polishChoice'}
         <div class="setup-state-content" style="animation: setupFadeIn 0.4s ease">
-          {#if showStepIndicator}
-            <div class="setup-step-indicator">
-              <span class={stepClass('stt')}>{t('setup.stepStt')}</span>
-              <span class="setup-step-sep">&rsaquo;</span>
-              <span class={stepClass('polish')}>{t('setup.stepPolish')}</span>
-              <span class="setup-step-sep">&rsaquo;</span>
-              <span class={stepClass('test')}>{t('setup.stepTest')}</span>
-            </div>
-          {/if}
 
           <!-- Sparkle/AI icon with wave effects -->
           <div class="setup-mic-wrap">
@@ -783,15 +756,6 @@
       <!-- ═══ LLM Downloading ═══ -->
       {#if currentState === 'llmDownloading'}
         <div class="setup-state-content" style="animation: setupFadeIn 0.4s ease">
-          {#if showStepIndicator}
-            <div class="setup-step-indicator">
-              <span class={stepClass('stt')}>{t('setup.stepStt')}</span>
-              <span class="setup-step-sep">&rsaquo;</span>
-              <span class={stepClass('polish')}>{t('setup.stepPolish')}</span>
-              <span class="setup-step-sep">&rsaquo;</span>
-              <span class={stepClass('test')}>{t('setup.stepTest')}</span>
-            </div>
-          {/if}
 
           <div class="setup-mic-wrap">
             <div class="wave"></div>
@@ -893,37 +857,6 @@
     line-height: 1.5;
     margin-bottom: 24px;
     padding: 0 20px;
-  }
-
-  /* ── Step indicator (breadcrumb) ── */
-  .setup-step-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 20px;
-  }
-
-  .setup-step-item {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-tertiary);
-    cursor: default;
-  }
-
-  .setup-step-item.active {
-    color: var(--text-primary);
-    font-weight: 600;
-  }
-
-  .setup-step-item.done {
-    color: var(--accent-blue);
-  }
-
-  .setup-step-sep {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    flex-shrink: 0;
   }
 
   /* ── Mic illustration ── */
@@ -1115,6 +1048,14 @@
     cursor: not-allowed;
   }
 
+  .setup-download-btn.downloaded {
+    background: var(--accent-green);
+  }
+
+  .setup-download-btn.downloaded:hover {
+    background: var(--accent-green);
+  }
+
   .setup-retry-btn {
     display: inline-block;
     padding: 10px 28px;
@@ -1161,6 +1102,7 @@
     color: var(--text-secondary);
     line-height: 1.5;
     margin-bottom: 14px;
+    white-space: pre-line;
   }
 
   /* ── Cloud config in setup ── */
@@ -1214,4 +1156,5 @@
   .setup-icon-shield {
     margin-bottom: 20px;
   }
+
 </style>

@@ -6,8 +6,9 @@ description = "Your voice, in writing — AI-powered speech-to-text"
 license = "GPL-3.0-or-later"
 
 [features]
-default = []
+default = ["metal"]
 metal = ["whisper-rs/metal", "llama-cpp-2/metal"]
+cuda = ["whisper-rs/cuda", "llama-cpp-2/cuda"]
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "macos-private-api", "image-png"] }

@@ -384,7 +384,7 @@
   // ── Lifecycle ──
   onMount(async () => {
     // Init i18n from localStorage
-    initLocale(localStorage.getItem('sumi-lang'));
+    await initLocale(localStorage.getItem('sumi-lang'));
 
     // Set initial state
     setPreparing();

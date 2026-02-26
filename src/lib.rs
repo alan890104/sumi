@@ -10,6 +10,7 @@ mod polisher;
 pub mod settings;
 pub mod stt;
 mod transcribe;
+pub mod whisper_models;
 
 use std::collections::HashMap;
 use std::sync::{
@@ -23,7 +24,7 @@ use tauri::{
     AppHandle, Emitter, Manager,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-use whisper_rs::{WhisperContext, WhisperContextParameters};
+use whisper_rs::WhisperContextParameters;
 
 use commands::get_cached_api_key;
 use hotkey::{hotkey_display_label, parse_hotkey_string};
@@ -41,7 +42,7 @@ pub struct AppState {
     pub sample_rate: Mutex<Option<u32>>,
     pub settings: Mutex<Settings>,
     pub mic_available: AtomicBool,
-    pub whisper_ctx: Mutex<Option<WhisperContext>>,
+    pub whisper_ctx: Mutex<Option<transcribe::WhisperContextCache>>,
     pub llm_model: Mutex<Option<polisher::LlmModelCache>>,
     pub captured_context: Mutex<Option<context_detect::AppContext>>,
     pub context_override: Mutex<Option<context_detect::AppContext>>,
@@ -533,6 +534,11 @@ pub fn run() {
             commands::generate_rule_from_description,
             commands::update_edit_hotkey,
             commands::trigger_undo,
+            commands::list_whisper_models,
+            commands::get_system_info,
+            commands::get_whisper_model_recommendation,
+            commands::switch_whisper_model,
+            commands::download_whisper_model,
         ])
         .setup(|app| {
             // Hide Dock icon (macOS) / equivalent
@@ -584,9 +590,30 @@ pub fn run() {
                 saved_clipboard: Mutex::new(None),
             });
 
-            // Auto-show settings when model is missing
-            if !models_dir().join("ggml-large-v3-turbo-zh-TW.bin").exists() {
-                show_settings_window(app.handle());
+            // Migration: if old zh-TW model exists but settings use default (LargeV3Turbo)
+            // and the LargeV3Turbo model file doesn't exist, switch to LargeV3TurboZhTw
+            {
+                let state = app.state::<AppState>();
+                let mut settings_guard = state.settings.lock().unwrap();
+                if settings_guard.stt.whisper_model == whisper_models::WhisperModel::LargeV3Turbo {
+                    let default_path = models_dir().join(whisper_models::WhisperModel::LargeV3Turbo.filename());
+                    let legacy_path = models_dir().join("ggml-large-v3-turbo-zh-TW.bin");
+                    if !default_path.exists() && legacy_path.exists() {
+                        println!("[Sumi] Migrating whisper model setting: LargeV3Turbo → LargeV3TurboZhTw (legacy file exists)");
+                        settings_guard.stt.whisper_model = whisper_models::WhisperModel::LargeV3TurboZhTw;
+                        settings::save_settings_to_disk(&settings_guard);
+                    }
+                }
+            }
+
+            // Auto-show settings when active whisper model is missing
+            {
+                let active_model = app.state::<AppState>().settings.lock()
+                    .map(|s| s.stt.whisper_model.clone())
+                    .unwrap_or_default();
+                if !models_dir().join(active_model.filename()).exists() {
+                    show_settings_window(app.handle());
+                }
             }
 
             // Pre-warm models in background
@@ -596,14 +623,14 @@ pub fn run() {
                     let warmup_start = Instant::now();
                     let state = app_handle.state::<AppState>();
 
-                    let stt_mode = state.settings.lock()
-                        .map(|s| s.stt.mode.clone())
+                    let (stt_mode, whisper_model) = state.settings.lock()
+                        .map(|s| (s.stt.mode.clone(), s.stt.whisper_model.clone()))
                         .unwrap_or_default();
                     if stt_mode == SttMode::Local {
-                        if let Ok(model_path) = transcribe::whisper_model_path() {
+                        if let Ok(model_path) = transcribe::whisper_model_path_for(&whisper_model) {
                             let mut ctx_guard = state.whisper_ctx.lock().unwrap();
                             if ctx_guard.is_none() {
-                                println!("[Sumi] Pre-warming Whisper model...");
+                                println!("[Sumi] Pre-warming Whisper model: {}...", whisper_model.display_name());
                                 unsafe extern "C" fn noop_log(
                                     _level: u32,
                                     _text: *const std::ffi::c_char,
@@ -614,12 +641,15 @@ pub fn run() {
                                 }
                                 let mut ctx_params = WhisperContextParameters::new();
                                 ctx_params.use_gpu(true);
-                                match WhisperContext::new_with_params(
+                                match whisper_rs::WhisperContext::new_with_params(
                                     model_path.to_str().unwrap_or_default(),
                                     ctx_params,
                                 ) {
                                     Ok(ctx) => {
-                                        *ctx_guard = Some(ctx);
+                                        *ctx_guard = Some(transcribe::WhisperContextCache {
+                                            ctx,
+                                            loaded_path: model_path.clone(),
+                                        });
                                         println!("[Sumi] Whisper model pre-warmed ({:.0?})", warmup_start.elapsed());
                                     }
                                     Err(e) => {

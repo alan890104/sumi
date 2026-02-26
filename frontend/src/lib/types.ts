@@ -12,9 +12,38 @@ export interface SttCloudConfig {
   language: string;
 }
 
+export type WhisperModelId =
+  | 'large_v3_turbo'
+  | 'large_v3_turbo_q5'
+  | 'belle_zh'
+  | 'medium'
+  | 'small'
+  | 'base'
+  | 'large_v3_turbo_zh_tw';
+
+export interface WhisperModelInfo {
+  id: WhisperModelId;
+  display_name: string;
+  description: string;
+  size_bytes: number;
+  languages: string[];
+  downloaded: boolean;
+  file_size_on_disk: number;
+  is_active: boolean;
+}
+
+export interface SystemInfo {
+  total_ram_bytes: number;
+  available_disk_bytes: number;
+  is_apple_silicon: boolean;
+  os: string;
+  arch: string;
+}
+
 export interface SttConfig {
   mode: SttMode;
   cloud: SttCloudConfig;
+  whisper_model: WhisperModelId;
 }
 
 // ── Polish ──

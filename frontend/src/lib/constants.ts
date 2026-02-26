@@ -212,6 +212,42 @@ export function getRuleIcon(rule: { name?: string; match_value?: string; match_t
   return FALLBACK_ICON_SVG[rule.match_type || 'app_name'] || FALLBACK_ICON_SVG.app_name;
 }
 
+// ── STT local models ──
+
+import type { WhisperModelId, SystemInfo } from './types';
+
+export interface SttModelMeta {
+  id: WhisperModelId;
+  nameKey: string;
+  descKey: string;
+  languagesKey: string;
+  sizeBytes: number;
+}
+
+export const STT_MODELS: SttModelMeta[] = [
+  { id: 'large_v3_turbo', nameKey: 'sttModel.largeV3Turbo.name', descKey: 'sttModel.largeV3Turbo.desc', languagesKey: 'sttModel.largeV3Turbo.languages', sizeBytes: 1_620_000_000 },
+  { id: 'large_v3_turbo_q5', nameKey: 'sttModel.largeV3TurboQ5.name', descKey: 'sttModel.largeV3TurboQ5.desc', languagesKey: 'sttModel.largeV3TurboQ5.languages', sizeBytes: 547_000_000 },
+  { id: 'belle_zh', nameKey: 'sttModel.belleZh.name', descKey: 'sttModel.belleZh.desc', languagesKey: 'sttModel.belleZh.languages', sizeBytes: 1_600_000_000 },
+  { id: 'base', nameKey: 'sttModel.base.name', descKey: 'sttModel.base.desc', languagesKey: 'sttModel.base.languages', sizeBytes: 148_000_000 },
+  { id: 'large_v3_turbo_zh_tw', nameKey: 'sttModel.largeV3TurboZhTw.name', descKey: 'sttModel.largeV3TurboZhTw.desc', languagesKey: 'sttModel.largeV3TurboZhTw.languages', sizeBytes: 1_600_000_000 },
+];
+
+export function recommendSttModel(systemInfo: SystemInfo, locale: string): WhisperModelId {
+  const ramGb = systemInfo.total_ram_bytes / 1_073_741_824;
+  const diskGb = systemInfo.available_disk_bytes / 1_073_741_824;
+  const lower = locale.toLowerCase();
+  const prefersZhTw = lower.startsWith('zh-tw') || lower.startsWith('zh_tw') || lower === 'zh-hant';
+  const prefersZh = lower.startsWith('zh');
+
+  if (ramGb >= 8 && diskGb >= 3) {
+    if (prefersZhTw) return 'large_v3_turbo_zh_tw';
+    if (prefersZh) return 'belle_zh';
+    return 'large_v3_turbo';
+  }
+  if (ramGb >= 4 && diskGb >= 1) return 'large_v3_turbo_q5';
+  return 'base';
+}
+
 // ── STT languages ──
 
 export const STT_LANGUAGES = [

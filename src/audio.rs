@@ -6,7 +6,7 @@ use std::sync::{
 use std::time::Instant;
 
 use crate::stt::{SttConfig, SttMode};
-use crate::transcribe::transcribe_with_cached_whisper;
+use crate::transcribe::{transcribe_with_cached_whisper, WhisperContextCache};
 
 /// Spawn a persistent audio thread that builds and immediately starts the cpal
 /// input stream.  The stream runs for the entire app lifetime — the callback
@@ -179,7 +179,7 @@ pub fn do_stop_recording(
     is_recording: &AtomicBool,
     sample_rate_mutex: &Mutex<Option<u32>>,
     buffer: &Arc<Mutex<Vec<f32>>>,
-    whisper_ctx: &Mutex<Option<whisper_rs::WhisperContext>>,
+    whisper_ctx: &Mutex<Option<WhisperContextCache>>,
     http_client: &reqwest::blocking::Client,
     stt_config: &SttConfig,
 ) -> Result<(String, Vec<f32>), String> {
@@ -268,7 +268,7 @@ pub fn do_stop_recording(
     let stt_start = Instant::now();
     let text = match stt_config.mode {
         SttMode::Local => {
-            let result = transcribe_with_cached_whisper(whisper_ctx, &samples_16k)?;
+            let result = transcribe_with_cached_whisper(whisper_ctx, &samples_16k, &stt_config.whisper_model)?;
             println!("[Sumi] [timing] STT (local whisper): {:.0?}", stt_start.elapsed());
             result
         }

@@ -1,38 +1,34 @@
 import en from '../../i18n/en.json';
-import zhTW from '../../i18n/zh-TW.json';
 
-const SUPPORTED = ['en', 'zh-TW'] as const;
+const SUPPORTED = [
+  'en', 'zh-TW', 'zh-CN',
+  'af', 'ar', 'hy', 'az', 'be', 'bs', 'bg', 'ca',
+  'hr', 'cs', 'da', 'nl', 'et', 'fi', 'fr', 'gl',
+  'de', 'el', 'he', 'hi', 'hu', 'is', 'id', 'it',
+  'ja', 'kn', 'kk', 'ko', 'lv', 'lt', 'mk', 'ms',
+  'mr', 'mi', 'ne', 'no', 'fa', 'pl', 'pt', 'ro',
+  'ru', 'sr', 'sk', 'sl', 'es', 'sw', 'sv', 'tl',
+  'ta', 'th', 'tr', 'uk', 'ur', 'vi', 'cy',
+] as const;
+
 const FALLBACK = 'en';
 
 type Translations = Record<string, string>;
 
 const locales: Record<string, Translations> = {
   en: en as Translations,
-  'zh-TW': zhTW as Translations,
 };
 
 let currentLocale = $state(FALLBACK);
 
 function resolve(translations: Translations, key: string): string | undefined {
-  // Try flat key first
-  if (translations[key] !== undefined) return translations[key];
-  // Try nested path
-  const parts = key.split('.');
-  let obj: unknown = translations;
-  for (const part of parts) {
-    if (obj && typeof obj === 'object' && part in (obj as Record<string, unknown>)) {
-      obj = (obj as Record<string, unknown>)[part];
-    } else {
-      return undefined;
-    }
-  }
-  return typeof obj === 'string' ? obj : undefined;
+  return translations[key];
 }
 
 export function t(key: string, params?: Record<string, string | number>): string {
   // Access currentLocale to create a reactive dependency
   const locale = currentLocale;
-  let val = resolve(locales[locale], key);
+  let val = resolve(locales[locale] ?? locales[FALLBACK], key);
   if (val === undefined && locale !== FALLBACK) {
     val = resolve(locales[FALLBACK], key);
   }
@@ -50,8 +46,20 @@ export function getLocale(): string {
   return currentLocale;
 }
 
-export function setLocale(locale: string) {
-  if (locales[locale]) {
+async function loadLocale(locale: string): Promise<Translations | null> {
+  if (locales[locale]) return locales[locale];
+  try {
+    const mod = await import(`../../i18n/${locale}.json`);
+    locales[locale] = mod.default as Translations;
+    return locales[locale];
+  } catch {
+    return null;
+  }
+}
+
+export async function setLocale(locale: string) {
+  const translations = await loadLocale(locale);
+  if (translations) {
     currentLocale = locale;
     localStorage.setItem('sumi-lang', locale);
   }
@@ -59,13 +67,23 @@ export function setLocale(locale: string) {
 
 export function detectLocale(): string {
   const nav = navigator.language;
-  if (nav.startsWith('zh')) return 'zh-TW';
+  // Exact match first
+  if ((SUPPORTED as readonly string[]).includes(nav)) return nav;
+  // zh variants
+  if (nav.startsWith('zh')) {
+    if (nav.includes('CN') || nav.includes('Hans') || nav === 'zh-SG') return 'zh-CN';
+    return 'zh-TW';
+  }
+  // Match by primary language subtag
+  const primary = nav.split('-')[0];
+  if ((SUPPORTED as readonly string[]).includes(primary)) return primary;
   return 'en';
 }
 
-export function initLocale(savedLocale?: string | null) {
+export async function initLocale(savedLocale?: string | null) {
   const locale = savedLocale || localStorage.getItem('sumi-lang') || detectLocale();
-  if (locales[locale]) {
+  if ((SUPPORTED as readonly string[]).includes(locale)) {
+    await loadLocale(locale);
     currentLocale = locale;
   }
 }

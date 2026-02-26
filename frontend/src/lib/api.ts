@@ -11,6 +11,9 @@ import type {
   TestPolishResult,
   GeneratedRule,
   PromptRule,
+  WhisperModelInfo,
+  SystemInfo,
+  WhisperModelId,
 } from './types';
 
 // ── Settings ──
@@ -143,3 +146,25 @@ export const onVoiceRuleLevels = (cb: (levels: number[]) => void): Promise<Unlis
 
 export const onVoiceRuleTranscript = (cb: (text: string) => void): Promise<UnlistenFn> =>
   listen<string>('voice-rule-transcript', (e) => cb(e.payload));
+
+// ── Whisper Models ──
+
+export const listWhisperModels = () =>
+  invoke<WhisperModelInfo[]>('list_whisper_models');
+
+export const getSystemInfo = () =>
+  invoke<SystemInfo>('get_system_info');
+
+export const getWhisperModelRecommendation = () =>
+  invoke<WhisperModelId>('get_whisper_model_recommendation');
+
+export const switchWhisperModel = (model: WhisperModelId) =>
+  invoke<void>('switch_whisper_model', { model });
+
+export const downloadWhisperModel = (model: WhisperModelId) =>
+  invoke<void>('download_whisper_model', { model });
+
+export const onWhisperModelDownloadProgress = (
+  cb: (p: DownloadProgress) => void,
+): Promise<UnlistenFn> =>
+  listen<DownloadProgress>('whisper-model-download-progress', (e) => cb(e.payload));

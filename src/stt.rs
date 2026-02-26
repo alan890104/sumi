@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::whisper_models::WhisperModel;
+
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SttMode {
@@ -103,6 +105,8 @@ pub struct SttConfig {
     pub mode: SttMode,
     #[serde(default)]
     pub cloud: SttCloudConfig,
+    #[serde(default)]
+    pub whisper_model: WhisperModel,
 }
 
 /// Transcribe audio via a cloud STT API.

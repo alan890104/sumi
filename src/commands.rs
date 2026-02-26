@@ -5,6 +5,7 @@ use crate::platform;
 use crate::polisher;
 use crate::settings::{self, Settings};
 use crate::stt::SttMode;
+use crate::whisper_models::{self, WhisperModel, WhisperModelInfo, SystemInfo};
 use crate::{history, AppState};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -992,6 +993,237 @@ pub fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<
             "percent": 100.0
         }));
         println!("[Sumi] LLM model downloaded: {:?}", model_path);
+    });
+
+    Ok(())
+}
+
+// ── Whisper model management ─────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn list_whisper_models(state: State<'_, AppState>) -> Vec<WhisperModelInfo> {
+    let active_model = state
+        .settings
+        .lock()
+        .map(|s| s.stt.whisper_model.clone())
+        .unwrap_or_default();
+    WhisperModel::all()
+        .iter()
+        .map(|m| WhisperModelInfo::from_model(m, &active_model))
+        .collect()
+}
+
+#[tauri::command]
+pub fn get_system_info() -> SystemInfo {
+    whisper_models::detect_system_info()
+}
+
+#[tauri::command]
+pub fn get_whisper_model_recommendation(state: State<'_, AppState>) -> WhisperModel {
+    let system = whisper_models::detect_system_info();
+    let language = state
+        .settings
+        .lock()
+        .ok()
+        .and_then(|s| s.language.clone());
+    whisper_models::recommend_model(&system, language.as_deref())
+}
+
+#[tauri::command]
+pub fn switch_whisper_model(state: State<'_, AppState>, model: WhisperModel) -> Result<(), String> {
+    {
+        let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+        settings.stt.whisper_model = model.clone();
+        settings::save_settings_to_disk(&settings);
+    }
+
+    // Invalidate whisper context cache so it reloads next time
+    if let Ok(mut ctx) = state.whisper_ctx.lock() {
+        *ctx = None;
+        println!(
+            "[Sumi] Whisper context cache invalidated after switching to {}",
+            model.display_name()
+        );
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn download_whisper_model(app: AppHandle, model: WhisperModel) -> Result<(), String> {
+    use std::io::Read as _;
+
+    let url = model
+        .download_url()
+        .ok_or_else(|| format!("No download URL for model: {}", model.display_name()))?
+        .to_string();
+
+    let dir = settings::models_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
+    let model_path = dir.join(model.filename());
+    if model_path.exists() {
+        let _ = app.emit(
+            "whisper-model-download-progress",
+            serde_json::json!({
+                "status": "complete",
+                "downloaded": 0u64,
+                "total": 0u64,
+                "percent": 100.0
+            }),
+        );
+        return Ok(());
+    }
+
+    let tmp_path = model_path.with_extension("bin.part");
+    let _ = std::fs::remove_file(&tmp_path);
+
+    // BelleZh downloads as ggml-model.bin but we rename to the canonical filename
+    let needs_rename = model == WhisperModel::BelleZh || model == WhisperModel::LargeV3TurboZhTw;
+    let _ = needs_rename; // used implicitly — rename always happens via tmp_path → model_path
+
+    std::thread::spawn(move || {
+        let client = match reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(1800))
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = app.emit(
+                    "whisper-model-download-progress",
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Failed to create HTTP client: {}", e)
+                    }),
+                );
+                return;
+            }
+        };
+
+        let resp = match client.get(&url).send() {
+            Ok(r) => r,
+            Err(e) => {
+                let _ = app.emit(
+                    "whisper-model-download-progress",
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Download request failed: {}", e)
+                    }),
+                );
+                return;
+            }
+        };
+
+        if !resp.status().is_success() {
+            let _ = app.emit(
+                "whisper-model-download-progress",
+                serde_json::json!({
+                    "status": "error",
+                    "message": format!("Download returned HTTP {}", resp.status())
+                }),
+            );
+            return;
+        }
+
+        let total = resp.content_length().unwrap_or(0);
+
+        let mut file = match std::fs::File::create(&tmp_path) {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = app.emit(
+                    "whisper-model-download-progress",
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Failed to create temp file: {}", e)
+                    }),
+                );
+                return;
+            }
+        };
+
+        let mut downloaded: u64 = 0;
+        let mut buf = [0u8; 65536];
+        let mut last_emit = Instant::now();
+        let mut reader = resp;
+
+        loop {
+            let n = match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(e) => {
+                    let _ = app.emit(
+                        "whisper-model-download-progress",
+                        serde_json::json!({
+                            "status": "error",
+                            "message": format!("Download read error: {}", e)
+                        }),
+                    );
+                    return;
+                }
+            };
+
+            if let Err(e) = std::io::Write::write_all(&mut file, &buf[..n]) {
+                let _ = app.emit(
+                    "whisper-model-download-progress",
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Failed to write to disk: {}", e)
+                    }),
+                );
+                return;
+            }
+
+            downloaded += n as u64;
+
+            if last_emit.elapsed() >= std::time::Duration::from_millis(100) {
+                let percent = if total > 0 {
+                    (downloaded as f64 / total as f64) * 100.0
+                } else {
+                    0.0
+                };
+                let _ = app.emit(
+                    "whisper-model-download-progress",
+                    serde_json::json!({
+                        "status": "downloading",
+                        "downloaded": downloaded,
+                        "total": total,
+                        "percent": percent
+                    }),
+                );
+                last_emit = Instant::now();
+            }
+        }
+
+        drop(file);
+        if let Err(e) = std::fs::rename(&tmp_path, &model_path) {
+            let _ = app.emit(
+                "whisper-model-download-progress",
+                serde_json::json!({
+                    "status": "error",
+                    "message": format!("Failed to rename temp file: {}", e)
+                }),
+            );
+            return;
+        }
+
+        // Invalidate whisper context cache
+        if let Some(app_state) = app.try_state::<AppState>() {
+            if let Ok(mut ctx) = app_state.whisper_ctx.lock() {
+                *ctx = None;
+                println!("[Sumi] Whisper context cache invalidated after model download");
+            }
+        }
+
+        let _ = app.emit(
+            "whisper-model-download-progress",
+            serde_json::json!({
+                "status": "complete",
+                "downloaded": downloaded,
+                "total": total,
+                "percent": 100.0
+            }),
+        );
+        println!("[Sumi] Whisper model downloaded: {:?}", model_path);
     });
 
     Ok(())

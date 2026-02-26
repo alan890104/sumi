@@ -4,6 +4,7 @@
   import {
     getSttConfig,
     setSttMode,
+    setSttWhisperModel,
     setSttCloudProvider,
     setSttCloudApiKey,
     setSttCloudEndpoint,
@@ -12,23 +13,26 @@
     saveStt,
   } from '$lib/stores/settings.svelte';
   import {
-    checkModelStatus,
-    downloadModel,
-    onModelDownloadProgress,
+    listWhisperModels,
+    switchWhisperModel,
+    downloadWhisperModel,
+    onWhisperModelDownloadProgress,
+    getWhisperModelRecommendation,
     saveApiKey,
     getApiKey,
   } from '$lib/api';
-  import type { SttMode, DownloadProgress } from '$lib/types';
+  import type { SttMode, WhisperModelId, WhisperModelInfo, DownloadProgress } from '$lib/types';
   import type { UnlistenFn } from '@tauri-apps/api/event';
   import SettingRow from '$lib/components/SettingRow.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import CloudConfigPanel from '$lib/components/CloudConfigPanel.svelte';
 
-  // ── STT model status ──
+  // ── Model list from backend ──
 
-  let modelExists = $state(false);
-  let isDownloading = $state(false);
+  let models = $state<WhisperModelInfo[]>([]);
+  let recommendedModel = $state<WhisperModelId | null>(null);
+  let downloadingModelId = $state<WhisperModelId | null>(null);
   let downloadPercent = $state(0);
   let downloadedBytes = $state(0);
   let totalBytes = $state(0);
@@ -42,39 +46,37 @@
 
   let sttConfig = $derived(getSttConfig());
 
-  let downloadBtnLabel = $derived.by(() => {
-    if (modelExists) return t('settings.polish.downloaded');
-    if (isDownloading) return t('settings.polish.downloading');
-    if (downloadError) return t('settings.polish.retry');
-    return t('settings.polish.download');
-  });
-
-  let downloadBtnDisabled = $derived(modelExists || isDownloading);
-
-  function formatBytes(bytes: number): string {
-    const mb = bytes / 1048576;
-    return mb.toFixed(0) + ' MB';
+  function formatSize(bytes: number): string {
+    if (bytes >= 1_073_741_824) return (bytes / 1_073_741_824).toFixed(1) + ' GB';
+    return (bytes / 1_048_576).toFixed(0) + ' MB';
   }
 
-  let downloadLabel = $derived(
-    isDownloading ? Math.round(downloadPercent) + '%' : ''
-  );
-
-  let downloadSublabel = $derived(
-    isDownloading ? formatBytes(downloadedBytes) + ' / ' + formatBytes(totalBytes) : ''
-  );
-
-  async function checkStatus() {
+  async function loadModels() {
     try {
-      const status = await checkModelStatus();
-      modelExists = status.model_exists;
+      models = await listWhisperModels();
     } catch (e) {
-      console.error('Failed to check STT model status:', e);
+      console.error('Failed to list whisper models:', e);
+    }
+    try {
+      recommendedModel = await getWhisperModelRecommendation();
+    } catch (e) {
+      console.error('Failed to get recommendation:', e);
     }
   }
 
-  async function startDownload() {
-    isDownloading = true;
+  async function onSelectModel(modelId: WhisperModelId) {
+    if (modelId === sttConfig.whisper_model) return;
+    setSttWhisperModel(modelId);
+    try {
+      await switchWhisperModel(modelId);
+    } catch (e) {
+      console.error('Failed to switch whisper model:', e);
+    }
+    await loadModels();
+  }
+
+  async function startDownload(modelId: WhisperModelId) {
+    downloadingModelId = modelId;
     downloadError = false;
     downloadPercent = 0;
     downloadedBytes = 0;
@@ -85,30 +87,30 @@
       unlisten = null;
     }
 
-    unlisten = await onModelDownloadProgress((d: DownloadProgress) => {
+    unlisten = await onWhisperModelDownloadProgress((d: DownloadProgress) => {
       if (d.status === 'downloading') {
         const pct = d.downloaded && d.total ? (d.downloaded / d.total) * 100 : 0;
         downloadPercent = Math.min(pct, 100);
         downloadedBytes = d.downloaded ?? 0;
         totalBytes = d.total ?? 0;
       } else if (d.status === 'complete') {
-        modelExists = true;
-        isDownloading = false;
+        downloadingModelId = null;
         if (unlisten) { unlisten(); unlisten = null; }
+        loadModels();
       } else if (d.status === 'error') {
-        isDownloading = false;
+        downloadingModelId = null;
         downloadError = true;
-        console.error('STT model download error:', d.message);
+        console.error('Whisper model download error:', d.message);
         if (unlisten) { unlisten(); unlisten = null; }
       }
     });
 
     try {
-      await downloadModel();
+      await downloadWhisperModel(modelId);
     } catch (e) {
-      isDownloading = false;
+      downloadingModelId = null;
       downloadError = true;
-      console.error('Failed to start STT model download:', e);
+      console.error('Failed to start whisper model download:', e);
     }
   }
 
@@ -122,7 +124,6 @@
   // ── Cloud config change ──
 
   async function onCloudChange() {
-    // Save API key to keychain
     const provider = getSttConfig().cloud.provider;
     const apiKey = getSttConfig().cloud.api_key;
     try {
@@ -134,14 +135,12 @@
   }
 
   // ── Cloud config bindings ──
-  // Use $state (not $derived) so CloudConfigPanel can write back via bind:
   let cloudProvider = $state(getSttConfig().cloud.provider);
   let cloudApiKey = $state(getSttConfig().cloud.api_key);
   let cloudEndpoint = $state(getSttConfig().cloud.endpoint);
   let cloudModelId = $state(getSttConfig().cloud.model_id);
   let cloudLanguage = $state(getSttConfig().cloud.language);
 
-  // Sync from store when settings are reloaded externally
   $effect(() => {
     const cfg = getSttConfig();
     cloudProvider = cfg.cloud.provider;
@@ -152,7 +151,7 @@
   });
 
   onMount(() => {
-    checkStatus();
+    loadModels();
   });
 
   onDestroy(() => {
@@ -181,32 +180,77 @@
     />
   </SettingRow>
 
-  <!-- Local panel -->
+  <!-- Local panel: multi-model selector -->
   {#if sttConfig.mode === 'local'}
     <div class="sub-settings">
-      <div class="polish-model-card">
-        <div class="polish-model-header">
-          <div>
-            <div class="polish-model-name">Whisper large-v3-turbo-zh-TW</div>
-            <div class="polish-model-size">~1.5 GB</div>
-          </div>
-          <button
-            class="polish-download-btn"
-            class:downloaded={modelExists}
-            disabled={downloadBtnDisabled}
-            onclick={startDownload}
+      <div class="model-list-label">{t('settings.stt.localModel')}</div>
+      <div class="model-list">
+        {#each models as model (model.id)}
+          {@const isActive = model.id === sttConfig.whisper_model}
+          {@const isDownloading = downloadingModelId === model.id}
+          {@const isRecommended = model.id === recommendedModel}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="model-row"
+            class:active={isActive}
+            class:disabled={!model.downloaded && !isDownloading}
+            onclick={() => model.downloaded && onSelectModel(model.id)}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); model.downloaded && onSelectModel(model.id); } }}
+            role="radio"
+            aria-checked={isActive}
+            tabindex="0"
           >
-            {downloadBtnLabel}
-          </button>
-        </div>
-        {#if isDownloading}
-          <ProgressBar
-            percent={downloadPercent}
-            label={downloadLabel}
-            sublabel={downloadSublabel}
-            shimmer
-          />
-        {/if}
+            <!-- Radio indicator -->
+            <div class="model-radio" class:checked={isActive}>
+              {#if isActive}
+                <div class="model-radio-dot"></div>
+              {/if}
+            </div>
+
+            <!-- Info -->
+            <div class="model-info">
+              <div class="model-name-row">
+                <span class="model-name">{t(`sttModel.${camelCase(model.id)}.name`)}</span>
+                {#if isRecommended}
+                  <span class="model-badge">{t('settings.stt.recommended')}</span>
+                {/if}
+              </div>
+              <div class="model-desc">{t(`sttModel.${camelCase(model.id)}.desc`)}</div>
+              <div class="model-size">{formatSize(model.size_bytes)}</div>
+            </div>
+
+            <!-- Action -->
+            <div class="model-action">
+              {#if model.downloaded}
+                <span class="model-downloaded-check">
+                  <svg viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7.5L5.5 10.5L11.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              {:else if isDownloading}
+                <span class="model-downloading-label">{Math.round(downloadPercent)}%</span>
+              {:else}
+                <button
+                  class="model-download-btn"
+                  onclick={(e) => { e.stopPropagation(); startDownload(model.id); }}
+                >
+                  {t('settings.stt.download')}
+                </button>
+              {/if}
+            </div>
+          </div>
+
+          {#if isDownloading}
+            <div class="model-progress-wrap">
+              <ProgressBar
+                percent={downloadPercent}
+                label="{Math.round(downloadPercent)}%"
+                sublabel="{formatSize(downloadedBytes)} / {formatSize(totalBytes)}"
+                shimmer
+              />
+            </div>
+          {/if}
+        {/each}
       </div>
     </div>
   {/if}
@@ -233,6 +277,13 @@
     </div>
   {/if}
 </div>
+
+<script lang="ts" module>
+  /** Convert snake_case model ID to camelCase for i18n key lookup */
+  function camelCase(id: string): string {
+    return id.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+  }
+</script>
 
 <style>
   .section {
@@ -274,56 +325,158 @@
     margin-top: 12px;
   }
 
-  .polish-model-card {
-    padding: 0;
-    background: none;
-    border-radius: 0;
+  .model-list-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
-  .polish-model-header {
+  .model-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .model-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    font-family: 'Inter', sans-serif;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
   }
 
-  .polish-model-name {
+  .model-row:hover:not(.disabled) {
+    border-color: var(--accent-blue);
+  }
+
+  .model-row.active {
+    border-color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-blue) 6%, var(--bg-secondary));
+  }
+
+  .model-row.disabled {
+    opacity: 0.7;
+    cursor: default;
+  }
+
+  .model-radio {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--text-tertiary);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s ease;
+  }
+
+  .model-radio.checked {
+    border-color: var(--accent-blue);
+  }
+
+  .model-radio-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+  }
+
+  .model-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .model-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .model-name {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
   }
 
-  .polish-model-size {
-    font-size: 12px;
-    color: var(--text-tertiary);
+  .model-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
 
-  .polish-download-btn {
+  .model-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 1px;
+  }
+
+  .model-size {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 1px;
+  }
+
+  .model-action {
+    flex-shrink: 0;
+  }
+
+  .model-downloaded-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--accent-green);
+  }
+
+  .model-downloaded-check svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .model-downloading-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-blue);
+  }
+
+  .model-download-btn {
     -webkit-app-region: no-drag;
     app-region: no-drag;
-    padding: 6px 14px;
+    padding: 4px 12px;
     border: none;
     border-radius: var(--radius-sm);
     background: var(--accent-blue);
     color: #ffffff;
     font-family: 'Inter', sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
   }
 
-  .polish-download-btn:hover {
+  .model-download-btn:hover {
     background: #0066d6;
   }
 
-  .polish-download-btn.downloaded {
-    background: var(--accent-green);
-    cursor: default;
-  }
-
-  .polish-download-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  .model-progress-wrap {
+    padding: 0 12px 8px;
   }
 </style>

@@ -29,7 +29,7 @@
     // Load settings & init i18n
     await settingsStore.load();
     const settings = settingsStore.getSettings();
-    initLocale(settings.language);
+    await initLocale(settings.language);
 
     // Check onboarding
     if (!settingsStore.getOnboardingCompleted()) {

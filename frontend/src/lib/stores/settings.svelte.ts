@@ -11,6 +11,7 @@ import type {
   SttMode,
   CloudProvider,
   SttProvider,
+  WhisperModelId,
 } from '../types';
 import * as api from '../api';
 
@@ -34,6 +35,7 @@ let settings = $state<Settings>({
   stt: {
     mode: 'local',
     cloud: { provider: 'deepgram', api_key: '', endpoint: '', model_id: 'whisper', language: 'zh-TW' },
+    whisper_model: 'large_v3_turbo',
   },
   edit_hotkey: null,
 });
@@ -181,6 +183,10 @@ export function setSttCloudModelId(modelId: string) {
 
 export function setSttCloudLanguage(lang: string) {
   settings.stt.cloud.language = lang;
+}
+
+export function setSttWhisperModel(model: WhisperModelId) {
+  settings.stt.whisper_model = model;
 }
 
 export function setHistoryRetention(days: number) {

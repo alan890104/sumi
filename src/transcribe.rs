@@ -4,23 +4,40 @@ use std::time::Instant;
 use whisper_rs::{WhisperContext, WhisperContextParameters};
 
 use crate::settings::models_dir;
+use crate::whisper_models::WhisperModel;
 
-/// Resolve the path to the whisper GGML model.
+/// Cached whisper context that tracks which model file is loaded.
+/// When the requested model path differs from the loaded one, the context
+/// is automatically reloaded.
+pub struct WhisperContextCache {
+    pub ctx: WhisperContext,
+    pub loaded_path: PathBuf,
+}
+
+// WhisperContext is Send but not Sync by default; we guard it with a Mutex.
+unsafe impl Send for WhisperContextCache {}
+
+/// Resolve the path to a whisper GGML model file.
 /// Returns an error if the model hasn't been downloaded yet.
-pub fn whisper_model_path() -> Result<PathBuf, String> {
-    let model_path = models_dir().join("ggml-large-v3-turbo-zh-TW.bin");
+pub fn whisper_model_path_for(model: &WhisperModel) -> Result<PathBuf, String> {
+    let model_path = models_dir().join(model.filename());
     if model_path.exists() {
         Ok(model_path)
     } else {
-        Err("Whisper model not downloaded. Please download it from Settings.".to_string())
+        Err(format!(
+            "Whisper model '{}' not downloaded. Please download it from Settings.",
+            model.display_name()
+        ))
     }
 }
 
 /// Transcribe 16 kHz mono f32 samples using the cached WhisperContext.
-/// The context is lazily loaded on first use and reused across transcriptions.
+/// The context is lazily loaded on first use, and automatically reloaded
+/// when the requested model differs from the currently loaded one.
 pub fn transcribe_with_cached_whisper(
-    whisper_ctx: &Mutex<Option<WhisperContext>>,
+    whisper_cache: &Mutex<Option<WhisperContextCache>>,
     samples_16k: &[f32],
+    model: &WhisperModel,
 ) -> Result<String, String> {
     use whisper_rs::{FullParams, SamplingStrategy};
 
@@ -35,14 +52,24 @@ pub fn transcribe_with_cached_whisper(
         whisper_rs::set_log_callback(Some(noop_log), std::ptr::null_mut());
     }
 
-    let mut ctx_guard = whisper_ctx
+    let model_path = whisper_model_path_for(model)?;
+
+    let mut cache_guard = whisper_cache
         .lock()
         .map_err(|e| format!("Failed to lock whisper context: {}", e))?;
 
-    if ctx_guard.is_none() {
-        let model_path = whisper_model_path()?;
+    // Check if we need to (re)load the model
+    let needs_reload = match cache_guard.as_ref() {
+        Some(c) => c.loaded_path != model_path,
+        None => true,
+    };
+
+    if needs_reload {
         let load_start = Instant::now();
-        println!("[Sumi] Loading Whisper model (first use)...");
+        println!(
+            "[Sumi] Loading Whisper model: {} ...",
+            model.display_name()
+        );
         let mut ctx_params = WhisperContextParameters::new();
         ctx_params.use_gpu(true);
         let ctx = WhisperContext::new_with_params(
@@ -50,17 +77,28 @@ pub fn transcribe_with_cached_whisper(
             ctx_params,
         )
         .map_err(|e| format!("Failed to load whisper model: {}", e))?;
-        *ctx_guard = Some(ctx);
-        println!("[Sumi] Whisper model loaded with GPU enabled (took {:.0?})", load_start.elapsed());
+
+        *cache_guard = Some(WhisperContextCache {
+            ctx,
+            loaded_path: model_path.clone(),
+        });
+        println!(
+            "[Sumi] Whisper model loaded with GPU enabled (took {:.0?})",
+            load_start.elapsed()
+        );
     }
 
-    let ctx = ctx_guard.as_ref().unwrap();
+    let cache = cache_guard.as_ref().unwrap();
 
     let state_start = Instant::now();
-    let mut wh_state = ctx
+    let mut wh_state = cache
+        .ctx
         .create_state()
         .map_err(|e| format!("Failed to create whisper state: {}", e))?;
-    println!("[Sumi] Whisper state created: {:.0?}", state_start.elapsed());
+    println!(
+        "[Sumi] Whisper state created: {:.0?}",
+        state_start.elapsed()
+    );
 
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     params.set_language(None);
@@ -77,7 +115,10 @@ pub fn transcribe_with_cached_whisper(
     wh_state
         .full(params, samples_16k)
         .map_err(|e| format!("Whisper inference failed: {}", e))?;
-    println!("[Sumi] Whisper wh_state.full() done: {:.0?}", infer_start.elapsed());
+    println!(
+        "[Sumi] Whisper wh_state.full() done: {:.0?}",
+        infer_start.elapsed()
+    );
 
     let num_segments = wh_state.full_n_segments();
 
