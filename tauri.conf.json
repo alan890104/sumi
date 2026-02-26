@@ -1,18 +1,22 @@
 {
     "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-utils/schema.json",
-    "productName": "Voxink",
+    "productName": "Sumi",
     "version": "0.1.2",
-    "identifier": "com.voxink.app",
+    "identifier": "com.sumivoice.app",
     "build": {
-        "frontendDist": "./frontend"
+        "devUrl": "http://localhost:1420",
+        "frontendDist": "./frontend/dist",
+        "beforeDevCommand": "npm run dev",
+        "beforeBuildCommand": "npm run build"
     },
     "app": {
         "macOSPrivateApi": true,
-        "withGlobalTauri": true,
+        "withGlobalTauri": false,
         "windows": [
             {
                 "label": "main",
-                "title": "Voxink",
+                "title": "Sumi",
+                "url": "/main.html",
                 "visible": false,
                 "width": 960,
                 "height": 720,
@@ -25,7 +29,7 @@
             {
                 "label": "overlay",
                 "title": "",
-                "url": "overlay.html",
+                "url": "/overlay.html",
                 "width": 300,
                 "height": 52,
                 "decorations": false,
@@ -54,7 +58,7 @@
         "updater": {
             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyNUVBMzBCMDJBQTE2Q0UKUldUT0Zxb0NDNk5lWWdGRGk5Rlhib2JDU0JTSXBTbjBKTy81emwveGxyZGEzKzlYdVcvQkUwbkIK",
             "endpoints": [
-                "https://github.com/alan890104/voxink/releases/latest/download/latest.json"
+                "https://github.com/alan890104/sumi/releases/latest/download/latest.json"
             ]
         }
     }

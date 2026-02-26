@@ -91,7 +91,7 @@ mod macos_ffi {
     /// runtime class that inherits from NSPanel and swap the window's
     /// isa pointer so the window server treats it as a panel.
     unsafe fn make_panel(ns_window: *mut c_void) {
-        let panel_class_name = b"VoxinkOverlayPanel\0".as_ptr();
+        let panel_class_name = b"SumiOverlayPanel\0".as_ptr();
         let mut cls = objc_getClass(panel_class_name);
         if cls.is_null() {
             let ns_panel = objc_getClass(b"NSPanel\0".as_ptr());
@@ -322,10 +322,10 @@ mod macos_ffi {
 mod keychain {
     use std::process::Command;
 
-    const ACCOUNT: &str = "voxink";
+    const ACCOUNT: &str = "sumi";
 
     fn service_name(provider: &str) -> String {
-        format!("voxink-api-key-{}", provider)
+        format!("sumi-api-key-{}", provider)
     }
 
     pub fn save(provider: &str, key: &str) -> Result<(), String> {
@@ -386,6 +386,7 @@ mod keychain {
             Ok(())
         }
     }
+
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -549,12 +550,12 @@ impl Default for Settings {
     }
 }
 
-// ── Consolidated data directory: ~/.voxink ───────────────────────────────────
+// ── Consolidated data directory: ~/.sumi ─────────────────────────────────────
 
 fn base_dir() -> PathBuf {
     dirs::home_dir()
         .expect("no home dir")
-        .join(".voxink")
+        .join(".sumi")
 }
 fn config_dir() -> PathBuf {
     base_dir().join("config")
@@ -851,7 +852,7 @@ fn spawn_audio_thread(
                             }
                         }
                     },
-                    |err| eprintln!("[Voxink] audio stream error: {}", err),
+                    |err| eprintln!("[Sumi] audio stream error: {}", err),
                     None,
                 ),
                 cpal::SampleFormat::I16 => {
@@ -878,7 +879,7 @@ fn spawn_audio_thread(
                                 }
                             }
                         },
-                        |err| eprintln!("[Voxink] audio stream error: {}", err),
+                        |err| eprintln!("[Sumi] audio stream error: {}", err),
                         None,
                     )
                 }
@@ -906,7 +907,7 @@ fn spawn_audio_thread(
         }
 
         println!(
-            "[Voxink] Audio stream always-on: {} Hz, {} ch",
+            "[Sumi] Audio stream always-on: {} Hz, {} ch",
             sample_rate, channels
         );
         let _ = init_tx.send(Ok(sample_rate));
@@ -934,7 +935,7 @@ fn try_reconnect_audio(state: &AppState) -> Result<(), String> {
     let sr = spawn_audio_thread(Arc::clone(&state.buffer), Arc::clone(&state.is_recording))?;
     *state.sample_rate.lock().map_err(|e| e.to_string())? = Some(sr);
     state.mic_available.store(true, Ordering::SeqCst);
-    println!("[Voxink] Microphone reconnected: {} Hz", sr);
+    println!("[Sumi] Microphone reconnected: {} Hz", sr);
     Ok(())
 }
 
@@ -995,11 +996,11 @@ fn update_hotkey(
     // Update tray tooltip
     let label = hotkey_display_label(&new_hotkey);
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(&format!("Voxink – {} to record", label)));
+        let _ = tray.set_tooltip(Some(&format!("Sumi – {} to record", label)));
     }
 
     println!(
-        "[Voxink] Hotkey updated to: {} ({})",
+        "[Sumi] Hotkey updated to: {} ({})",
         new_hotkey, label
     );
     Ok(())
@@ -1040,12 +1041,12 @@ fn update_edit_hotkey(
             app.global_shortcut()
                 .register(shortcut)
                 .map_err(|e| format!("Failed to register edit shortcut: {}", e))?;
-            println!("[Voxink] Edit hotkey registered: {}", edit_hk);
+            println!("[Sumi] Edit hotkey registered: {}", edit_hk);
         }
     }
 
     save_settings_to_disk(&settings);
-    println!("[Voxink] Edit hotkey updated to: {:?}", settings.edit_hotkey);
+    println!("[Sumi] Edit hotkey updated to: {:?}", settings.edit_hotkey);
     Ok(())
 }
 
@@ -1054,7 +1055,7 @@ fn trigger_undo(app: AppHandle) -> Result<(), String> {
     let app_handle = app.clone();
     std::thread::spawn(move || {
         undo_with_cmd_z();
-        println!("[Voxink] ↩️ Undo triggered from overlay");
+        println!("[Sumi] ↩️ Undo triggered from overlay");
         // Hide overlay after undo
         let app_for_hide = app_handle.clone();
         let _ = app_handle.run_on_main_thread(move || {
@@ -1100,10 +1101,10 @@ fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), Stri
     // Update tray tooltip
     let label = hotkey_display_label(&default_hotkey);
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(&format!("Voxink – {} to record", label)));
+        let _ = tray.set_tooltip(Some(&format!("Sumi – {} to record", label)));
     }
 
-    println!("[Voxink] Settings reset to defaults (hotkey: {})", label);
+    println!("[Sumi] Settings reset to defaults (hotkey: {})", label);
     Ok(())
 }
 
@@ -1170,6 +1171,161 @@ fn clear_all_history() -> Result<(), String> {
 #[tauri::command]
 fn get_history_storage_path() -> String {
     base_dir().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn get_app_icon(bundle_id: String) -> Result<String, String> {
+    #[cfg(target_os = "macos")]
+    {
+        get_app_icon_macos(&bundle_id)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = bundle_id;
+        Err("Not supported on this platform".to_string())
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn get_app_icon_macos(bundle_id: &str) -> Result<String, String> {
+    use base64::Engine;
+    use std::ffi::c_void;
+
+    extern "C" {
+        fn sel_registerName(name: *const u8) -> *mut c_void;
+        fn objc_getClass(name: *const u8) -> *mut c_void;
+        fn objc_msgSend();
+    }
+
+    unsafe {
+        let send_void: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        let send_obj_obj: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+
+        // NSWorkspace.sharedWorkspace
+        let ws_cls = objc_getClass(c"NSWorkspace".as_ptr().cast());
+        if ws_cls.is_null() {
+            return Err("NSWorkspace not found".to_string());
+        }
+        let workspace = send_void(ws_cls, sel_registerName(c"sharedWorkspace".as_ptr().cast()));
+        if workspace.is_null() {
+            return Err("sharedWorkspace is null".to_string());
+        }
+
+        // Build NSString for bundle_id
+        let nsstring_cls = objc_getClass(c"NSString".as_ptr().cast());
+        if nsstring_cls.is_null() {
+            return Err("NSString class not found".to_string());
+        }
+        let c_bundle = std::ffi::CString::new(bundle_id.as_bytes())
+            .map_err(|_| "Invalid bundle_id".to_string())?;
+        let send_cstr: unsafe extern "C" fn(*mut c_void, *mut c_void, *const i8) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        let ns_bundle_id = send_cstr(
+            nsstring_cls,
+            sel_registerName(c"stringWithUTF8String:".as_ptr().cast()),
+            c_bundle.as_ptr(),
+        );
+        if ns_bundle_id.is_null() {
+            return Err("Failed to create NSString".to_string());
+        }
+
+        // URLForApplicationWithBundleIdentifier:
+        let app_url = send_obj_obj(
+            workspace,
+            sel_registerName(c"URLForApplicationWithBundleIdentifier:".as_ptr().cast()),
+            ns_bundle_id,
+        );
+        if app_url.is_null() {
+            return Err("App not found for bundle_id".to_string());
+        }
+
+        // [app_url path]
+        let app_path = send_void(app_url, sel_registerName(c"path".as_ptr().cast()));
+        if app_path.is_null() {
+            return Err("Failed to get app path".to_string());
+        }
+
+        // [workspace iconForFile:path]
+        let icon = send_obj_obj(
+            workspace,
+            sel_registerName(c"iconForFile:".as_ptr().cast()),
+            app_path,
+        );
+        if icon.is_null() {
+            return Err("Failed to get icon".to_string());
+        }
+
+        // [icon setSize:NSMakeSize(32, 32)]
+        #[repr(C)]
+        struct NSSize {
+            width: f64,
+            height: f64,
+        }
+        let send_set_size: unsafe extern "C" fn(*mut c_void, *mut c_void, NSSize) =
+            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        send_set_size(
+            icon,
+            sel_registerName(c"setSize:".as_ptr().cast()),
+            NSSize {
+                width: 32.0,
+                height: 32.0,
+            },
+        );
+
+        // [icon TIFFRepresentation]
+        let tiff_data = send_void(icon, sel_registerName(c"TIFFRepresentation".as_ptr().cast()));
+        if tiff_data.is_null() {
+            return Err("Failed to get TIFF data".to_string());
+        }
+
+        // [NSBitmapImageRep imageRepWithData:tiffData]
+        let bitmap_cls = objc_getClass(c"NSBitmapImageRep".as_ptr().cast());
+        if bitmap_cls.is_null() {
+            return Err("NSBitmapImageRep not found".to_string());
+        }
+        let bitmap_rep = send_obj_obj(
+            bitmap_cls,
+            sel_registerName(c"imageRepWithData:".as_ptr().cast()),
+            tiff_data,
+        );
+        if bitmap_rep.is_null() {
+            return Err("Failed to create bitmap rep".to_string());
+        }
+
+        // [bitmapRep representationUsingType:NSBitmapImageFileTypePNG properties:@{}]
+        let send_png: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *mut c_void) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        // NSBitmapImageFileTypePNG = 4
+        let empty_dict_cls = objc_getClass(c"NSDictionary".as_ptr().cast());
+        let empty_dict = send_void(empty_dict_cls, sel_registerName(c"dictionary".as_ptr().cast()));
+        let png_data = send_png(
+            bitmap_rep,
+            sel_registerName(c"representationUsingType:properties:".as_ptr().cast()),
+            4, // NSBitmapImageFileTypePNG
+            empty_dict,
+        );
+        if png_data.is_null() {
+            return Err("Failed to create PNG data".to_string());
+        }
+
+        // Get raw bytes from NSData
+        let send_len: unsafe extern "C" fn(*mut c_void, *mut c_void) -> u64 =
+            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        let send_bytes: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const u8 =
+            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+
+        let len = send_len(png_data, sel_registerName(c"length".as_ptr().cast())) as usize;
+        let bytes_ptr = send_bytes(png_data, sel_registerName(c"bytes".as_ptr().cast()));
+        if bytes_ptr.is_null() || len == 0 {
+            return Err("PNG data is empty".to_string());
+        }
+
+        let bytes = std::slice::from_raw_parts(bytes_ptr, len);
+        let b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+        Ok(format!("data:image/png;base64,{}", b64))
+    }
 }
 
 #[derive(Serialize)]
@@ -1578,7 +1734,7 @@ fn download_model(app: AppHandle) -> Result<(), String> {
         if let Some(app_state) = app.try_state::<AppState>() {
             if let Ok(mut ctx) = app_state.whisper_ctx.lock() {
                 *ctx = None;
-                println!("[Voxink] Whisper context cache invalidated after model download");
+                println!("[Sumi] Whisper context cache invalidated after model download");
             }
         }
 
@@ -1588,7 +1744,7 @@ fn download_model(app: AppHandle) -> Result<(), String> {
             "total": total,
             "percent": 100.0
         }));
-        println!("[Voxink] Whisper model downloaded: {:?}", model_path);
+        println!("[Sumi] Whisper model downloaded: {:?}", model_path);
     });
 
     Ok(())
@@ -1753,7 +1909,7 @@ fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
             "total": total,
             "percent": 100.0
         }));
-        println!("[Voxink] LLM model downloaded: {:?}", model_path);
+        println!("[Sumi] LLM model downloaded: {:?}", model_path);
     });
 
     Ok(())
@@ -1826,7 +1982,7 @@ fn transcribe_with_cached_whisper(
     if ctx_guard.is_none() {
         let model_path = whisper_model_path()?;
         let load_start = Instant::now();
-        println!("[Voxink] Loading Whisper model (first use)...");
+        println!("[Sumi] Loading Whisper model (first use)...");
         let mut ctx_params = WhisperContextParameters::new();
         ctx_params.use_gpu(true);
         let ctx = WhisperContext::new_with_params(
@@ -1835,7 +1991,7 @@ fn transcribe_with_cached_whisper(
         )
         .map_err(|e| format!("Failed to load whisper model: {}", e))?;
         *ctx_guard = Some(ctx);
-        println!("[Voxink] Whisper model loaded with GPU enabled (took {:.0?})", load_start.elapsed());
+        println!("[Sumi] Whisper model loaded with GPU enabled (took {:.0?})", load_start.elapsed());
     }
 
     let ctx = ctx_guard.as_ref().unwrap();
@@ -1844,7 +2000,7 @@ fn transcribe_with_cached_whisper(
     let mut wh_state = ctx
         .create_state()
         .map_err(|e| format!("Failed to create whisper state: {}", e))?;
-    println!("[Voxink] Whisper state created: {:.0?}", state_start.elapsed());
+    println!("[Sumi] Whisper state created: {:.0?}", state_start.elapsed());
 
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     params.set_language(None); // auto-detect language
@@ -1861,7 +2017,7 @@ fn transcribe_with_cached_whisper(
     wh_state
         .full(params, samples_16k)
         .map_err(|e| format!("Whisper inference failed: {}", e))?;
-    println!("[Voxink] Whisper wh_state.full() done: {:.0?}", infer_start.elapsed());
+    println!("[Sumi] Whisper wh_state.full() done: {:.0?}", infer_start.elapsed());
 
     let num_segments = wh_state.full_n_segments();
 
@@ -2092,7 +2248,7 @@ fn do_stop_recording(state: &AppState, stt_config: &SttConfig) -> Result<(String
     }
 
     println!(
-        "[Voxink] [timing] recording: {:.2}s ({} samples @ {} Hz)",
+        "[Sumi] [timing] recording: {:.2}s ({} samples @ {} Hz)",
         samples.len() as f64 / sample_rate as f64,
         samples.len(),
         sample_rate,
@@ -2101,7 +2257,7 @@ fn do_stop_recording(state: &AppState, stt_config: &SttConfig) -> Result<(String
     let t0 = Instant::now();
     let mut samples_16k = if sample_rate != 16000 {
         let resampled = resample(&samples, sample_rate, 16000);
-        println!("[Voxink] [timing] resample {} Hz → 16 kHz: {:.0?}", sample_rate, t0.elapsed());
+        println!("[Sumi] [timing] resample {} Hz → 16 kHz: {:.0?}", sample_rate, t0.elapsed());
         resampled
     } else {
         samples
@@ -2126,7 +2282,7 @@ fn do_stop_recording(state: &AppState, stt_config: &SttConfig) -> Result<(String
     let trim_start = speech_onset.saturating_sub(LOOKBACK);
     if trim_start > 0 {
         println!(
-            "[Voxink] Trimmed {:.0} ms of leading silence (onset at {:.0} ms)",
+            "[Sumi] Trimmed {:.0} ms of leading silence (onset at {:.0} ms)",
             trim_start as f64 / 16.0,
             speech_onset as f64 / 16.0
         );
@@ -2149,7 +2305,7 @@ fn do_stop_recording(state: &AppState, stt_config: &SttConfig) -> Result<(String
         let trim_end = (last_speech + LOOKBACK).min(total);
         if trim_end < total {
             println!(
-                "[Voxink] Trimmed {:.0} ms of trailing silence",
+                "[Sumi] Trimmed {:.0} ms of trailing silence",
                 (total - trim_end) as f64 / 16.0
             );
             samples_16k.truncate(trim_end);
@@ -2160,12 +2316,12 @@ fn do_stop_recording(state: &AppState, stt_config: &SttConfig) -> Result<(String
     let text = match stt_config.mode {
         SttMode::Local => {
             let result = transcribe_with_cached_whisper(state, &samples_16k)?;
-            println!("[Voxink] [timing] STT (local whisper): {:.0?}", stt_start.elapsed());
+            println!("[Sumi] [timing] STT (local whisper): {:.0?}", stt_start.elapsed());
             result
         }
         SttMode::Cloud => {
             let result = run_cloud_stt(&stt_config.cloud, &samples_16k, &state.http_client)?;
-            println!("[Voxink] [timing] STT (cloud {}): {:.0?}", stt_config.cloud.provider.as_key(), stt_start.elapsed());
+            println!("[Sumi] [timing] STT (cloud {}): {:.0?}", stt_config.cloud.provider.as_key(), stt_start.elapsed());
             result
         }
     };
@@ -2254,7 +2410,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
-        println!("[Voxink] stop_transcribe_and_paste: already processing, skipping");
+        println!("[Sumi] stop_transcribe_and_paste: already processing, skipping");
         return;
     }
 
@@ -2271,7 +2427,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         }
     }
 
-    println!("[Voxink] ⏹️ Stopping recording...");
+    println!("[Sumi] ⏹️ Stopping recording...");
 
     let app_handle = app.clone();
     std::thread::spawn(move || {
@@ -2295,11 +2451,11 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         match do_stop_recording(&state, &stt_config) {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
-                println!("[Voxink] [timing] stop→transcribed: {:.0?} | text: {}", transcribe_elapsed, text);
+                println!("[Sumi] [timing] stop→transcribed: {:.0?} | text: {}", transcribe_elapsed, text);
 
                 // ── Voice Rule Mode: emit transcript to main window and return ──
                 if state.voice_rule_mode.compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
-                    println!("[Voxink] Voice rule mode: emitting transcript to main window");
+                    println!("[Sumi] Voice rule mode: emitting transcript to main window");
                     if let Some(main_win) = app_handle.get_webview_window("main") {
                         let _ = main_win.emit("voice-rule-transcript", &text);
                     }
@@ -2333,6 +2489,14 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 }
                 let stt_elapsed_ms = transcribe_elapsed.as_millis() as u64;
 
+                // Clone captured context for history before polish .take()s it
+                let history_context = state
+                    .captured_context
+                    .lock()
+                    .ok()
+                    .and_then(|c| c.clone())
+                    .unwrap_or_default();
+
                 let (final_text, reasoning, polish_elapsed_ms) = if polish_config.enabled {
                     let model_dir = models_dir();
                     if polisher::is_polish_ready(&model_dir, &polish_config) {
@@ -2360,10 +2524,10 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                             &state.http_client,
                         );
                         let p_elapsed = polish_start.elapsed().as_millis() as u64;
-                        println!("[Voxink] [timing] polish ({}): {:.0?} | text: {:?}", mode_label, polish_start.elapsed(), result.text);
+                        println!("[Sumi] [timing] polish ({}): {:.0?} | text: {:?}", mode_label, polish_start.elapsed(), result.text);
                         (result.text, result.reasoning, Some(p_elapsed))
                     } else {
-                        println!("[Voxink] Polish enabled but not ready (model missing or no API key), skipping");
+                        println!("[Sumi] Polish enabled but not ready (model missing or no API key), skipping");
                         (text, None, None)
                     }
                 } else {
@@ -2379,14 +2543,14 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 let clipboard_ok = match arboard::Clipboard::new() {
                     Ok(mut clipboard) => {
                         if let Err(e) = clipboard.set_text(&text) {
-                            eprintln!("[Voxink] Clipboard error: {}", e);
+                            eprintln!("[Sumi] Clipboard error: {}", e);
                             false
                         } else {
                             true
                         }
                     }
                     Err(e) => {
-                        eprintln!("[Voxink] Clipboard init error: {}", e);
+                        eprintln!("[Sumi] Clipboard init error: {}", e);
                         false
                     }
                 };
@@ -2399,18 +2563,18 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                     if auto_paste {
                         let pasted = paste_with_cmd_v();
                         if pasted {
-                            println!("[Voxink] 📋 Auto-pasted at cursor");
+                            println!("[Sumi] 📋 Auto-pasted at cursor");
                             if let Some(overlay) = app_handle.get_webview_window("overlay") {
                                 let _ = overlay.emit("recording-status", "pasted");
                             }
                         } else {
-                            println!("[Voxink] 📋 Copied to clipboard (paste simulation failed)");
+                            println!("[Sumi] 📋 Copied to clipboard (paste simulation failed)");
                             if let Some(overlay) = app_handle.get_webview_window("overlay") {
                                 let _ = overlay.emit("recording-status", "copied");
                             }
                         }
                     } else {
-                        println!("[Voxink] 📋 Copied to clipboard (auto-paste disabled)");
+                        println!("[Sumi] 📋 Copied to clipboard (auto-paste disabled)");
                         if let Some(overlay) = app_handle.get_webview_window("overlay") {
                             let _ = overlay.emit("recording-status", "copied");
                         }
@@ -2418,7 +2582,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 }
 
                 let total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
-                println!("[Voxink] [timing] total pipeline: {:.0?}", pipeline_start.elapsed());
+                println!("[Sumi] [timing] total pipeline: {:.0?}", pipeline_start.elapsed());
 
                 // ── Save to history ──
                 {
@@ -2458,13 +2622,15 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         stt_elapsed_ms,
                         polish_elapsed_ms,
                         total_elapsed_ms,
+                        app_name: history_context.app_name.clone(),
+                        bundle_id: history_context.bundle_id.clone(),
                     };
                     history::add_entry(&history_dir(), &audio_dir(), entry, retention_days);
-                    println!("[Voxink] 📝 History entry saved (audio={})", has_audio);
+                    println!("[Sumi] 📝 History entry saved (audio={})", has_audio);
                 }
             }
             Err(ref e) if e == "no_speech" => {
-                println!("[Voxink] No speech detected, skipping (took {:.0?})", pipeline_start.elapsed());
+                println!("[Sumi] No speech detected, skipping (took {:.0?})", pipeline_start.elapsed());
                 // Reset voice rule mode on no speech
                 if state.voice_rule_mode.compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
                     if let Some(main_win) = app_handle.get_webview_window("main") {
@@ -2473,7 +2639,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 }
             }
             Err(e) => {
-                eprintln!("[Voxink] Transcription error: {} (after {:.0?})", e, pipeline_start.elapsed());
+                eprintln!("[Sumi] Transcription error: {} (after {:.0?})", e, pipeline_start.elapsed());
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "error");
                 }
@@ -2510,7 +2676,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
-        println!("[Voxink] stop_edit_and_replace: already processing, skipping");
+        println!("[Sumi] stop_edit_and_replace: already processing, skipping");
         return;
     }
 
@@ -2521,7 +2687,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
         let _ = overlay.emit("recording-status", "transcribing");
     }
 
-    println!("[Voxink] ⏹️ Stopping edit-by-voice recording...");
+    println!("[Sumi] ⏹️ Stopping edit-by-voice recording...");
 
     let app_handle = app.clone();
     std::thread::spawn(move || {
@@ -2551,7 +2717,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
             .unwrap_or_default();
 
         if selected_text.is_empty() {
-            eprintln!("[Voxink] Edit-by-voice: no selected text");
+            eprintln!("[Sumi] Edit-by-voice: no selected text");
             if let Some(overlay) = app_handle.get_webview_window("overlay") {
                 let _ = overlay.emit("recording-status", "error");
             }
@@ -2565,7 +2731,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
         // Transcribe the voice instruction
         match do_stop_recording(&state, &stt_config) {
             Ok((instruction, _samples)) => {
-                println!("[Voxink] Edit instruction: {:?}", instruction);
+                println!("[Sumi] Edit instruction: {:?}", instruction);
 
                 // Emit polishing status
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
@@ -2586,7 +2752,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
 
                 let model_dir = models_dir();
                 if !polisher::is_polish_ready(&model_dir, &polish_config) {
-                    eprintln!("[Voxink] Edit-by-voice: LLM not configured");
+                    eprintln!("[Sumi] Edit-by-voice: LLM not configured");
                     if let Some(overlay) = app_handle.get_webview_window("overlay") {
                         let _ = overlay.emit("recording-status", "error");
                     }
@@ -2606,7 +2772,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
                 ) {
                     Ok(edited_text) => {
                         println!(
-                            "[Voxink] Edit result: {:?} (took {:.0?})",
+                            "[Sumi] Edit result: {:?} (took {:.0?})",
                             edited_text,
                             pipeline_start.elapsed()
                         );
@@ -2620,7 +2786,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
                         if clipboard_ok {
                             std::thread::sleep(std::time::Duration::from_millis(100));
                             paste_with_cmd_v();
-                            println!("[Voxink] ✏️ Edited text pasted");
+                            println!("[Sumi] ✏️ Edited text pasted");
                         }
 
                         // Restore original clipboard content
@@ -2637,7 +2803,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
                         hide_overlay_delayed(&app_handle, 5500);
                     }
                     Err(e) => {
-                        eprintln!("[Voxink] Edit-by-voice LLM error: {}", e);
+                        eprintln!("[Sumi] Edit-by-voice LLM error: {}", e);
                         if let Some(overlay) = app_handle.get_webview_window("overlay") {
                             let _ = overlay.emit("recording-status", "error");
                         }
@@ -2648,13 +2814,13 @@ fn stop_edit_and_replace(app: &AppHandle) {
                 }
             }
             Err(ref e) if e == "no_speech" => {
-                println!("[Voxink] Edit-by-voice: no speech detected");
+                println!("[Sumi] Edit-by-voice: no speech detected");
                 state.is_processing.store(false, Ordering::SeqCst);
                 restore_clipboard(&state);
                 hide_overlay_delayed(&app_handle, 0);
             }
             Err(e) => {
-                eprintln!("[Voxink] Edit-by-voice transcription error: {}", e);
+                eprintln!("[Sumi] Edit-by-voice transcription error: {}", e);
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "error");
                 }
@@ -2909,6 +3075,7 @@ pub fn run() {
             clear_all_history,
             export_history_audio,
             get_history_storage_path,
+            get_app_icon,
             check_permissions,
             open_permission_settings,
             generate_rule_from_description,
@@ -2938,7 +3105,7 @@ pub fn run() {
                 match spawn_audio_thread(Arc::clone(&buffer), Arc::clone(&is_recording)) {
                     Ok(sr) => (true, Some(sr)),
                     Err(e) => {
-                        eprintln!("[Voxink] Audio init failed: {}", e);
+                        eprintln!("[Sumi] Audio init failed: {}", e);
                         (false, None)
                     }
                 };
@@ -2991,7 +3158,7 @@ pub fn run() {
                     if let Ok(model_path) = whisper_model_path() {
                         let mut ctx_guard = state.whisper_ctx.lock().unwrap();
                         if ctx_guard.is_none() {
-                            println!("[Voxink] Pre-warming Whisper model...");
+                            println!("[Sumi] Pre-warming Whisper model...");
                             // Suppress verbose C-level model architecture logs
                             unsafe extern "C" fn noop_log(
                                 _level: u32,
@@ -3009,10 +3176,10 @@ pub fn run() {
                             ) {
                                 Ok(ctx) => {
                                     *ctx_guard = Some(ctx);
-                                    println!("[Voxink] Whisper model pre-warmed ({:.0?})", warmup_start.elapsed());
+                                    println!("[Sumi] Whisper model pre-warmed ({:.0?})", warmup_start.elapsed());
                                 }
                                 Err(e) => {
-                                    eprintln!("[Voxink] Whisper pre-warm failed: {}", e);
+                                    eprintln!("[Sumi] Whisper pre-warm failed: {}", e);
                                 }
                             }
                         }
@@ -3027,13 +3194,13 @@ pub fn run() {
                         let model_dir = models_dir();
                         if polisher::model_file_exists(&model_dir, &polish_config.model) {
                             let llm_start = Instant::now();
-                            println!("[Voxink] Pre-warming LLM ({})...", polish_config.model.display_name());
+                            println!("[Sumi] Pre-warming LLM ({})...", polish_config.model.display_name());
                             polisher::ensure_model_loaded(&state.llm_model, &model_dir, &polish_config);
-                            println!("[Voxink] LLM pre-warmed ({:.0?})", llm_start.elapsed());
+                            println!("[Sumi] LLM pre-warmed ({:.0?})", llm_start.elapsed());
                         }
                     }
 
-                    println!("[Voxink] All models pre-warmed ({:.0?} total)", warmup_start.elapsed());
+                    println!("[Sumi] All models pre-warmed ({:.0?} total)", warmup_start.elapsed());
                 });
             }
 
@@ -3041,7 +3208,7 @@ pub fn run() {
             let settings_i =
                 MenuItem::with_id(app, "settings", "Settings...", true, None::<&str>)?;
             let quit_i =
-                MenuItem::with_id(app, "quit", "Quit Voxink", true, None::<&str>)?;
+                MenuItem::with_id(app, "quit", "Quit Sumi", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&settings_i, &quit_i])?;
 
             let tooltip_label = hotkey_display_label(&hotkey_str);
@@ -3049,7 +3216,7 @@ pub fn run() {
                 .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png")).unwrap())
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .tooltip(format!("Voxink – {} to record", tooltip_label))
+                .tooltip(format!("Sumi – {} to record", tooltip_label))
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "settings" => {
                         show_settings_window(app);
@@ -3168,7 +3335,7 @@ pub fn run() {
 
                                     if selected.is_empty() || selected == saved_text {
                                         // Nothing was selected — abort
-                                        println!("[Voxink] Edit-by-voice: no text selected, aborting");
+                                        println!("[Sumi] Edit-by-voice: no text selected, aborting");
                                         restore_clipboard(&state);
                                         return;
                                     }
@@ -3178,7 +3345,7 @@ pub fn run() {
                                         *et = Some(selected.clone());
                                     }
                                     state.edit_mode.store(true, Ordering::SeqCst);
-                                    println!("[Voxink] ✏️ Edit-by-voice: captured {} chars", selected.len());
+                                    println!("[Sumi] ✏️ Edit-by-voice: captured {} chars", selected.len());
                                 }
 
                                 // Capture frontmost app context BEFORE starting recording
@@ -3189,7 +3356,7 @@ pub fn run() {
 
                                 match do_start_recording(&state) {
                                     Ok(()) => {
-                                        println!("[Voxink] 🎙️ Recording started (app: {:?}, bundle: {:?}, url: {:?})",
+                                        println!("[Sumi] 🎙️ Recording started (app: {:?}, bundle: {:?}, url: {:?})",
                                             captured_ctx.app_name, captured_ctx.bundle_id, captured_ctx.url);
 
                                         // Store captured context for later use by polisher
@@ -3244,7 +3411,7 @@ pub fn run() {
 
                                             while state.is_recording.load(Ordering::SeqCst) {
                                                 if recording_start.elapsed().as_secs() >= MAX_RECORDING_SECS {
-                                                    println!("[Voxink] ⏱️ Max recording duration reached ({}s)", MAX_RECORDING_SECS);
+                                                    println!("[Sumi] ⏱️ Max recording duration reached ({}s)", MAX_RECORDING_SECS);
                                                     // Dispatch to correct pipeline based on edit_mode
                                                     if state.edit_mode.load(Ordering::SeqCst) {
                                                         stop_edit_and_replace(&app_for_monitor);
@@ -3290,7 +3457,7 @@ pub fn run() {
                                         });
                                     }
                                     Err(e) => {
-                                        eprintln!("[Voxink] Failed to start recording: {}", e);
+                                        eprintln!("[Sumi] Failed to start recording: {}", e);
                                         // Clean up edit mode on failure
                                         if is_edit_hotkey {
                                             state.edit_mode.store(false, Ordering::SeqCst);
@@ -3321,13 +3488,13 @@ pub fn run() {
 
                 app.global_shortcut().register(primary_shortcut)?;
                 let label = hotkey_display_label(&hotkey_str);
-                println!("[Voxink] {} global shortcut registered", label);
+                println!("[Sumi] {} global shortcut registered", label);
 
                 // Register edit hotkey if configured
                 if let Some(edit_sc) = edit_shortcut {
                     app.global_shortcut().register(edit_sc)?;
                     if let Some(ref edit_hk) = settings.edit_hotkey {
-                        println!("[Voxink] {} edit shortcut registered", hotkey_display_label(edit_hk));
+                        println!("[Sumi] {} edit shortcut registered", hotkey_display_label(edit_hk));
                     }
                 }
             }

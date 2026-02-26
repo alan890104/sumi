@@ -1,6 +1,6 @@
 {
     "identifier": "default",
-    "description": "Default capabilities for Voxink",
+    "description": "Default capabilities for Sumi",
     "windows": [
         "main",
         "overlay"

@@ -1,5 +1,5 @@
 [package]
-name = "voxink"
+name = "sumi"
 version = "0.1.2"
 edition = "2021"
 description = "Your voice, in writing — AI-powered speech-to-text for macOS"
@@ -21,6 +21,7 @@ hound = "3"
 dirs = "6"
 libc = "0.2"
 rusqlite = { version = "0.32", features = ["bundled"] }
+base64 = "0.22"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

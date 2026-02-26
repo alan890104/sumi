@@ -1,9 +1,9 @@
-# Voxink
+# Sumi
 
-![GitHub Release](https://img.shields.io/github/v/release/alan890104/voxink)
-![License](https://img.shields.io/github/license/alan890104/voxink)
-![GitHub stars](https://img.shields.io/github/stars/alan890104/voxink?style=social)
-![GitHub forks](https://img.shields.io/github/forks/alan890104/voxink?style=social)
+![GitHub Release](https://img.shields.io/github/v/release/alan890104/sumi)
+![License](https://img.shields.io/github/license/alan890104/sumi)
+![GitHub stars](https://img.shields.io/github/stars/alan890104/sumi?style=social)
+![GitHub forks](https://img.shields.io/github/forks/alan890104/sumi?style=social)
 ![Rust](https://img.shields.io/badge/Rust-black?style=flat-square&logo=rust)
 ![Tauri](https://img.shields.io/badge/Tauri-FFC131?style=flat-square&logo=tauri&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)
@@ -12,7 +12,46 @@
 
 **聲音成字。**
 
-Voxink 是一款 macOS 桌面應用程式，將您的語音轉換為符合情境的文字。按下快捷鍵、說話，轉錄後的文字會自動貼上至游標位置 — 並由 AI 根據您正在使用的應用程式進行潤飾。
+Sumi 是一款 macOS 桌面應用程式，將您的語音轉換為符合情境的文字。按下快捷鍵、說話，轉錄後的文字會自動貼上至游標位置 — 並由 AI 根據您正在使用的應用程式進行潤飾。
+
+免費開源。本地優先，內建免費雲端 API。
+
+<!-- TODO: 錄製 demo GIF 後替換
+![Sumi Demo](demo.gif)
+-->
+
+## 為什麼選 Sumi？
+
+大多數語音聽寫工具需要月費訂閱，且只提供雲端處理。Sumi 讓你自己選擇：
+
+- **本地優先** — Whisper + LLM 完全跑在你 Mac 的 GPU 上（Metal 加速）。使用本地模式時，語音不會離開你的設備 — 程式碼開源，可自行驗證。
+- **雲端就緒** — 想要更快的處理速度？自帶 API Key 即可使用 Groq、OpenAI、Deepgram、Azure 等服務。本地和雲端可自由搭配。
+- **開源** — MIT 授權。免費使用、檢視、修改和貢獻。
+
+### 效果展示
+
+> **原始聽寫**：「嗯那個就是我覺得那個 API 的 endpoint 就是嗯應該要更新一下」
+>
+> **AI 潤稿後**：「我認為應該更新 API 的 endpoint。」
+
+AI 會根據情境調整語氣 — 在 Slack 用輕鬆語氣，寫 email 用正式語氣，在程式編輯器用技術語氣。
+
+## 競品比較
+
+| | **Sumi** | 系統內建聽寫 | Typeless | Wispr Flow | VoiceInk | SuperWhisper |
+|---|---|---|---|---|---|---|
+| **價格** | **免費** | 免費 | 每週 4K 字免費, $12-30/月 | 每週 2K 字免費, $12-15/月 | $39.99 | 免費試用, $10/月 |
+| **開源** | ✅ MIT | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **本地語音辨識** | ✅ Whisper+Metal | ✅ Apple Silicon | ❌ 僅雲端 | ❌ 僅雲端 | ✅ | ✅ |
+| **雲端語音辨識** | ✅ 自帶 Key | ❌ | ✅ | ✅ | ✅ 可選 | ✅ |
+| **一步完成 AI 潤稿** | ✅ | ❌ 需另開 Writing Tools | ✅ | ✅ | ❌ | ✅ |
+| **本地 LLM 潤稿** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **自訂 Prompt** | ✅ 每個 App 獨立規則 | ❌ 僅固定選項 | ❌ | ✅ | ❌ | ✅ 自訂模式 |
+| **情境感知** | ✅ App + URL | ❌ | ✅ App | ✅ App | ❌ | ❌ 手動模式 |
+| **自訂詞典** | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **歷史紀錄** | ✅ 含音訊匯出 | ❌ | ✅ | ❌ | ❌ | ❌ |
+| **語音編輯文字** | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| **平台** | macOS | macOS, iOS | macOS, Win, iOS, Android | macOS, Win, iOS, Android | macOS | macOS, Win, iOS |
 
 ## 功能特點
 
@@ -31,12 +70,12 @@ Voxink 是一款 macOS 桌面應用程式，將您的語音轉換為符合情境
 
 ### 下載安裝（推薦）
 
-1. 從 [GitHub Releases](https://github.com/alan890104/voxink/releases/latest) 下載最新的 DMG 檔案。
-2. 打開 DMG，將 **Voxink** 拖曳至 `/Applications`。
+1. 從 [GitHub Releases](https://github.com/alan890104/sumi/releases/latest) 下載最新的 DMG 檔案。
+2. 打開 DMG，將 **Sumi** 拖曳至 `/Applications`。
 3. 由於此應用程式未經 Apple 公證，macOS 會顯示警告。請在終端機執行：
 
    ```bash
-   xattr -cr /Applications/Voxink.app
+   xattr -cr /Applications/Sumi.app
    ```
 
 4. 啟動應用程式。首次啟動時會要求：
@@ -46,8 +85,8 @@ Voxink 是一款 macOS 桌面應用程式，將您的語音轉換為符合情境
 ### 從原始碼編譯
 
 ```bash
-git clone https://github.com/alan890104/voxink.git
-cd voxink
+git clone https://github.com/alan890104/sumi.git
+cd sumi
 
 # 執行開發模式
 cargo tauri dev

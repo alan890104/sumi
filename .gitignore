@@ -3,3 +3,6 @@ target
 .claude
 .agent
 .DS_Store
+frontend/node_modules/
+frontend/dist/
+ideas/

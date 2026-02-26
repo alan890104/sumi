@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Voxink needs microphone access to record your voice for speech-to-text transcription.</string>
+	<string>Sumi needs microphone access to record your voice for speech-to-text transcription.</string>
 </dict>
 </plist>

@@ -432,11 +432,11 @@ fn find_matching_rule<'a>(rules: &'a [PromptRule], context: &AppContext) -> Opti
             }
         };
         if matched {
-            println!("[Voxink] Prompt rule matched: \"{}\"", rule.name);
+            println!("[Sumi] Prompt rule matched: \"{}\"", rule.name);
             return Some(&rule.prompt);
         }
     }
-    println!("[Voxink] No prompt rule matched (app: {:?}, url: {:?})", context.app_name, context.url);
+    println!("[Sumi] No prompt rule matched (app: {:?}, url: {:?})", context.app_name, context.url);
     None
 }
 
@@ -532,14 +532,14 @@ pub fn polish_text(
 
             // Safety: if output is empty or suspiciously long, use original
             if polished.is_empty() {
-                println!("[Voxink] Polish returned empty, using original");
+                println!("[Sumi] Polish returned empty, using original");
                 return PolishResult { text: raw_text.to_string(), reasoning };
             }
             let raw_chars = raw_text.chars().count();
             let polished_chars = polished.chars().count();
             if polished_chars > raw_chars * 3 + 200 {
                 println!(
-                    "[Voxink] Polish output too long ({} vs {} chars), likely hallucination — using original",
+                    "[Sumi] Polish output too long ({} vs {} chars), likely hallucination — using original",
                     polished_chars,
                     raw_chars
                 );
@@ -548,7 +548,7 @@ pub fn polish_text(
             PolishResult { text: polished, reasoning }
         }
         Err(e) => {
-            eprintln!("[Voxink] Polish error: {} — using original text", e);
+            eprintln!("[Sumi] Polish error: {} — using original text", e);
             PolishResult { text: raw_text.to_string(), reasoning: None }
         }
     }
@@ -618,7 +618,7 @@ fn run_cloud_inference(
         "max_tokens": 512
     });
 
-    println!("[Voxink] Cloud polish: {} via {}", model_id, endpoint);
+    println!("[Sumi] Cloud polish: {} via {}", model_id, endpoint);
     let start = std::time::Instant::now();
 
     let body_str = serde_json::to_string(&body).map_err(|e| format!("Serialize body: {}", e))?;
@@ -646,7 +646,7 @@ fn run_cloud_inference(
         .ok_or_else(|| format!("Unexpected response format: {}", resp_text))?;
 
     println!(
-        "[Voxink] Cloud polish done: {:.0?}, raw content: {:?}",
+        "[Sumi] Cloud polish done: {:.0?}, raw content: {:?}",
         start.elapsed(),
         content
     );
@@ -681,7 +681,7 @@ fn run_llm_inference(
         if needs_reload {
             let load_start = std::time::Instant::now();
             println!(
-                "[Voxink] Loading LLM: {}",
+                "[Sumi] Loading LLM: {}",
                 config.model.display_name()
             );
 
@@ -692,7 +692,7 @@ fn run_llm_inference(
             let model = LlamaModel::load_from_file(&backend, &model_path, &model_params)
                 .map_err(|e| format!("Model load: {}", e))?;
 
-            println!("[Voxink] LLM loaded with GPU offload (took {:.0?})", load_start.elapsed());
+            println!("[Sumi] LLM loaded with GPU offload (took {:.0?})", load_start.elapsed());
             *cache = Some(LlmModelCache {
                 backend,
                 model,
@@ -743,7 +743,7 @@ fn run_llm_inference(
         .model
         .str_to_token(&formatted, llama_cpp_2::model::AddBos::Never)
         .map_err(|e| format!("Tokenize: {}", e))?;
-    println!("[Voxink] LLM tokenized: {} tokens ({:.0?})", tokens.len(), tokenize_start.elapsed());
+    println!("[Sumi] LLM tokenized: {} tokens ({:.0?})", tokens.len(), tokenize_start.elapsed());
 
     if tokens.is_empty() {
         return Err("Empty tokenization result".to_string());
@@ -761,7 +761,7 @@ fn run_llm_inference(
 
     ctx.decode(&mut batch)
         .map_err(|e| format!("Decode prompt: {}", e))?;
-    println!("[Voxink] LLM prompt eval: {:.0?} ({} tokens, {:.1} t/s)", prompt_start.elapsed(), tokens.len(), tokens.len() as f64 / prompt_start.elapsed().as_secs_f64());
+    println!("[Sumi] LLM prompt eval: {:.0?} ({} tokens, {:.1} t/s)", prompt_start.elapsed(), tokens.len(), tokens.len() as f64 / prompt_start.elapsed().as_secs_f64());
 
     // Sample tokens
     let max_tokens: usize = 512;
@@ -777,7 +777,7 @@ fn run_llm_inference(
     for _ in 0..max_tokens {
         // Timeout check
         if gen_start.elapsed() > timeout {
-            println!("[Voxink] Polish inference timeout (15s)");
+            println!("[Sumi] Polish inference timeout (15s)");
             break;
         }
 
@@ -804,7 +804,7 @@ fn run_llm_inference(
     }
 
     let gen_elapsed = gen_start.elapsed();
-    println!("[Voxink] LLM generation: {} tokens in {:.0?} ({:.1} t/s)", output_tokens.len(), gen_elapsed, output_tokens.len() as f64 / gen_elapsed.as_secs_f64());
+    println!("[Sumi] LLM generation: {} tokens in {:.0?} ({:.1} t/s)", output_tokens.len(), gen_elapsed, output_tokens.len() as f64 / gen_elapsed.as_secs_f64());
 
     // Decode output tokens to string
     let mut output = String::new();
@@ -938,7 +938,7 @@ pub fn ensure_model_loaded(
                 });
             }
             Err(e) => {
-                eprintln!("[Voxink] LLM pre-warm load error: {}", e);
+                eprintln!("[Sumi] LLM pre-warm load error: {}", e);
             }
         }
     }
@@ -967,6 +967,6 @@ pub fn model_file_size(model_dir: &std::path::Path, model: &PolishModel) -> u64 
 pub fn invalidate_cache(llm_cache: &Mutex<Option<LlmModelCache>>) {
     if let Ok(mut cache) = llm_cache.lock() {
         *cache = None;
-        println!("[Voxink] LLM model cache invalidated");
+        println!("[Sumi] LLM model cache invalidated");
     }
 }

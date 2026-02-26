@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Voxink is a macOS desktop app (Tauri 2) that provides system-wide speech-to-text via a global hotkey. It supports both local (Whisper via `whisper-rs` with Metal acceleration) and cloud STT APIs (Groq/OpenAI/Deepgram/Azure/Custom) for transcription, and pastes the result at the cursor. Optionally uses a local LLM (via `llama-cpp-2`) or cloud API (Groq/OpenRouter/OpenAI/Gemini/SambaNova/Custom) to polish transcription output.
+Sumi is a macOS desktop app (Tauri 2) that provides system-wide speech-to-text via a global hotkey. It supports both local (Whisper via `whisper-rs` with Metal acceleration) and cloud STT APIs (Groq/OpenAI/Deepgram/Azure/Custom) for transcription, and pastes the result at the cursor. Optionally uses a local LLM (via `llama-cpp-2`) or cloud API (Groq/OpenRouter/OpenAI/Gemini/SambaNova/Custom) to polish transcription output.
 
 ## Commands
 
@@ -22,7 +22,19 @@ cargo check
 cargo clippy
 ```
 
-No frontend build step — the frontend is plain HTML/CSS/JS served directly from `frontend/`.
+### Frontend
+
+```bash
+# Frontend dev server (started automatically by cargo tauri dev)
+# Note: Tauri runs beforeDevCommand from the frontend/ directory
+cd frontend && npm run dev
+
+# Frontend type-check
+cd frontend && npx svelte-check --tsconfig ./tsconfig.json
+
+# Frontend production build (started automatically by cargo tauri build)
+cd frontend && npm run build
+```
 
 ## Architecture
 
@@ -32,7 +44,7 @@ Rust source files:
 
 #### `src/lib.rs` — Core application logic
 - **`AppState`** — shared state managed by Tauri: `is_recording` (AtomicBool), `buffer` (Arc<Mutex<Vec<f32>>>), `sample_rate`, `settings`, `mic_available`, `whisper_ctx`, `llm_model`, `captured_context`, `test_mode` (AtomicBool).
-- **`Settings`** — persisted to `~/.config/com.voxink.app/settings.json`. Fields: `hotkey`, `auto_paste`, `polish` (PolishConfig), `stt` (SttConfig), `history_retention_days` (u32, 0 = keep forever), `language` (Option<String>, UI language override).
+- **`Settings`** — persisted to `~/.config/com.sumivoice.app/settings.json`. Fields: `hotkey`, `auto_paste`, `polish` (PolishConfig), `stt` (SttConfig), `history_retention_days` (u32, 0 = keep forever), `language` (Option<String>, UI language override).
 - **`SttConfig`** — fields: `mode` (SttMode: Local or Cloud), `cloud` (SttCloudConfig). Cloud STT supports Groq, OpenAI, Deepgram, Azure, Custom providers.
 - **`spawn_audio_thread`** — creates a persistent always-on cpal input stream at app startup. The callback checks `is_recording` atomically and discards samples when false, giving true zero-latency recording start.
 - **`do_start_recording`** — clears the buffer and flips `is_recording` to true (instant, <5 ms).
@@ -64,11 +76,12 @@ Rust source files:
 - Retention cleanup: deletes entries older than `history_retention_days` setting.
 
 ### Frontend (`frontend/`)
-Two standalone HTML pages — no framework, no bundler:
+Svelte 5 + TypeScript + Vite. Two Vite entry points (`main.html` + `overlay.html`), each mounting a separate Svelte app. Uses `@tauri-apps/api` ESM imports (`withGlobalTauri: false`). Path alias: `$lib → src/lib`.
 
-- **`index.html`** — settings window with sidebar navigation. Pages: settings (hotkey, language, mic, STT, AI polishing, model management), prompt rules, dictionary, history (transcription log with retention settings), about, test (hotkey test mode). Calls Tauri commands via `window.__TAURI__.core.invoke`.
-- **`overlay.html`** — transparent, always-on-top recording indicator capsule. States: `preparing`, `recording`, `processing`, `pasted`, `copied`, `error`. Features real-time 20-bar waveform visualization and elapsed timer with color gradient (orange→red as it approaches 30 s limit). Listens for Tauri events: `recording-status`, `recording-max-duration`, `audio-levels`.
-- **`i18n.js`** + **`i18n/`** — internationalization support with locale JSON files (`en.json`, `zh-TW.json`).
+- **`src/main/`** — Settings window. Pages: SettingsPage, PromptRulesPage, DictionaryPage, HistoryPage, AboutPage, TestWizard. Components: Sidebar, SetupOverlay, ConfirmModal, RuleCard, RuleEditorModal, DictEditorModal, HistoryDetailModal, and settings sub-sections (LanguageSection, HotkeySection, MicSection, SttSection, PolishSection, DangerZone).
+- **`src/overlay/`** — Transparent, always-on-top recording indicator capsule. States: `preparing`, `recording`, `transcribing`, `polishing`, `pasted`, `copied`, `error`, `edited`. Features 20-bar canvas waveform and elapsed timer with color gradient.
+- **`src/lib/`** — Shared code: `types.ts` (TypeScript interfaces), `api.ts` (typed Tauri command wrappers), `constants.ts` (provider metadata, key labels, SVG icons), `stores/` (Svelte 5 `$state` rune stores for settings, i18n, UI state), `components/` (SettingRow, Toggle, SegmentedControl, Select, Keycaps, Modal, ProgressBar, CloudConfigPanel, InstructionCard).
+- **`src/i18n/`** — Locale JSON files (`en.json`, `zh-TW.json`), statically imported by the i18n store.
 
 ### Two Windows
 - **`main`** (settings): 960×720 px, hidden by default, shown by tray click or "Settings…" menu item; close button hides rather than quits. `titleBarStyle: "Overlay"` with hidden title.

@@ -18,6 +18,10 @@ pub struct HistoryEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub polish_elapsed_ms: Option<u64>,
     pub total_elapsed_ms: u64,
+    #[serde(default)]
+    pub app_name: String,
+    #[serde(default)]
+    pub bundle_id: String,
 }
 
 fn db_path(history_dir: &Path) -> PathBuf {
@@ -32,6 +36,23 @@ fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
     let _ = std::fs::create_dir_all(history_dir);
     let conn = Connection::open(db_path(history_dir))?;
     conn.execute_batch("PRAGMA journal_mode=WAL;")?;
+    // Validate schema: if the table exists but is missing expected columns, drop and recreate.
+    let has_table: bool = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='history'",
+        [],
+        |row| row.get::<_, i64>(0),
+    )? > 0;
+    if has_table {
+        let col_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('history') WHERE name IN ('app_name','bundle_id')",
+            [],
+            |row| row.get(0),
+        )?;
+        if col_count < 2 {
+            println!("[Sumi] Schema mismatch — dropping and recreating history table");
+            conn.execute_batch("DROP TABLE history;")?;
+        }
+    }
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS history (
             id               TEXT PRIMARY KEY,
@@ -45,7 +66,9 @@ fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
             has_audio        INTEGER NOT NULL DEFAULT 0,
             stt_elapsed_ms   INTEGER NOT NULL DEFAULT 0,
             polish_elapsed_ms INTEGER,
-            total_elapsed_ms INTEGER NOT NULL DEFAULT 0
+            total_elapsed_ms INTEGER NOT NULL DEFAULT 0,
+            app_name         TEXT NOT NULL DEFAULT '',
+            bundle_id        TEXT NOT NULL DEFAULT ''
         );
         CREATE INDEX IF NOT EXISTS idx_history_timestamp ON history(timestamp DESC);",
     )?;
@@ -57,7 +80,7 @@ fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
 pub fn migrate_from_json(history_dir: &Path, audio_dir: &Path) {
     let json_path = history_dir.join("history.json");
     if json_path.exists() {
-        println!("[Voxink] Migrating: removing legacy history.json");
+        println!("[Sumi] Migrating: removing legacy history.json");
         let _ = std::fs::remove_file(&json_path);
         if audio_dir.exists() {
             let _ = std::fs::remove_dir_all(audio_dir);
@@ -69,18 +92,19 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
     let conn = match open_db(history_dir) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[Voxink] Failed to open history DB: {}", e);
+            eprintln!("[Sumi] Failed to open history DB: {}", e);
             return Vec::new();
         }
     };
     let mut stmt = match conn.prepare(
         "SELECT id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
-                duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms
+                duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
+                app_name, bundle_id
          FROM history ORDER BY timestamp DESC",
     ) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("[Voxink] Failed to prepare history query: {}", e);
+            eprintln!("[Sumi] Failed to prepare history query: {}", e);
             return Vec::new();
         }
     };
@@ -98,12 +122,14 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
             stt_elapsed_ms: row.get::<_, i64>(9).unwrap_or(0) as u64,
             polish_elapsed_ms: row.get::<_, Option<i64>>(10).ok().flatten().map(|v| v as u64),
             total_elapsed_ms: row.get::<_, i64>(11).unwrap_or(0) as u64,
+            app_name: row.get::<_, String>(12).unwrap_or_default(),
+            bundle_id: row.get::<_, String>(13).unwrap_or_default(),
         })
     });
     match rows {
         Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
         Err(e) => {
-            eprintln!("[Voxink] Failed to query history: {}", e);
+            eprintln!("[Sumi] Failed to query history: {}", e);
             Vec::new()
         }
     }
@@ -113,7 +139,7 @@ pub fn add_entry(history_dir: &Path, audio_dir: &Path, entry: HistoryEntry, rete
     let conn = match open_db(history_dir) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[Voxink] Failed to open history DB for insert: {}", e);
+            eprintln!("[Sumi] Failed to open history DB for insert: {}", e);
             return;
         }
     };
@@ -122,8 +148,9 @@ pub fn add_entry(history_dir: &Path, audio_dir: &Path, entry: HistoryEntry, rete
     if let Err(e) = conn.execute(
         "INSERT OR REPLACE INTO history
             (id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
-             duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+             duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
+             app_name, bundle_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![
             entry.id,
             entry.timestamp,
@@ -137,9 +164,11 @@ pub fn add_entry(history_dir: &Path, audio_dir: &Path, entry: HistoryEntry, rete
             entry.stt_elapsed_ms as i64,
             polish_ms,
             entry.total_elapsed_ms as i64,
+            entry.app_name,
+            entry.bundle_id,
         ],
     ) {
-        eprintln!("[Voxink] Failed to insert history entry: {}", e);
+        eprintln!("[Sumi] Failed to insert history entry: {}", e);
     }
     if retention_days > 0 {
         cleanup_expired(&conn, audio_dir, retention_days);

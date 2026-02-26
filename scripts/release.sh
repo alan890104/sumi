@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── Voxink Local Release Script ──
+# ── Sumi Local Release Script ──
 # Usage: ./scripts/release.sh
 #
 # Prerequisites:
 #   1. gh CLI installed and authenticated (brew install gh && gh auth login)
 #   2. Signing key generated:
-#        cargo tauri signer generate -w ~/.tauri/voxink.key
+#        cargo tauri signer generate -w ~/.tauri/sumi.key
 
-REPO="alan890104/voxink"
-KEY_FILE="${HOME}/.tauri/voxink.key"
+REPO="alan890104/sumi"
+KEY_FILE="${HOME}/.tauri/sumi.key"
 
 # ── Read current version ──
 CURRENT=$(python3 -c "import json; print(json.load(open('tauri.conf.json'))['version'])")
