@@ -65,6 +65,13 @@
   "setup.sttModelDownloadBtn": "下載並繼續",
   "setup.sttModelSystemInfo": "系統：{ram} RAM，{disk} 可用空間",
 
+  "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
+  "polishModel.llamaTaiwan.desc": "繁體中文最佳",
+  "polishModel.qwen25.name": "Qwen 2.5 7B",
+  "polishModel.qwen25.desc": "多語言",
+  "polishModel.qwen3.name": "Qwen 3 8B",
+  "polishModel.qwen3.desc": "最新多語言，支援思考/非思考模式",
+
   "settings.polish": "AI 潤飾",
   "settings.polish.toggle": "使用 AI 潤飾轉錄文字",
   "settings.polish.toggleDesc": "改善文法、語氣和清晰度",
@@ -73,6 +80,7 @@
   "settings.polish.mode": "模式",
   "settings.polish.modeLocal": "本機",
   "settings.polish.modeCloud": "雲端 API",
+  "settings.polish.localModel": "本機模型",
   "settings.polish.model": "模型",
   "settings.polish.provider": "供應商",
   "settings.polish.apiKey": "API 金鑰",

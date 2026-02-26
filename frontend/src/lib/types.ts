@@ -58,7 +58,17 @@ export type CloudProvider =
   | 'samba_nova'
   | 'custom';
 
-export type PolishModel = 'llama_taiwan' | 'qwen25';
+export type PolishModel = 'llama_taiwan' | 'qwen25' | 'qwen3';
+
+export interface PolishModelInfo {
+  id: PolishModel;
+  display_name: string;
+  description: string;
+  size_bytes: number;
+  downloaded: boolean;
+  file_size_on_disk: number;
+  is_active: boolean;
+}
 
 export type MatchType = 'app_name' | 'bundle_id' | 'url';
 

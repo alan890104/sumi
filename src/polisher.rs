@@ -134,6 +134,7 @@ pub enum PolishModel {
     #[default]
     LlamaTaiwan,
     Qwen25,
+    Qwen3,
 }
 
 impl PolishModel {
@@ -141,6 +142,7 @@ impl PolishModel {
         match self {
             PolishModel::LlamaTaiwan => "Llama-3-Taiwan-8B-Instruct.Q4_K_M.gguf",
             PolishModel::Qwen25 => "qwen2.5-7b-instruct-q4_k_m.gguf",
+            PolishModel::Qwen3 => "Qwen3-8B-Q4_K_M.gguf",
         }
     }
 
@@ -152,6 +154,9 @@ impl PolishModel {
             PolishModel::Qwen25 => {
                 "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m.gguf"
             }
+            PolishModel::Qwen3 => {
+                "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf"
+            }
         }
     }
 
@@ -159,7 +164,28 @@ impl PolishModel {
         match self {
             PolishModel::LlamaTaiwan => "Llama 3 Taiwan 8B",
             PolishModel::Qwen25 => "Qwen 2.5 7B",
+            PolishModel::Qwen3 => "Qwen 3 8B",
         }
+    }
+
+    pub fn size_bytes(&self) -> u64 {
+        match self {
+            PolishModel::LlamaTaiwan => 4_920_000_000,
+            PolishModel::Qwen25 => 4_680_000_000,
+            PolishModel::Qwen3 => 5_030_000_000,
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            PolishModel::LlamaTaiwan => "Best for Traditional Chinese",
+            PolishModel::Qwen25 => "Multilingual",
+            PolishModel::Qwen3 => "Latest multilingual, thinking/non-thinking",
+        }
+    }
+
+    pub fn all() -> &'static [PolishModel] {
+        &[PolishModel::LlamaTaiwan, PolishModel::Qwen25, PolishModel::Qwen3]
     }
 
     /// Chat template name recognized by llama.cpp
@@ -167,6 +193,36 @@ impl PolishModel {
         match self {
             PolishModel::LlamaTaiwan => "llama3",
             PolishModel::Qwen25 => "chatml",
+            PolishModel::Qwen3 => "chatml",
+        }
+    }
+}
+
+// ── PolishModelInfo (for frontend serialization) ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PolishModelInfo {
+    pub id: PolishModel,
+    pub display_name: &'static str,
+    pub description: &'static str,
+    pub size_bytes: u64,
+    pub downloaded: bool,
+    pub file_size_on_disk: u64,
+    pub is_active: bool,
+}
+
+impl PolishModelInfo {
+    pub fn from_model(model: &PolishModel, active_model: &PolishModel) -> Self {
+        let dir = crate::settings::models_dir();
+        let (downloaded, file_size_on_disk) = model_file_status(&dir, model);
+        Self {
+            id: model.clone(),
+            display_name: model.display_name(),
+            description: model.description(),
+            size_bytes: model.size_bytes(),
+            downloaded,
+            file_size_on_disk,
+            is_active: model == active_model,
         }
     }
 }

@@ -14,6 +14,8 @@ import type {
   WhisperModelInfo,
   SystemInfo,
   WhisperModelId,
+  PolishModelInfo,
+  PolishModel,
 } from './types';
 
 // ── Settings ──
@@ -168,3 +170,19 @@ export const onWhisperModelDownloadProgress = (
   cb: (p: DownloadProgress) => void,
 ): Promise<UnlistenFn> =>
   listen<DownloadProgress>('whisper-model-download-progress', (e) => cb(e.payload));
+
+// ── Polish Models ──
+
+export const listPolishModels = () =>
+  invoke<PolishModelInfo[]>('list_polish_models');
+
+export const switchPolishModel = (model: PolishModel) =>
+  invoke<void>('switch_polish_model', { model });
+
+export const downloadPolishModel = (model: PolishModel) =>
+  invoke<void>('download_polish_model', { model });
+
+export const onPolishModelDownloadProgress = (
+  cb: (p: DownloadProgress) => void,
+): Promise<UnlistenFn> =>
+  listen<DownloadProgress>('polish-model-download-progress', (e) => cb(e.payload));

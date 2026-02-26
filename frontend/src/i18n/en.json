@@ -65,6 +65,13 @@
   "setup.sttModelDownloadBtn": "Download & Continue",
   "setup.sttModelSystemInfo": "System: {ram} RAM, {disk} free disk",
 
+  "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
+  "polishModel.llamaTaiwan.desc": "Best for Traditional Chinese",
+  "polishModel.qwen25.name": "Qwen 2.5 7B",
+  "polishModel.qwen25.desc": "Multilingual",
+  "polishModel.qwen3.name": "Qwen 3 8B",
+  "polishModel.qwen3.desc": "Latest multilingual, thinking/non-thinking",
+
   "settings.polish": "AI Polishing",
   "settings.polish.toggle": "Polish transcription with AI",
   "settings.polish.toggleDesc": "Refine grammar, tone, and clarity",
@@ -73,6 +80,7 @@
   "settings.polish.mode": "Mode",
   "settings.polish.modeLocal": "Local",
   "settings.polish.modeCloud": "Cloud API",
+  "settings.polish.localModel": "Local Model",
   "settings.polish.model": "Model",
   "settings.polish.provider": "Provider",
   "settings.polish.apiKey": "API Key",

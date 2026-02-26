@@ -2,7 +2,7 @@ use crate::audio;
 use crate::credentials;
 use crate::hotkey::{hotkey_display_label, parse_hotkey_string};
 use crate::platform;
-use crate::polisher;
+use crate::polisher::{self, PolishModelInfo};
 use crate::settings::{self, Settings};
 use crate::stt::SttMode;
 use crate::whisper_models::{self, WhisperModel, WhisperModelInfo, SystemInfo};
@@ -993,6 +993,178 @@ pub fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<
             "percent": 100.0
         }));
         println!("[Sumi] LLM model downloaded: {:?}", model_path);
+    });
+
+    Ok(())
+}
+
+// ── Polish model management ──────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn list_polish_models(state: State<'_, AppState>) -> Vec<PolishModelInfo> {
+    let active_model = state
+        .settings
+        .lock()
+        .map(|s| s.polish.model.clone())
+        .unwrap_or_default();
+    polisher::PolishModel::all()
+        .iter()
+        .map(|m| PolishModelInfo::from_model(m, &active_model))
+        .collect()
+}
+
+#[tauri::command]
+pub fn switch_polish_model(state: State<'_, AppState>, model: polisher::PolishModel) -> Result<(), String> {
+    {
+        let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+        settings.polish.model = model.clone();
+        settings::save_settings_to_disk(&settings);
+    }
+
+    // Invalidate LLM model cache so it reloads next time
+    polisher::invalidate_cache(&state.llm_model);
+    println!(
+        "[Sumi] Polish model switched to {}",
+        model.display_name()
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn download_polish_model(app: AppHandle, model: polisher::PolishModel) -> Result<(), String> {
+    use std::io::Read as _;
+
+    let dir = settings::models_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
+    let model_path = dir.join(model.filename());
+    if model_path.exists() {
+        let _ = app.emit("polish-model-download-progress", serde_json::json!({
+            "status": "complete",
+            "downloaded": 0u64,
+            "total": 0u64,
+            "percent": 100.0
+        }));
+        return Ok(());
+    }
+
+    let tmp_path = model_path.with_extension("gguf.part");
+    let _ = std::fs::remove_file(&tmp_path);
+
+    let url = model.download_url().to_string();
+
+    std::thread::spawn(move || {
+        let client = match reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(1800))
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                    "status": "error",
+                    "message": format!("Failed to create HTTP client: {}", e)
+                }));
+                return;
+            }
+        };
+
+        let resp = match client.get(&url).send() {
+            Ok(r) => r,
+            Err(e) => {
+                let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                    "status": "error",
+                    "message": format!("Download request failed: {}", e)
+                }));
+                return;
+            }
+        };
+
+        if !resp.status().is_success() {
+            let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                "status": "error",
+                "message": format!("Download returned HTTP {}", resp.status())
+            }));
+            return;
+        }
+
+        let total = resp.content_length().unwrap_or(0);
+
+        let mut file = match std::fs::File::create(&tmp_path) {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                    "status": "error",
+                    "message": format!("Failed to create temp file: {}", e)
+                }));
+                return;
+            }
+        };
+
+        let mut downloaded: u64 = 0;
+        let mut buf = [0u8; 65536];
+        let mut last_emit = Instant::now();
+        let mut reader = resp;
+
+        loop {
+            let n = match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(e) => {
+                    let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                        "status": "error",
+                        "message": format!("Download read error: {}", e)
+                    }));
+                    return;
+                }
+            };
+
+            if let Err(e) = std::io::Write::write_all(&mut file, &buf[..n]) {
+                let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                    "status": "error",
+                    "message": format!("Failed to write to disk: {}", e)
+                }));
+                return;
+            }
+
+            downloaded += n as u64;
+
+            if last_emit.elapsed() >= std::time::Duration::from_millis(100) {
+                let percent = if total > 0 {
+                    (downloaded as f64 / total as f64) * 100.0
+                } else {
+                    0.0
+                };
+                let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                    "status": "downloading",
+                    "downloaded": downloaded,
+                    "total": total,
+                    "percent": percent
+                }));
+                last_emit = Instant::now();
+            }
+        }
+
+        drop(file);
+        if let Err(e) = std::fs::rename(&tmp_path, &model_path) {
+            let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                "status": "error",
+                "message": format!("Failed to rename temp file: {}", e)
+            }));
+            return;
+        }
+
+        if let Some(app_state) = app.try_state::<AppState>() {
+            polisher::invalidate_cache(&app_state.llm_model);
+        }
+
+        let _ = app.emit("polish-model-download-progress", serde_json::json!({
+            "status": "complete",
+            "downloaded": downloaded,
+            "total": total,
+            "percent": 100.0
+        }));
+        println!("[Sumi] Polish model downloaded: {:?}", model_path);
     });
 
     Ok(())

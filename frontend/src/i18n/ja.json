@@ -65,6 +65,13 @@
   "setup.sttModelDownloadBtn": "ダウンロードして続行",
   "setup.sttModelSystemInfo": "システム: {ram} RAM, {disk} 空きディスク",
 
+  "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
+  "polishModel.llamaTaiwan.desc": "繁体字中国語に最適",
+  "polishModel.qwen25.name": "Qwen 2.5 7B",
+  "polishModel.qwen25.desc": "多言語対応",
+  "polishModel.qwen3.name": "Qwen 3 8B",
+  "polishModel.qwen3.desc": "最新の多言語対応、思考/非思考モード",
+
   "settings.polish": "AI ポーリッシング",
   "settings.polish.toggle": "AIで文字起こしを磨く",
   "settings.polish.toggleDesc": "文法、トーン、明確性を改善します",
@@ -73,6 +80,7 @@
   "settings.polish.mode": "モード",
   "settings.polish.modeLocal": "ローカル",
   "settings.polish.modeCloud": "Cloud API",
+  "settings.polish.localModel": "ローカルモデル",
   "settings.polish.model": "モデル",
   "settings.polish.provider": "プロバイダー",
   "settings.polish.apiKey": "APIキー",
