@@ -196,8 +196,8 @@ pub fn do_stop_recording(
     }
 
     let samples: Vec<f32> = {
-        let buf = buffer.lock().map_err(|e| e.to_string())?;
-        buf.clone()
+        let mut buf = buffer.lock().map_err(|e| e.to_string())?;
+        std::mem::take(&mut *buf)
     };
 
     if samples.is_empty() {

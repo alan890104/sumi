@@ -437,23 +437,18 @@ fn format_app_context(context: &AppContext) -> String {
 
 /// Find the first matching prompt rule for the given app context.
 fn find_matching_rule<'a>(rules: &[&'a PromptRule], context: &AppContext) -> Option<&'a str> {
+    let app_lower = context.app_name.to_lowercase();
+    let url_lower = context.url.to_lowercase();
+
     for rule in rules {
         if !rule.enabled || rule.match_value.is_empty() {
             continue;
         }
+        let match_lower = rule.match_value.to_lowercase();
         let matched = match rule.match_type {
-            MatchType::AppName => context
-                .app_name
-                .to_lowercase()
-                .contains(&rule.match_value.to_lowercase()),
+            MatchType::AppName => app_lower.contains(&match_lower),
             MatchType::BundleId => context.bundle_id == rule.match_value,
-            MatchType::Url => {
-                !context.url.is_empty()
-                    && context
-                        .url
-                        .to_lowercase()
-                        .contains(&rule.match_value.to_lowercase())
-            }
+            MatchType::Url => !url_lower.is_empty() && url_lower.contains(&match_lower),
         };
         if matched {
             println!("[Sumi] Prompt rule matched: \"{}\"", rule.name);
@@ -968,10 +963,13 @@ pub fn model_file_exists(model_dir: &std::path::Path, model: &PolishModel) -> bo
     model_dir.join(model.filename()).exists()
 }
 
-/// Get the file size of a model, or 0 if it doesn't exist.
-pub fn model_file_size(model_dir: &std::path::Path, model: &PolishModel) -> u64 {
+/// Check existence and size in a single metadata call.
+pub fn model_file_status(model_dir: &std::path::Path, model: &PolishModel) -> (bool, u64) {
     let path = model_dir.join(model.filename());
-    std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0)
+    match std::fs::metadata(&path) {
+        Ok(m) => (true, m.len()),
+        Err(_) => (false, 0),
+    }
 }
 
 /// Invalidate the cached LLM model so it gets reloaded on next use.

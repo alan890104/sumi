@@ -100,7 +100,7 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
         "SELECT id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
                 duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
                 app_name, bundle_id
-         FROM history ORDER BY timestamp DESC",
+         FROM history ORDER BY timestamp DESC LIMIT 200",
     ) {
         Ok(s) => s,
         Err(e) => {

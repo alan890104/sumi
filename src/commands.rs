@@ -846,10 +846,11 @@ pub fn check_llm_model_status(state: State<'_, AppState>) -> LlmModelStatus {
     let settings = state.settings.lock().unwrap();
     let model = &settings.polish.model;
     let dir = settings::models_dir();
+    let (exists, size) = polisher::model_file_status(&dir, model);
     LlmModelStatus {
         model: model.display_name().to_string(),
-        model_exists: polisher::model_file_exists(&dir, model),
-        model_size_bytes: polisher::model_file_size(&dir, model),
+        model_exists: exists,
+        model_size_bytes: size,
     }
 }
 

@@ -30,15 +30,26 @@
 
   async function resolveIcons(items: HistoryEntry[]) {
     const bundleIds = [...new Set(items.map((e) => e.bundle_id).filter(Boolean))];
-    for (const bid of bundleIds) {
-      if (iconCache[bid]) continue;
-      try {
+    const missing = bundleIds.filter((bid) => !iconCache[bid]);
+    if (missing.length === 0) return;
+
+    const results = await Promise.allSettled(
+      missing.map(async (bid) => {
         const uri = await getAppIcon(bid);
-        iconCache[bid] = uri;
-        iconCache = { ...iconCache }; // trigger reactivity
-      } catch {
-        // ignore — icon simply won't display
+        return { bid, uri };
+      })
+    );
+
+    const newCache = { ...iconCache };
+    let updated = false;
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        newCache[r.value.bid] = r.value.uri;
+        updated = true;
       }
+    }
+    if (updated) {
+      iconCache = newCache; // single reactive update
     }
   }
 
