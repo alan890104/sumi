@@ -1233,12 +1233,13 @@ pub fn get_system_info() -> SystemInfo {
 #[tauri::command]
 pub fn get_whisper_model_recommendation(state: State<'_, AppState>) -> WhisperModel {
     let system = whisper_models::detect_system_info();
-    let language = state
+    let stt_language = state
         .settings
         .lock()
         .ok()
-        .and_then(|s| s.language.clone());
-    whisper_models::recommend_model(&system, language.as_deref())
+        .map(|s| s.stt.language.clone())
+        .filter(|l| !l.is_empty() && l != "auto");
+    whisper_models::recommend_model(&system, stt_language.as_deref())
 }
 
 #[tauri::command]
@@ -1249,14 +1250,9 @@ pub fn switch_whisper_model(state: State<'_, AppState>, model: WhisperModel) -> 
         settings::save_settings_to_disk(&settings);
     }
 
-    // Invalidate whisper context cache so it reloads next time
-    if let Ok(mut ctx) = state.whisper_ctx.lock() {
-        *ctx = None;
-        println!(
-            "[Sumi] Whisper context cache invalidated after switching to {}",
-            model.display_name()
-        );
-    }
+    // Pre-warm the new model so the first transcription is instant
+    crate::transcribe::warm_whisper_cache(&state.whisper_ctx, &model)
+        .unwrap_or_else(|e| eprintln!("[Sumi] Failed to pre-warm whisper model: {}", e));
 
     Ok(())
 }

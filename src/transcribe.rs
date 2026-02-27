@@ -125,6 +125,41 @@ pub fn whisper_model_path_for(model: &WhisperModel) -> Result<PathBuf, String> {
     }
 }
 
+/// Pre-warm the Whisper context cache by loading the given model.
+/// Called after model switch so the first transcription doesn't pay the load cost.
+pub fn warm_whisper_cache(
+    whisper_cache: &Mutex<Option<WhisperContextCache>>,
+    model: &WhisperModel,
+) -> Result<(), String> {
+    let model_path = whisper_model_path_for(model)?;
+
+    let mut cache_guard = whisper_cache
+        .lock()
+        .map_err(|e| format!("Failed to lock whisper context: {}", e))?;
+
+    let load_start = Instant::now();
+    println!("[Sumi] Pre-warming Whisper model: {} ...", model.display_name());
+
+    let mut ctx_params = WhisperContextParameters::new();
+    ctx_params.use_gpu(true);
+    let ctx = WhisperContext::new_with_params(
+        model_path.to_str().ok_or("Invalid model path")?,
+        ctx_params,
+    )
+    .map_err(|e| format!("Failed to load whisper model: {}", e))?;
+
+    *cache_guard = Some(WhisperContextCache {
+        ctx,
+        loaded_path: model_path,
+    });
+    println!(
+        "[Sumi] Whisper model pre-warmed with GPU enabled (took {:.0?})",
+        load_start.elapsed()
+    );
+
+    Ok(())
+}
+
 /// Transcribe 16 kHz mono f32 samples using the cached WhisperContext.
 /// The context is lazily loaded on first use, and automatically reloaded
 /// when the requested model differs from the currently loaded one.

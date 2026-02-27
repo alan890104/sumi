@@ -199,6 +199,18 @@
     cloudLanguage = cfg.language;
   });
 
+  // Re-fetch model recommendation when STT language changes
+  let prevSttLang = $state(getSttConfig().language);
+  $effect(() => {
+    const lang = getSttConfig().language;
+    if (lang !== prevSttLang) {
+      prevSttLang = lang;
+      getWhisperModelRecommendation().then(rec => {
+        recommendedModel = rec;
+      }).catch(() => {});
+    }
+  });
+
   onMount(() => {
     loadModels();
   });
