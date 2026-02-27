@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Vložte text na váš kurzor pomocí {pasteShortcut}",
   "setup.permGrant": "Udělit",
   "setup.permContinue": "Pokračovat",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Stáhnout Model",
   "setup.downloadingTitle": "Stahování Modelu...",
   "setup.completeTitle": "Připraveno!",

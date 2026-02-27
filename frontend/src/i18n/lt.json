@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Sumetykite tekstą ties žymekliu su {pasteShortcut}",
   "setup.permGrant": "Suteikti",
   "setup.permContinue": "Tęsti",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Atsisiųsti modelį",
   "setup.downloadingTitle": "Modelio atsisiunčiama...",
   "setup.completeTitle": "Paruošta naudoti!",

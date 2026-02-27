@@ -207,7 +207,6 @@
   "setup.permAccDesc": "{pasteShortcut}でカーソルにテキストを貼り付けます",
   "setup.permGrant": "許可",
   "setup.permContinue": "続行",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "モデルをダウンロード",
   "setup.downloadingTitle": "モデルをダウンロード中...",
   "setup.completeTitle": "準備完了!",

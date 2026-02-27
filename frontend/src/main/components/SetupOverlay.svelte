@@ -68,8 +68,6 @@
   let micGranted = $state(false);
   let accGranted = $state(false);
   let permBothGranted = $derived(micGranted && accGranted);
-  let accClickCount = $state(0);
-  let permCanSkip = $derived(accClickCount >= 2);
   let permPollTimer: ReturnType<typeof setInterval> | null = null;
 
   async function pollPermissions() {
@@ -102,7 +100,6 @@
   }
 
   async function grantAccessibility() {
-    accClickCount++;
     await openPermissionSettings('accessibility');
   }
 
@@ -621,10 +618,10 @@
 
           <button
             class="setup-continue-btn"
-            disabled={!permBothGranted && !permCanSkip}
+            disabled={!permBothGranted}
             onclick={onPermissionsContinue}
           >
-            {permBothGranted ? t('setup.permContinue') : t('setup.permSkip')}
+            {t('setup.permContinue')}
           </button>
         </div>
       {/if}

@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Wklej tekst w miejsce kursora za pomocą {pasteShortcut}",
   "setup.permGrant": "Udziel",
   "setup.permContinue": "Kontynuuj",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Pobierz model",
   "setup.downloadingTitle": "Pobieranie modelu...",
   "setup.completeTitle": "Gotowe do użycia!",

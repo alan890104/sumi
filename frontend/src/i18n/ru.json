@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Вставляйте текст в позицию курсора с помощью {pasteShortcut}",
   "setup.permGrant": "Предоставить",
   "setup.permContinue": "Продолжить",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Скачать Модель",
   "setup.downloadingTitle": "Загрузка Модели...",
   "setup.completeTitle": "Готово к Использованию!",

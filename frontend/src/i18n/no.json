@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Lim inn tekst ved markøren med {pasteShortcut}",
   "setup.permGrant": "Gi",
   "setup.permContinue": "Fortsett",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Last ned modell",
   "setup.downloadingTitle": "Laster ned modell...",
   "setup.completeTitle": "Klar til bruk!",

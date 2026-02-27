@@ -207,7 +207,6 @@
   "setup.permAccDesc": "使用 {pasteShortcut} 將文字貼上至游標位置",
   "setup.permGrant": "授權",
   "setup.permContinue": "繼續",
-  "setup.permSkip": "先跳過",
   "setup.downloadBtn": "下載模型",
   "setup.downloadingTitle": "正在下載模型...",
   "setup.completeTitle": "準備就緒！",

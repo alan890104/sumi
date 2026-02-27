@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Paste text at your cursor with {pasteShortcut}",
   "setup.permGrant": "Grant",
   "setup.permContinue": "Continue",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Download Model",
   "setup.downloadingTitle": "Downloading Model...",
   "setup.completeTitle": "Ready to Go!",

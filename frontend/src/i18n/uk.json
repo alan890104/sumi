@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Вставляйте текст на місце курсора за допомогою {pasteShortcut}",
   "setup.permGrant": "Надати дозвіл",
   "setup.permContinue": "Продовжити",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Завантажити модель",
   "setup.downloadingTitle": "Завантаження моделі...",
   "setup.completeTitle": "Готово до початку!",

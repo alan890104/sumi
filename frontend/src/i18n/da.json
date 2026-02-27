@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Indsæt tekst ved din markør med {pasteShortcut}",
   "setup.permGrant": "Tildel",
   "setup.permContinue": "Fortsæt",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Download Model",
   "setup.downloadingTitle": "Downloader Model...",
   "setup.completeTitle": "Klar Til at Gå!",

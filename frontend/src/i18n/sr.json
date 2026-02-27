@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Залепите текст на вашу позицију курзора са {pasteShortcut}",
   "setup.permGrant": "Додели",
   "setup.permContinue": "Настави",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Преузми модел",
   "setup.downloadingTitle": "Преузимање модела...",
   "setup.completeTitle": "Спреман за коришћење!",

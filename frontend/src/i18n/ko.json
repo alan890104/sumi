@@ -207,7 +207,6 @@
   "setup.permAccDesc": "{pasteShortcut}로 커서 위치에 텍스트를 붙여넣습니다",
   "setup.permGrant": "허용",
   "setup.permContinue": "계속",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "모델 다운로드",
   "setup.downloadingTitle": "모델 다운로드 중...",
   "setup.completeTitle": "준비 완료!",

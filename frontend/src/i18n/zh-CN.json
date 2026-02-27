@@ -207,7 +207,6 @@
   "setup.permAccDesc": "使用 {pasteShortcut} 在光标处粘贴文本",
   "setup.permGrant": "授予",
   "setup.permContinue": "继续",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "下载模型",
   "setup.downloadingTitle": "下载模型中...",
   "setup.completeTitle": "准备就绪！",

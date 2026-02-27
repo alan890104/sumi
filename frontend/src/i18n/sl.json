@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Lepite besedilo na lokacijo vašega kazalca z {pasteShortcut}",
   "setup.permGrant": "Dovolite",
   "setup.permContinue": "Nadaljuj",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Presnemi model",
   "setup.downloadingTitle": "Prenašanje modela...",
   "setup.completeTitle": "Pripravljeno za uporabo!",

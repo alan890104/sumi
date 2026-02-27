@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Pega texto en tu cursor con {pasteShortcut}",
   "setup.permGrant": "Otorgar",
   "setup.permContinue": "Continuar",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Descargar modelo",
   "setup.downloadingTitle": "Descargando modelo...",
   "setup.completeTitle": "¡Listo para usar!",

@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Text an Ihrem Cursor einfügen mit {pasteShortcut}",
   "setup.permGrant": "Gewähren",
   "setup.permContinue": "Fortfahren",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Modell herunterladen",
   "setup.downloadingTitle": "Modell wird heruntergeladen...",
   "setup.completeTitle": "Einsatzbereit!",

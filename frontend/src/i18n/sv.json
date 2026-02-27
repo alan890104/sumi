@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Klistra in text vid din markör med {pasteShortcut}",
   "setup.permGrant": "Bevilja",
   "setup.permContinue": "Fortsätt",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Ladda ned modell",
   "setup.downloadingTitle": "Laddar ned modell...",
   "setup.completeTitle": "Klar att använda!",

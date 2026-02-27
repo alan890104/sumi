@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Enganxa text al teu cursor amb {pasteShortcut}",
   "setup.permGrant": "Concedir",
   "setup.permContinue": "Continuar",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Descarregar Model",
   "setup.downloadingTitle": "Descarregant Model...",
   "setup.completeTitle": "Preparat per Començar!",

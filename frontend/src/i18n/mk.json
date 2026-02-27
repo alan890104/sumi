@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Залепи текст на курсорот со {pasteShortcut}",
   "setup.permGrant": "Дозволи",
   "setup.permContinue": "Продолжи",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Преземи модел",
   "setup.downloadingTitle": "Преземање модел...",
   "setup.completeTitle": "Подготвено!",

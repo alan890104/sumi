@@ -207,7 +207,6 @@
   "setup.permAccDesc": "วางข้อความในตำแหน่งเคอร์เซอร์ด้วย {pasteShortcut}",
   "setup.permGrant": "ให้อนุญาต",
   "setup.permContinue": "ดำเนินการต่อ",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "ดาวน์โหลดโมเดล",
   "setup.downloadingTitle": "กำลังดาวน์โหลดโมเดล...",
   "setup.completeTitle": "พร้อมที่จะไป!",

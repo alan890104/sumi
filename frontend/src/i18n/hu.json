@@ -207,7 +207,6 @@
   "setup.permAccDesc": "Szöveg beillesztése a kurzornál a {pasteShortcut} billentyűkombinációval",
   "setup.permGrant": "Engedélyezés",
   "setup.permContinue": "Folytatás",
-  "setup.permSkip": "Skip for Now",
   "setup.downloadBtn": "Modell letöltése",
   "setup.downloadingTitle": "Modell letöltése...",
   "setup.completeTitle": "Készen áll!",
