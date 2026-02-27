@@ -43,7 +43,7 @@ pub struct PolishConfig {
 impl Default for PolishConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             model: PolishModel::default(),
             custom_prompt: None,
             mode: PolishMode::default(),
@@ -58,8 +58,8 @@ impl Default for PolishConfig {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PolishMode {
-    #[default]
     Local,
+    #[default]
     Cloud,
 }
 
