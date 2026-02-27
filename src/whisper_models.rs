@@ -190,15 +190,10 @@ pub fn detect_system_info() -> SystemInfo {
 pub fn recommend_model(system: &SystemInfo, settings_language: Option<&str>) -> WhisperModel {
     let lang = settings_language
         .map(|l| l.to_lowercase())
-        .or_else(|| {
-            std::env::var("LANG")
-                .or_else(|_| std::env::var("LC_ALL"))
-                .ok()
-                .map(|l| l.to_lowercase())
-        })
+        .or_else(|| detect_system_language())
         .unwrap_or_default();
 
-    let prefers_zh_tw = lang.starts_with("zh-tw") || lang.starts_with("zh_tw") || lang == "zh-hant";
+    let prefers_zh_tw = lang.starts_with("zh-tw") || lang.starts_with("zh_tw") || lang.starts_with("zh-hant");
     let prefers_zh = lang.starts_with("zh") || lang == "chinese";
 
     let ram_gb = system.total_ram_bytes as f64 / 1_073_741_824.0;
@@ -225,6 +220,73 @@ pub fn recommend_model(system: &SystemInfo, settings_language: Option<&str>) -> 
         WhisperModel::LargeV3TurboQ5
     } else {
         WhisperModel::Base
+    }
+}
+
+// ── System language detection ─────────────────────────────────────────────────
+
+/// Detect the system language. On macOS, reads NSLocale.currentLocale via
+/// Objective-C FFI (GUI apps don't inherit LANG from the shell).
+/// Falls back to LANG/LC_ALL on other platforms.
+fn detect_system_language() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(locale) = macos_locale_identifier() {
+            return Some(locale);
+        }
+    }
+
+    // Fallback: LANG or LC_ALL (works in terminal / non-macOS)
+    std::env::var("LANG")
+        .or_else(|_| std::env::var("LC_ALL"))
+        .ok()
+        .map(|l| l.to_lowercase())
+}
+
+/// Read [[NSLocale currentLocale] localeIdentifier] via Objective-C FFI.
+#[cfg(target_os = "macos")]
+fn macos_locale_identifier() -> Option<String> {
+    use std::ffi::{c_void, CStr};
+
+    extern "C" {
+        fn objc_getClass(name: *const u8) -> *mut c_void;
+        fn sel_registerName(name: *const u8) -> *mut c_void;
+        fn objc_msgSend();
+    }
+
+    unsafe {
+        let cls = objc_getClass(b"NSLocale\0".as_ptr());
+        if cls.is_null() {
+            return None;
+        }
+
+        // [NSLocale currentLocale]
+        let sel_current = sel_registerName(b"currentLocale\0".as_ptr());
+        let send_cls: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        let locale = send_cls(cls, sel_current);
+        if locale.is_null() {
+            return None;
+        }
+
+        // [locale localeIdentifier]
+        let sel_id = sel_registerName(b"localeIdentifier\0".as_ptr());
+        let ns_string = send_cls(locale, sel_id);
+        if ns_string.is_null() {
+            return None;
+        }
+
+        // [nsString UTF8String]
+        let sel_utf8 = sel_registerName(b"UTF8String\0".as_ptr());
+        let send_utf8: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const i8 =
+            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        let cstr = send_utf8(ns_string, sel_utf8);
+        if cstr.is_null() {
+            return None;
+        }
+
+        let s = CStr::from_ptr(cstr).to_string_lossy().to_lowercase();
+        if s.is_empty() { None } else { Some(s) }
     }
 }
 
