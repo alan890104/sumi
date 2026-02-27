@@ -78,7 +78,12 @@ pub fn filter_with_vad(
     let cache = cache_guard.as_mut().unwrap();
 
     let vad_start = Instant::now();
-    let params = WhisperVadParams::default();
+    // Use generous VAD params (matching faster-whisper defaults) so that
+    // natural pauses are preserved in the output audio.  Whisper relies on
+    // silence cues to infer punctuation — aggressive trimming strips them.
+    let mut params = WhisperVadParams::default();
+    params.set_speech_pad(400);            // 400 ms real-audio padding around each segment
+    params.set_min_silence_duration(2000); // only split on silences > 2 s
     let segments = cache
         .ctx
         .segments_from_samples(params, samples_16k)
