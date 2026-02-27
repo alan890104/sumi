@@ -5,12 +5,10 @@
   "nav.history": "História",
   "nav.about": "O aplikácii",
   "nav.test": "Test",
-
   "settings.title": "Nastavenia",
   "settings.language": "Jazyk",
   "settings.language.label": "Jazyk rozhrania",
   "settings.language.desc": "Vyberte jazyk zobrazenia aplikácie",
-
   "settings.shortcuts": "Klávesové skratky",
   "settings.shortcuts.hotkey": "Dikcia",
   "settings.shortcuts.hotkeyDesc": "Stlačte na začatie/ukončenie záznamu a prepisu",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Nenastavené",
   "settings.shortcuts.editRequiresPolish": "Vyžaduje povolenie AI vylepšovania",
   "settings.shortcuts.clear": "Vyčistiť",
-
   "settings.mic": "Mikrofón",
   "settings.mic.inputDevice": "Vstupné zariadenie",
   "settings.mic.noMic": "Mikrofón nebol detektovaný",
   "settings.mic.noMicDesc": "Pripojte mikrofón alebo skontrolujte nastavenia systému",
   "settings.mic.devicesAvailable": "{n} zariadenie{s} je dostupné",
   "settings.mic.auto": "Automatické",
-
   "settings.stt": "Rozpoznávanie reči",
   "settings.stt.mode": "Režim",
   "settings.stt.modeDesc": "Vyberte lokálny alebo cloudový engine prepisu",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Skúsiť znova",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Najvyššia viacjazyčná presnosť",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Najrýchlejší, najmenšia veľkosť",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Najlepšie pre tradičnú čínštinu",
-
   "setup.sttModelChoiceTitle": "Vyberte model pre rozpoznávanie reči",
   "setup.sttModelChoiceDesc": "Vyberte model na základe vašich potrieb. Neskôr to môžete zmeniť v Nastaveniach.",
   "setup.recommended": "Odporúčané",
   "setup.sttModelDownloadBtn": "Stiahnuť a pokračovať",
   "setup.sttModelSystemInfo": "Systém: {ram} RAM, {disk} voľného miesta na disku",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Najlepšie pre tradičnú čínštinu",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Viacjazyčný",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Najnovší viacjazyčný, myslenie/bez myslenia",
-
   "settings.polish": "AI leštiaca",
   "settings.polish.toggle": "Leštenie prepisu pomocou AI",
   "settings.polish.toggleDesc": "Zlepšite gramatiku, tón a jasnosť",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Tieto inštrukcie sú pripojené k základnej výzve, keď sa toto pravidlo zhoduje.",
   "settings.polish.ruleSave": "Uložiť",
   "settings.polish.ruleCancel": "Zrušiť",
-
   "promptRules.title": "Pravidlá výziev",
   "promptRules.desc": "Pravidlá sú porovnávané podľa aktuálnej aplikácie — inštrukcie prvého zhodného pravidla sa pripoja k základnej výzve.",
   "promptRules.voiceTipMain": "Stlačte {hotkey} na opis pravidla hlasom.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Spustite Nastavenie opäť",
   "settings.danger.rerunSetupDesc": "Zobrazte overlay nastavenia pri prvom spustení opäť",
   "settings.danger.rerunSetupBtn": "Spustiť nastavenie",
-
   "confirm.resetTitle": "Obnoviť na predvolené",
   "confirm.resetMessage": "Toto obnoví všetky nastavenia na pôvodné hodnoty. Toto sa nedá vrátiť.",
   "confirm.cancel": "Zrušiť",
   "confirm.reset": "Obnoviť",
-
   "dictionary.title": "Vlastný slovník",
   "dictionary.desc": "Pridajte vlastné mená, názvy alebo termíny špecifické pre doménu. AI automaticky použije správnu formu, keď narazí na podobne znejúce slová.",
   "dictionary.toggle": "Povoliť vlastný slovník",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Zakázať",
   "dictionary.emptyTitle": "Zatiaľ žiadne termíny slovníka",
   "dictionary.emptyHint": "Pridajte termíny, aby ste pomohli AI rozpoznať vlastné mená a názvy.",
-
   "history.title": "História",
   "history.privacyNote": "Vaše údaje zostávajú súkromné — celá história sa ukladá lokálne len na tomto zariadení.",
   "history.retention": "Uchovávanie údajov",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Natrvalo vymazať všetky záznamy histórie a zvukové súbory",
   "history.clearAllConfirm": "Ste si istí, že chcete natrvalo vymazať všetku históriu a zvukové súbory? Túto akciu nie je možné vrátiť.",
   "history.loadMore": "Načítať viac",
-
   "about.title": "O aplikácii",
   "about.version": "Verzia {version}",
   "about.desc": "Váš hlas, v písanom podobe. Rozpoznávanie reči poháňané AI — stlačte skratku na záznam, prepis a vloženie na vašu pozíciu kurzora.",
@@ -208,7 +195,6 @@
   "about.retry": "Skúsiť znova",
   "about.download": "Stiahnuť a nainštalovať",
   "about.gatekeeperNote": "Po reštartovaní vám macOS môže požiadať, aby ste aplikáciu opäť povolili v Nastavenia systému › Súkromie a bezpečnosť.",
-
   "setup.permissionsTitle": "Požadovaní povolenia",
   "setup.permissionsDesc": "Sumi potrebuje tieto povolenia na záznam zvuku a vloženie textu na vašu pozíciu kurzora.",
   "setup.permMicName": "Mikrofón",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Vložte text na vašu pozíciu kurzora pomocou {pasteShortcut}",
   "setup.permGrant": "Udeliť",
   "setup.permContinue": "Pokračovať",
-
   "setup.initialTitle": "Nastaviť rozpoznávanie reči",
   "setup.initialDesc": "Sumi musí stiahnuť model rozpoznávania reči (~1,5 GB) na úplne offline prepis. Toto sa stane len raz.",
   "setup.downloadBtn": "Stiahnuť model",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Rýchlejšie, ale text sa odosiela na externý server. Vyžaduje API kľúč.",
   "setup.polishCloudContinue": "Pokračovať",
   "setup.polishSkip": "Preskočiť teraz",
-
   "setup.stepStt": "Reč",
   "setup.stepPolish": "Leštenie",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID modelu",
   "setup.testSkip": "Preskočiť testovanie",
   "setup.testDone": "Hotovo",
-
   "setup.llmDownloadingTitle": "Sťahovanie modelu AI...",
   "setup.errorTitle": "Sťahovanie zlyhalo",
   "setup.errorDefault": "Vyskytla sa neočakávaná chyba.",
   "setup.retryBtn": "Skúsiť stiahnuť znova",
-
   "test.breadcrumb.mic": "Mikrofón",
   "test.breadcrumb.hotkey": "Skratka",
   "test.breadcrumb.general": "Všeobecné",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Kliknite na telo e-mailu, stlačte {hotkey} na začatie, hovorte, potom stlačte {hotkey} znova na ukončenie",
   "test.step4.sampleText": "Skúste povedať: \"Ahoj Alice, stále sme sa dohodli na obed zajtra? Alan\"",
   "test.step4.done": "Hotovo",
-
   "test.breadcrumb.polishCheck": "Vylepšovanie",
   "test.breadcrumb.editByVoice": "Úprava hlasom",
   "test.step5.title": "Úprava hlasom",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Ahoj Alice, máme sa stále stretnúť na obede zajtra? Daj mi vedieť, či ti to vyhovuje. Ďakujem, Alan",
   "test.step6.editorTitle": "Test úpravy",
   "test.step6.done": "Hotovo",
-
   "overlay.preparing": "Príprava...",
   "overlay.recording": "Nahrávania",
   "overlay.transcribing": "Prepisovanie",
@@ -310,14 +290,7 @@
   "overlay.edited": "Upravené",
   "overlay.editRequiresPolish": "AI vylepšovanie vyžadované na úpravu",
   "overlay.undo": "Vrátiť",
-  "overlay.previewConfirm": "Potvrdiť",
-  "overlay.previewCancel": "Zrušiť",
-  "overlay.previewEditHint": "Kliknutím na text upravte",
-  "overlay.previewEditingHint": "⌘Enter na potvrdenie · Esc na zrušenie",
-
   "settings.behavior": "Správanie",
   "settings.behavior.autoPaste": "Automatické vloženie",
-  "settings.behavior.autoPasteDesc": "Automaticky vložiť prepis na pozíciu kurzoru",
-  "settings.behavior.preview": "Náhľad pred vložením",
-  "settings.behavior.previewDesc": "Zobraziť prepis na kontrolu pred vložením"
+  "settings.behavior.autoPasteDesc": "Automaticky vložiť prepis na pozíciu kurzoru"
 }

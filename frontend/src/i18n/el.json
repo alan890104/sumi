@@ -5,12 +5,10 @@
   "nav.history": "Ιστορικό",
   "nav.about": "Σχετικά",
   "nav.test": "Δοκιμή",
-
   "settings.title": "Ρυθμίσεις",
   "settings.language": "Γλώσσα",
   "settings.language.label": "Γλώσσα διεπαφής",
   "settings.language.desc": "Επιλέξτε τη γλώσσα εμφάνισης της εφαρμογής",
-
   "settings.shortcuts": "Συντομεύσεις πληκτρολογίου",
   "settings.shortcuts.hotkey": "Υπαγόρευση",
   "settings.shortcuts.hotkeyDesc": "Πατήστε για να ξεκινήσετε/σταματήσετε την εγγραφή και τη μεταγραφή",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Δεν ορίστηκε",
   "settings.shortcuts.editRequiresPolish": "Απαιτείται η ενεργοποίηση της AI βελτίωσης",
   "settings.shortcuts.clear": "Εκκαθάριση",
-
   "settings.mic": "Μικρόφωνο",
   "settings.mic.inputDevice": "Συσκευή εισόδου",
   "settings.mic.noMic": "Δεν ανιχνεύθηκε μικρόφωνο",
   "settings.mic.noMicDesc": "Συνδέστε ένα μικρόφωνο ή ελέγξτε τις ρυθμίσεις του συστήματος",
   "settings.mic.devicesAvailable": "{n} συσκευή{s} διαθέσιμη{s}",
   "settings.mic.auto": "Αυτόματο",
-
   "settings.stt": "Αναγνώριση ομιλίας",
   "settings.stt.mode": "Λειτουργία",
   "settings.stt.modeDesc": "Επιλέξτε τοπικό ή cloud μοτέρ μεταγραφής",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Επανάληψη",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Υψηλότερη ακρίβεια σε πολλές γλώσσες",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Ταχύτερο, μικρότερο μέγεθος",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Καλύτερο για παραδοσιακά κινεζικά",
-
   "setup.sttModelChoiceTitle": "Επιλέξτε ένα Μοντέλο Αναγνώρισης Ομιλίας",
   "setup.sttModelChoiceDesc": "Επιλέξτε ένα μοντέλο ανάλογα με τις ανάγκες σας. Μπορείτε να το αλλάξετε αργότερα στις Ρυθμίσεις.",
   "setup.recommended": "Συνιστώμενο",
   "setup.sttModelDownloadBtn": "Λήψη & Συνέχεια",
   "setup.sttModelSystemInfo": "Σύστημα: {ram} RAM, {disk} ελεύθερο χώρο δίσκου",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Καλύτερο για παραδοσιακά κινεζικά",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Πολυγλωσσικό",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Τελευταίο πολυγλωσσικό, με σκέψη/χωρίς σκέψη",
-
   "settings.polish": "Γείω KI",
   "settings.polish.toggle": "Γείωση μεταγραφής με ΤΝ",
   "settings.polish.toggleDesc": "Βελτιώστε τη γραμματική, τον τόνο και τη σαφήνεια",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Αυτές οι οδηγίες προστίθενται στη βασική εντολή όταν αυτός ο κανόνας ταιριάζει.",
   "settings.polish.ruleSave": "Αποθήκευση",
   "settings.polish.ruleCancel": "Ακύρωση",
-
   "promptRules.title": "Κανόνες εντολής",
   "promptRules.desc": "Οι κανόνες ταιριάζουν με την εφαρμογή στο προσκήνιο — οι οδηγίες του πρώτου αντιστοίχου κανόνα προστίθενται στη βασική εντολή.",
   "promptRules.voiceTipMain": "Πατήστε {hotkey} για να περιγράψετε τον κανόνα σας φωνητικά.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Εκ νέου εκτέλεση ρύθμισης",
   "settings.danger.rerunSetupDesc": "Εμφάνιση της κατακόρυφης επικάλυψης πρώτης εκτέλεσης ξανά",
   "settings.danger.rerunSetupBtn": "Εκτέλεση ρύθμισης",
-
   "confirm.resetTitle": "Επαναφορά στις προεπιλογές",
   "confirm.resetMessage": "Αυτό θα επαναφέρει όλες τις ρυθμίσεις στις αρχικές τους τιμές. Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
   "confirm.cancel": "Ακύρωση",
   "confirm.reset": "Επαναφορά",
-
   "dictionary.title": "Προσαρμοσμένο λεξικό",
   "dictionary.desc": "Προσθέστε κατάλληλα ονόματα, ονόματα ή όρους ειδικής τομέα. Η ΤΝ θα χρησιμοποιεί αυτόματα τη σωστή μορφή όταν συναντά παρόμοια ηχούντα λόγια.",
   "dictionary.toggle": "Ενεργοποίηση προσαρμοσμένου λεξικού",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Απενεργοποίηση",
   "dictionary.emptyTitle": "Δεν υπάρχουν ακόμη όροι λεξικού",
   "dictionary.emptyHint": "Προσθέστε όρους για να βοηθήσετε την ΤΝ να αναγνωρίσει κατάλληλα ονόματα και ονόματα.",
-
   "history.title": "Ιστορικό",
   "history.privacyNote": "Τα δεδομένα σας παραμένουν ιδιωτικά — όλο το ιστορικό αποθηκεύεται τοπικά μόνο σε αυτήν τη συσκευή.",
   "history.retention": "Διατήρηση δεδομένων",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Διαγραφή όλων των καταχωρήσεων ιστορικού και αρχείων ήχου",
   "history.clearAllConfirm": "Είστε σίγουροι ότι θέλετε να διαγράψετε μόνιμα όλο το ιστορικό και τα αρχεία ήχου; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
   "history.loadMore": "Φόρτωση περισσότερων",
-
   "about.title": "Σχετικά",
   "about.version": "Έκδοση {version}",
   "about.desc": "Η φωνή σας, γραπτώς. ΤΝ-κινητήριος ομιλία προς κείμενο — πατήστε μια συντόμευση για εγγραφή, μεταγραφή και επικόλληση στον δρομέα σας.",
@@ -208,7 +195,6 @@
   "about.retry": "Προσπάθεια ξανά",
   "about.download": "Λήψη και εγκατάσταση",
   "about.gatekeeperNote": "Μετά την επανεκκίνηση, το macOS μπορεί να σας ζητήσει να επιτρέψετε ξανά την εφαρμογή στις Ρυθμίσεις συστήματος › Ιδιωτικότητα & Ασφάλεια.",
-
   "setup.permissionsTitle": "Απαιτούμενες άδειες",
   "setup.permissionsDesc": "Το Sumi χρειάζεται αυτές τις άδειες για εγγραφή ήχου και επικόλληση κειμένου στον δρομέα σας.",
   "setup.permMicName": "Μικρόφωνο",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Επικόλληση κειμένου στον δρομέα σας με {pasteShortcut}",
   "setup.permGrant": "Χορήγηση",
   "setup.permContinue": "Συνέχεια",
-
   "setup.initialTitle": "Ρύθμιση αναγνώρισης ομιλίας",
   "setup.initialDesc": "Το Sumi χρειάζεται να κατεβάσει ένα μοντέλο αναγνώρισης ομιλίας (~1,5 GB) για πλήρως χωρίς σύνδεση μεταγραφή. Αυτό συμβαίνει μόνο μία φορά.",
   "setup.downloadBtn": "Λήψη μοντέλου",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Ταχύτερο, αλλά το κείμενο αποστέλλεται σε έναν εξωτερικό διακομιστή. Απαιτεί API Key.",
   "setup.polishCloudContinue": "Συνέχεια",
   "setup.polishSkip": "Παράλειψη προς τώρα",
-
   "setup.stepStt": "Φωνή",
   "setup.stepPolish": "Γείω",
   "setup.stepTest": "Δοκιμή",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID Μοντέλου",
   "setup.testSkip": "Παράλειψη δοκιμών",
   "setup.testDone": "Τέλος",
-
   "setup.llmDownloadingTitle": "Λήψη μοντέλου ΤΝ...",
   "setup.errorTitle": "Αποτυχία λήψης",
   "setup.errorDefault": "Προέκυψε ένα απροσδόκητο σφάλμα.",
   "setup.retryBtn": "Προσπάθεια λήψης ξανά",
-
   "test.breadcrumb.mic": "Μικρόφωνο",
   "test.breadcrumb.hotkey": "Συντόμευση",
   "test.breadcrumb.general": "Γενικό",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Κάντε κλικ στο σώμα του ηλεκτρονικού μηνύματος, πατήστε {hotkey} για να ξεκινήσετε, μιλήστε, και στη συνέχεια πατήστε {hotkey} για να σταματήσετε",
   "test.step4.sampleText": "Δοκιμάστε να πείτε: \"Γεια Alice, είμαστε ακόμα για μεσημεριανό αύριο όπως σχεδιάστηκε; Alan\"",
   "test.step4.done": "Τέλος",
-
   "test.breadcrumb.polishCheck": "Βελτίωση",
   "test.breadcrumb.editByVoice": "Επεξεργασία κατά φωνή",
   "test.step5.title": "Επεξεργασία κατά φωνή",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hi Alice, are we still on for lunch tomorrow? Let me know if that works for you. Thanks, Alan",
   "test.step6.editorTitle": "Δοκιμή Επεξεργασίας",
   "test.step6.done": "Ολοκληρώθηκε",
-
   "overlay.preparing": "Προετοιμασία…",
   "overlay.recording": "Εγγραφή",
   "overlay.transcribing": "Μεταγραφή",
@@ -310,14 +290,7 @@
   "overlay.edited": "Επεξεργασία",
   "overlay.editRequiresPolish": "Απαιτείται AI βελτίωση για την επεξεργασία",
   "overlay.undo": "Αναίρεση",
-  "overlay.previewConfirm": "Επιβεβαίωση",
-  "overlay.previewCancel": "Ακύρωση",
-  "overlay.previewEditHint": "Κάντε κλικ στο κείμενο για επεξεργασία",
-  "overlay.previewEditingHint": "⌘Enter για επιβεβαίωση · Esc για ακύρωση",
-
   "settings.behavior": "Συμπεριφορά",
   "settings.behavior.autoPaste": "Αυτόματη επικόλληση",
-  "settings.behavior.autoPasteDesc": "Αυτόματη επικόλληση της μεταγραφής στη θέση του δρομέα",
-  "settings.behavior.preview": "Προεπισκόπηση πριν την επικόλληση",
-  "settings.behavior.previewDesc": "Εμφάνιση της μεταγραφής για επισκόπηση πριν την επικόλληση"
+  "settings.behavior.autoPasteDesc": "Αυτόματη επικόλληση της μεταγραφής στη θέση του δρομέα"
 }

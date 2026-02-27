@@ -5,12 +5,10 @@
   "nav.history": "기록",
   "nav.about": "정보",
   "nav.test": "테스트",
-
   "settings.title": "설정",
   "settings.language": "언어",
   "settings.language.label": "인터페이스 언어",
   "settings.language.desc": "앱의 표시 언어를 선택하세요",
-
   "settings.shortcuts": "키보드 단축키",
   "settings.shortcuts.hotkey": "받아쓰기",
   "settings.shortcuts.hotkeyDesc": "누르면 녹음을 시작/중지하고 텍스트로 변환합니다",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "설정되지 않음",
   "settings.shortcuts.editRequiresPolish": "AI 다듬기를 활성화해야 사용 가능",
   "settings.shortcuts.clear": "지우기",
-
   "settings.mic": "마이크",
   "settings.mic.inputDevice": "입력 장치",
   "settings.mic.noMic": "마이크가 감지되지 않았습니다",
   "settings.mic.noMicDesc": "마이크를 연결하거나 시스템 설정을 확인하세요",
   "settings.mic.devicesAvailable": "{n}개의 장치{s} 사용 가능",
   "settings.mic.auto": "자동",
-
   "settings.stt": "음성 인식",
   "settings.stt.mode": "모드",
   "settings.stt.modeDesc": "로컬 또는 클라우드 텍스트 변환 엔진을 선택하세요",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "음성 활동 감지",
   "settings.stt.vadDesc": "전사 전에 배경 소음을 필터링",
   "settings.stt.retry": "다시 시도",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "가장 높은 다국어 정확도",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "가장 빠름, 가장 작은 크기",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "번체 중국어에 최적",
-
   "setup.sttModelChoiceTitle": "음성 인식 모델 선택",
   "setup.sttModelChoiceDesc": "필요에 따라 모델을 선택하세요. 나중에 설정에서 변경할 수 있습니다.",
   "setup.recommended": "권장",
   "setup.sttModelDownloadBtn": "다운로드 및 계속",
   "setup.sttModelSystemInfo": "시스템: {ram} RAM, {disk} 여유 공간",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "번체 중국어에 최적",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "다국어",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "최신 다국어, 사고/비사고 모드",
-
   "settings.polish": "AI 다듬기",
   "settings.polish.toggle": "AI로 전사 다듬기",
   "settings.polish.toggleDesc": "문법, 톤 및 명확성 개선",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "이 지시사항은 이 규칙이 일치할 때 기본 프롬프트에 추가됩니다.",
   "settings.polish.ruleSave": "저장",
   "settings.polish.ruleCancel": "취소",
-
   "promptRules.title": "프롬프트 규칙",
   "promptRules.desc": "규칙은 맨 앞의 앱과 일치합니다 — 첫 번째로 일치하는 규칙의 지시사항이 기본 프롬프트에 추가됩니다.",
   "promptRules.voiceTipMain": "{hotkey}를 눌러 음성으로 규칙을 설명하세요.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "설정 다시 실행",
   "settings.danger.rerunSetupDesc": "처음 시작 설정 오버레이를 다시 표시합니다",
   "settings.danger.rerunSetupBtn": "설정 실행",
-
   "confirm.resetTitle": "기본값으로 재설정",
   "confirm.resetMessage": "이렇게 하면 모든 설정이 원래 값으로 복원됩니다. 이 작업은 취소할 수 없습니다.",
   "confirm.cancel": "취소",
   "confirm.reset": "재설정",
-
   "dictionary.title": "사용자 정의 사전",
   "dictionary.desc": "고유 명사, 이름 또는 도메인별 용어를 추가하세요. AI는 유사하게 들리는 단어를 만날 때 자동으로 올바른 형식을 사용합니다.",
   "dictionary.toggle": "사용자 정의 사전 활성화",
@@ -157,7 +146,6 @@
   "dictionary.disable": "비활성화",
   "dictionary.emptyTitle": "아직 사전 용어가 없습니다",
   "dictionary.emptyHint": "AI가 고유 명사와 이름을 인식하도록 용어를 추가하세요.",
-
   "history.title": "기록",
   "history.privacyNote": "데이터는 비공개입니다 — 모든 기록은 이 장치에만 로컬로 저장됩니다.",
   "history.retention": "데이터 보존",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "모든 기록 항목 및 오디오 파일을 영구 삭제합니다",
   "history.clearAllConfirm": "모든 기록 및 오디오 파일을 영구적으로 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
   "history.loadMore": "더 보기",
-
   "about.title": "정보",
   "about.version": "버전 {version}",
   "about.desc": "당신의 음성을 글로. AI 기반 음성-텍스트 변환 — 단축키를 눌러 기록하고 전사한 후 커서 위치에 붙여넣으세요.",
@@ -208,7 +195,6 @@
   "about.retry": "다시 시도",
   "about.download": "다운로드 및 설치",
   "about.gatekeeperNote": "다시 시작한 후 macOS는 시스템 설정 › 개인정보 보호 및 보안에서 앱을 다시 허용하도록 요청할 수 있습니다.",
-
   "setup.permissionsTitle": "권한 필요",
   "setup.permissionsDesc": "Sumi는 오디오를 녹음하고 커서 위치에 텍스트를 붙여넣기 위해 이 권한이 필요합니다.",
   "setup.permMicName": "마이크",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "{pasteShortcut}로 커서 위치에 텍스트를 붙여넣습니다",
   "setup.permGrant": "허용",
   "setup.permContinue": "계속",
-
   "setup.initialTitle": "음성 인식 설정",
   "setup.initialDesc": "Sumi는 완전히 오프라인 전사를 위해 음성 인식 모델을 다운로드해야 합니다 (~1.5 GB). 이는 한 번만 발생합니다.",
   "setup.downloadBtn": "모델 다운로드",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "더 빠르지만 텍스트는 외부 서버로 전송됩니다. API 키가 필요합니다.",
   "setup.polishCloudContinue": "계속",
   "setup.polishSkip": "지금은 건너뛰기",
-
   "setup.stepStt": "음성",
   "setup.stepPolish": "다듬기",
   "setup.stepTest": "테스트",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "모델 ID",
   "setup.testSkip": "테스트 건너뛰기",
   "setup.testDone": "완료",
-
   "setup.llmDownloadingTitle": "AI 모델 다운로드 중...",
   "setup.errorTitle": "다운로드 실패",
   "setup.errorDefault": "예상치 못한 오류가 발생했습니다.",
   "setup.retryBtn": "다운로드 다시 시도",
-
   "test.breadcrumb.mic": "마이크",
   "test.breadcrumb.hotkey": "단축키",
   "test.breadcrumb.general": "일반",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "이메일 본문을 클릭하고 {hotkey}를 눌러 시작하고 말한 후 {hotkey}를 다시 눌러 중지하세요",
   "test.step4.sampleText": "다음과 같이 말해보세요: “안녕 Alice, 내일 점심 약속이 여전히 괜찮아? Alan”",
   "test.step4.done": "완료",
-
   "test.breadcrumb.polishCheck": "다듬기",
   "test.breadcrumb.editByVoice": "음성 편집",
   "test.step5.title": "AI 다듬기",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "안녕 Alice, 내일 점심 약속이 여전히 괜찮아? 가능하면 알려줄 수 있을까? 고마워, Alan",
   "test.step6.editorTitle": "편집 테스트",
   "test.step6.done": "완료",
-
   "overlay.preparing": "준비 중…",
   "overlay.recording": "녹음 중",
   "overlay.transcribing": "전사 중",
@@ -310,14 +290,7 @@
   "overlay.edited": "편집됨",
   "overlay.editRequiresPolish": "편집을 위해 AI 다듬기가 필요합니다",
   "overlay.undo": "실행 취소",
-  "overlay.previewConfirm": "확인",
-  "overlay.previewCancel": "취소",
-  "overlay.previewEditHint": "클릭하여 편집",
-  "overlay.previewEditingHint": "⌘Enter 확인 · Esc 취소",
-
   "settings.behavior": "동작",
   "settings.behavior.autoPaste": "자동 붙여넣기",
-  "settings.behavior.autoPasteDesc": "커서 위치에 전사 내용을 자동으로 붙여넣기",
-  "settings.behavior.preview": "붙여넣기 전 미리보기",
-  "settings.behavior.previewDesc": "붙여넣기 전에 전사 내용을 확인"
+  "settings.behavior.autoPasteDesc": "커서 위치에 전사 내용을 자동으로 붙여넣기"
 }

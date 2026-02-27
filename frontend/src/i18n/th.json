@@ -5,12 +5,10 @@
   "nav.history": "ประวัติ",
   "nav.about": "เกี่ยวกับ",
   "nav.test": "ทดสอบ",
-
   "settings.title": "การตั้งค่า",
   "settings.language": "ภาษา",
   "settings.language.label": "ภาษาอินเทอร์เฟส",
   "settings.language.desc": "เลือกภาษาการแสดงผลสำหรับแอป",
-
   "settings.shortcuts": "ปุ่มลัด",
   "settings.shortcuts.hotkey": "การออกเสียง",
   "settings.shortcuts.hotkeyDesc": "กดเพื่อเริ่ม/หยุดการบันทึก และออกเสียง",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "ยังไม่ตั้งค่า",
   "settings.shortcuts.editRequiresPolish": "ต้องเปิดใช้งานการปรับปรุงด้วย AI เพื่อแก้ไข",
   "settings.shortcuts.clear": "ล้าง",
-
   "settings.mic": "ไมโครโฟน",
   "settings.mic.inputDevice": "อุปกรณ์อินพุต",
   "settings.mic.noMic": "ไม่พบไมโครโฟน",
   "settings.mic.noMicDesc": "เชื่อมต่อไมโครโฟน หรือตรวจสอบการตั้งค่าระบบ",
   "settings.mic.devicesAvailable": "{n} อุปกรณ์{s} พร้อมใช้งาน",
   "settings.mic.auto": "อัตโนมัติ",
-
   "settings.stt": "การรู้จำเสียงพูด",
   "settings.stt.mode": "โหมด",
   "settings.stt.modeDesc": "เลือกเครื่องอักษรเสียงในท้องถิ่น หรือ Cloud",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "ลองอีกครั้ง",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "ความแม่นยำพหุภาษาสูงสุด",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "เร็วที่สุด รอยเท้าเล็กที่สุด",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "ดีที่สุดสำหรับภาษาจีนแบบดั้งเดิม",
-
   "setup.sttModelChoiceTitle": "เลือกโมเดลการจดจำเสียงพูด",
   "setup.sttModelChoiceDesc": "เลือกโมเดลตามความต้องการของคุณ คุณสามารถเปลี่ยนแปลงได้ในภายหลังในการตั้งค่า",
   "setup.recommended": "แนะนำ",
   "setup.sttModelDownloadBtn": "ดาวน์โหลดและดำเนินการต่อ",
   "setup.sttModelSystemInfo": "ระบบ: {ram} RAM, {disk} ดิสก์ว่าง",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "ดีที่สุดสำหรับภาษาจีนแบบดั้งเดิม",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "พหุภาษา",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "พหุภาษาล่าสุด โหมดคิด/ไม่คิด",
-
   "settings.polish": "AI Polish",
   "settings.polish.toggle": "ทำให้การออกเสียงมีความเรียบเรียง AI",
   "settings.polish.toggleDesc": "ปรับปรุงไวยากรณ์ โทน และความชัดเจน",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "คำแนะนำเหล่านี้จะถูกผนวกเข้ากับพร้อมท์ฐาน เมื่อกฎนี้ตรงกัน",
   "settings.polish.ruleSave": "บันทึก",
   "settings.polish.ruleCancel": "ยกเลิก",
-
   "promptRules.title": "กฎพร้อมท์",
   "promptRules.desc": "กฎจะจับคู่โดยแอปด้านหน้า — คำแนะนำของกฎที่ตรงกันแรกจะถูกผนวกเข้ากับพร้อมท์ฐาน",
   "promptRules.voiceTipMain": "กด {hotkey} เพื่ออธิบายกฎของคุณด้วยเสียง",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "เรียกใช้การตั้งค่าอีกครั้ง",
   "settings.danger.rerunSetupDesc": "แสดงการวางซ้อนการตั้งค่าครั้งแรก อีกครั้ง",
   "settings.danger.rerunSetupBtn": "เรียกใช้การตั้งค่า",
-
   "confirm.resetTitle": "รีเซ็ตเป็นค่าเริ่มต้น",
   "confirm.resetMessage": "สิ่งนี้จะคืนค่าการตั้งค่าทั้งหมดเป็นค่าเดิม ไม่สามารถยกเลิกได้",
   "confirm.cancel": "ยกเลิก",
   "confirm.reset": "รีเซ็ต",
-
   "dictionary.title": "พจนานุกรมที่กำหนดเอง",
   "dictionary.desc": "เพิ่มชื่อเฉพาะ ชื่อ หรือคำเฉพาะด้าน AI จะใช้รูปแบบที่ถูกต้องโดยอัตโนมัติเมื่อพบคำที่เสียงคล้ายกัน",
   "dictionary.toggle": "เปิดใช้พจนานุกรมที่กำหนดเอง",
@@ -157,7 +146,6 @@
   "dictionary.disable": "ปิดใช้งาน",
   "dictionary.emptyTitle": "ยังไม่มีคำศัพท์พจนานุกรม",
   "dictionary.emptyHint": "เพิ่มคำศัพท์เพื่อช่วย AI รู้จักชื่อเฉพาะและชื่อ",
-
   "history.title": "ประวัติ",
   "history.privacyNote": "ข้อมูลของคุณยังคงเป็นส่วนตัว — ประวัติทั้งหมดจัดเก็บในท้องถิ่นบนอุปกรณ์นี้เท่านั้น",
   "history.retention": "การเก็บรักษาข้อมูล",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "ลบบันทึกประวัติทั้งหมดและไฟล์เสียงถาวร",
   "history.clearAllConfirm": "คุณแน่ใจหรือว่าต้องการลบประวัติทั้งหมดและไฟล์เสียงถาวร ไม่สามารถยกเลิกการดำเนินการนี้ได้",
   "history.loadMore": "โหลดเพิ่มเติม",
-
   "about.title": "เกี่ยวกับ",
   "about.version": "เวอร์ชัน {version}",
   "about.desc": "เสียงของคุณ เป็นลายลักษณ์อักษร ระบบแปลงเสียงเป็นข้อความที่ขับเคลื่อนด้วย AI — กดปุ่มลัดเพื่อบันทึก แปลงเป็นข้อความ และวางในตำแหน่งเคอร์เซอร์",
@@ -208,7 +195,6 @@
   "about.retry": "ลองอีกครั้ง",
   "about.download": "ดาวน์โหลด และติดตั้ง",
   "about.gatekeeperNote": "หลังจากรีสตาร์ท macOS อาจขอให้คุณอนุญาตแอปอีกครั้งใน System Settings › Privacy & Security",
-
   "setup.permissionsTitle": "ต้องได้รับอนุญาต",
   "setup.permissionsDesc": "Sumi ต้องการอนุญาตเหล่านี้เพื่อบันทึกเสียงและวางข้อความในตำแหน่งเคอร์เซอร์",
   "setup.permMicName": "ไมโครโฟน",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "วางข้อความในตำแหน่งเคอร์เซอร์ด้วย {pasteShortcut}",
   "setup.permGrant": "ให้อนุญาต",
   "setup.permContinue": "ดำเนิน",
-
   "setup.initialTitle": "ตั้งค่าการรู้จำเสียงพูด",
   "setup.initialDesc": "Sumi ต้องดาวน์โหลดแบบจำลองการรู้จำเสียงพูด (~1.5 GB) สำหรับการแปลเสียงแบบออฟไลน์ที่สมบูรณ์ สิ่งนี้เกิดขึ้นเพียงครั้งเดียว",
   "setup.downloadBtn": "ดาวน์โหลดโมเดล",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "เร็วกว่า แต่ข้อความจะถูกส่งไปยังเซิร์ฟเวอร์ภายนอก ต้องใช้ API Key",
   "setup.polishCloudContinue": "ดำเนิน",
   "setup.polishSkip": "ข้ามไปต่อ",
-
   "setup.stepStt": "เสียง",
   "setup.stepPolish": "Polish",
   "setup.stepTest": "ทดสอบ",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID โมเดล",
   "setup.testSkip": "ข้ามการทดสอบ",
   "setup.testDone": "เสร็จ",
-
   "setup.llmDownloadingTitle": "กำลังดาวน์โหลดโมเดล AI...",
   "setup.errorTitle": "ดาวน์โหลดล้มเหลว",
   "setup.errorDefault": "เกิดข้อผิดพลาดที่ไม่คาดคิด",
   "setup.retryBtn": "ลองดาวน์โหลดอีกครั้ง",
-
   "test.breadcrumb.mic": "ไมโครโฟน",
   "test.breadcrumb.hotkey": "ปุ่มลัด",
   "test.breadcrumb.general": "ทั่วไป",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "คลิกเนื้อหาอีเมล กด {hotkey} เพื่อเริ่ม พูด จากนั้นกด {hotkey} อีกครั้งเพื่อหยุด",
   "test.step4.sampleText": "พยายามพูด: \"สวัสดี Alice, เรายังอยู่เพื่อมื้อกลางวันพรุ่งนี้ใช่ไหม Alan\"",
   "test.step4.done": "เสร็จ",
-
   "test.breadcrumb.polishCheck": "การปรับปรุง",
   "test.breadcrumb.editByVoice": "แก้ไขด้วยเสียง",
   "test.step5.title": "แก้ไขด้วยเสียง",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "สวัสดี Alice เรายังคงเตรียมตัวสำหรับอาหารกลางวันพรุ่งนี้อยู่หรือ? โปรดแจ้งให้ฉันทราบว่าสิ่งนี้เหมาะสมกับคุณ ขอบคุณ Alan",
   "test.step6.editorTitle": "การทดสอบการแก้ไข",
   "test.step6.done": "เสร็จแล้ว",
-
   "overlay.preparing": "กำลังเตรียม…",
   "overlay.recording": "บันทึก",
   "overlay.transcribing": "กำลังแปลง",
@@ -310,14 +290,7 @@
   "overlay.edited": "แก้ไข",
   "overlay.editRequiresPolish": "การแก้ไขต้องใช้การปรับปรุงด้วย AI",
   "overlay.undo": "เลิกทำ",
-  "overlay.previewConfirm": "ยืนยัน",
-  "overlay.previewCancel": "ยกเลิก",
-  "overlay.previewEditHint": "คลิกข้อความเพื่อแก้ไข",
-  "overlay.previewEditingHint": "⌘Enter เพื่อยืนยัน · Esc เพื่อยกเลิก",
-
   "settings.behavior": "พฤติกรรม",
   "settings.behavior.autoPaste": "วางโดยอัตโนมัติ",
-  "settings.behavior.autoPasteDesc": "วางการถอดเสียงโดยอัตโนมัติที่ตำแหน่งเคอร์เซอร์",
-  "settings.behavior.preview": "ดูตัวอย่างก่อนวาง",
-  "settings.behavior.previewDesc": "แสดงการถอดเสียงเพื่อตรวจสอบก่อนวาง"
+  "settings.behavior.autoPasteDesc": "วางการถอดเสียงโดยอัตโนมัติที่ตำแหน่งเคอร์เซอร์"
 }

@@ -5,12 +5,10 @@
   "nav.history": "इतिहास",
   "nav.about": "बारे में",
   "nav.test": "परीक्षा",
-
   "settings.title": "सेटिंग्स",
   "settings.language": "भाषा",
   "settings.language.label": "इंटरफेस भाषा",
   "settings.language.desc": "ऐप के लिए प्रदर्शन भाषा चुनें",
-
   "settings.shortcuts": "कीबोर्ड शॉर्टकट",
   "settings.shortcuts.hotkey": "श्रुतलेख",
   "settings.shortcuts.hotkeyDesc": "रिकॉर्डिंग शुरू/बंद करने और ट्रांसक्राइब करने के लिए दबाएं",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "सेट नहीं",
   "settings.shortcuts.editRequiresPolish": "संपादन के लिए AI पॉलिशिंग सक्षम करना आवश्यक है",
   "settings.shortcuts.clear": "स्पष्ट करें",
-
   "settings.mic": "माइक्रोफोन",
   "settings.mic.inputDevice": "इनपुट डिवाइस",
   "settings.mic.noMic": "कोई माइक्रोफोन नहीं मिला",
   "settings.mic.noMicDesc": "माइक्रोफोन कनेक्ट करें या सिस्टम सेटिंग्स की जांच करें",
   "settings.mic.devicesAvailable": "{n} डिवाइस{s} उपलब्ध",
   "settings.mic.auto": "स्वचालित",
-
   "settings.stt": "वाक् पहचान",
   "settings.stt.mode": "मोड",
   "settings.stt.modeDesc": "स्थानीय या क्लाउड ट्रांसक्रिप्शन इंजन चुनें",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "पुनः प्रयास करें",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "उच्चतम बहुभाषी सटीकता",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "सबसे तेज़, सबसे छोटा आकार",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "पारंपरिक चीनी के लिए सर्वश्रेष्ठ",
-
   "setup.sttModelChoiceTitle": "वाक् पहचान मॉडल चुनें",
   "setup.sttModelChoiceDesc": "अपनी आवश्यकताओं के अनुसार एक मॉडल चुनें। आप इसे बाद में सेटिंग्स में बदल सकते हैं।",
   "setup.recommended": "अनुशंसित",
   "setup.sttModelDownloadBtn": "डाउनलोड और जारी रखें",
   "setup.sttModelSystemInfo": "सिस्टम: {ram} RAM, {disk} मुक्त डिस्क",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "पारंपरिक चीनी के लिए सर्वश्रेष्ठ",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "बहुभाषी",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "नवीनतम बहुभाषी, सोच/गैर-सोच मोड",
-
   "settings.polish": "AI पॉलिशिंग",
   "settings.polish.toggle": "AI के साथ ट्रांसक्रिप्शन पॉलिश करें",
   "settings.polish.toggleDesc": "व्याकरण, टोन और स्पष्टता में सुधार करें",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "ये निर्देश बेस प्रॉम्प्ट में जोड़े जाते हैं जब यह नियम मेल खाता है।",
   "settings.polish.ruleSave": "सहेजें",
   "settings.polish.ruleCancel": "रद्द करें",
-
   "promptRules.title": "प्रॉम्प्ट नियम",
   "promptRules.desc": "नियम सबसे आगे के ऐप से मेल खाते हैं — पहले मिलान करने वाले नियम के निर्देश बेस प्रॉम्प्ट में जोड़े जाते हैं।",
   "promptRules.voiceTipMain": "अपने नियम को आवाज से बयान करने के लिए {hotkey} दबाएं।",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "सेटअप फिर से चलाएं",
   "settings.danger.rerunSetupDesc": "पहली बार का सेटअप ओवरले फिर से दिखाएं",
   "settings.danger.rerunSetupBtn": "सेटअप चलाएं",
-
   "confirm.resetTitle": "डिफ़ॉल्ट पर रीसेट करें",
   "confirm.resetMessage": "यह सभी सेटिंग्स को उनके मूल मानों में पुनः स्थापित करेगा। यह क्रिया पूर्ववत नहीं की जा सकती।",
   "confirm.cancel": "रद्द करें",
   "confirm.reset": "रीसेट करें",
-
   "dictionary.title": "कस्टम शब्दकोश",
   "dictionary.desc": "उचित नाम, नाम या डोमेन-विशिष्ट शर्तें जोड़ें। जब AI को समान ध्वनि वाले शब्द मिलते हैं तो वह स्वचालित रूप से सही रूप का उपयोग करेगा।",
   "dictionary.toggle": "कस्टम शब्दकोश सक्षम करें",
@@ -157,7 +146,6 @@
   "dictionary.disable": "अक्षम करें",
   "dictionary.emptyTitle": "अभी तक कोई शब्दकोश शर्तें नहीं",
   "dictionary.emptyHint": "AI को उचित नाम और नाम पहचानने में मदद करने के लिए शर्तें जोड़ें।",
-
   "history.title": "इतिहास",
   "history.privacyNote": "आपका डेटा निजी रहता है — सभी इतिहास केवल इस डिवाइस पर स्थानीय रूप से संग्रहीत होता है।",
   "history.retention": "डेटा प्रतिधारण",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "सभी इतिहास प्रविष्टियों और ऑडियो फाइलों को स्थायी रूप से हटाएं",
   "history.clearAllConfirm": "क्या आप वाकई सभी इतिहास और ऑडियो फाइलों को स्थायी रूप से हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
   "history.loadMore": "और अधिक लोड करें",
-
   "about.title": "बारे में",
   "about.version": "संस्करण {version}",
   "about.desc": "आपकी आवाज, लिखित। AI-संचालित भाषण से पाठ — रिकॉर्ड, ट्रांसक्राइब और अपने कर्सर पर पेस्ट करने के लिए शॉर्टकट दबाएं।",
@@ -208,7 +195,6 @@
   "about.retry": "पुनः प्रयास करें",
   "about.download": "डाउनलोड और स्थापित करें",
   "about.gatekeeperNote": "पुनः शुरू करने के बाद, macOS आपको सिस्टम सेटिंग्स › गोपनीयता और सुरक्षा में ऐप को फिर से अनुमति देने के लिए कह सकता है।",
-
   "setup.permissionsTitle": "आवश्यक अनुमतियां",
   "setup.permissionsDesc": "Sumi को ऑडियो रिकॉर्ड करने और आपके कर्सर पर पाठ पेस्ट करने के लिए इन अनुमतियों की आवश्यकता है।",
   "setup.permMicName": "माइक्रोफोन",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "अपने कर्सर पर पाठ पेस्ट करें {pasteShortcut}",
   "setup.permGrant": "अनुमति दें",
   "setup.permContinue": "जारी रखें",
-
   "setup.initialTitle": "वाक् पहचान सेट अप करें",
   "setup.initialDesc": "Sumi को पूरी तरह से ऑफलाइन ट्रांसक्रिप्शन के लिए भाषण पहचान मॉडल (~1.5 GB) डाउनलोड करना होगा। यह केवल एक बार होता है।",
   "setup.downloadBtn": "मॉडल डाउनलोड करें",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "तेज़, लेकिन पाठ बाहरी सर्वर को भेजा जाता है। API कुंजी की आवश्यकता है।",
   "setup.polishCloudContinue": "जारी रखें",
   "setup.polishSkip": "फिलहाल छोड़ें",
-
   "setup.stepStt": "भाषण",
   "setup.stepPolish": "पॉलिशिंग",
   "setup.stepTest": "परीक्षा",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "मॉडल ID",
   "setup.testSkip": "परीक्षण छोड़ें",
   "setup.testDone": "पूर्ण",
-
   "setup.llmDownloadingTitle": "AI मॉडल डाउनलोड हो रहा है...",
   "setup.errorTitle": "डाउनलोड विफल",
   "setup.errorDefault": "एक अप्रत्याशित त्रुटि हुई।",
   "setup.retryBtn": "डाउनलोड फिर से प्रयास करें",
-
   "test.breadcrumb.mic": "माइक्रोफोन",
   "test.breadcrumb.hotkey": "शॉर्टकट",
   "test.breadcrumb.general": "सामान्य",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "ईमेल बॉडी पर क्लिक करें, शुरू करने के लिए {hotkey} दबाएं, बोलें, फिर बंद करने के लिए {hotkey} दबाएं",
   "test.step4.sampleText": "यह कहने की कोशिश करें: \"नमस्ते Alice, क्या हम कल दोपहर के भोजन पर अभी भी योजना है? Alan\"",
   "test.step4.done": "पूर्ण",
-
   "test.breadcrumb.polishCheck": "पॉलिशिंग",
   "test.breadcrumb.editByVoice": "आवाज द्वारा संपादन",
   "test.step5.title": "आवाज द्वारा संपादन",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "नमस्ते Alice, क्या हम कल दोपहर के भोजन के लिए अभी भी तैयार हैं? कृपया मुझे बताएं कि यह आपके लिए काम करता है। धन्यवाद, Alan",
   "test.step6.editorTitle": "संपादन परीक्षण",
   "test.step6.done": "पूर्ण",
-
   "overlay.preparing": "तैयारी…",
   "overlay.recording": "रिकॉर्डिंग",
   "overlay.transcribing": "ट्रांसक्राइब करना",
@@ -310,14 +290,7 @@
   "overlay.edited": "संपादित",
   "overlay.editRequiresPolish": "संपादन के लिए AI पॉलिशिंग आवश्यक है",
   "overlay.undo": "पूर्ववत करें",
-  "overlay.previewConfirm": "पुष्टि करें",
-  "overlay.previewCancel": "रद्द करें",
-  "overlay.previewEditHint": "संपादित करने के लिए पाठ पर क्लिक करें",
-  "overlay.previewEditingHint": "⌘Enter पुष्टि करने के लिए · Esc रद्द करने के लिए",
-
   "settings.behavior": "व्यवहार",
   "settings.behavior.autoPaste": "स्वचालित चिपकाएं",
-  "settings.behavior.autoPasteDesc": "कर्सर स्थान पर स्वचालित रूप से ट्रांसक्रिप्शन चिपकाएं",
-  "settings.behavior.preview": "चिपकाने से पहले पूर्वावलोकन",
-  "settings.behavior.previewDesc": "चिपकाने से पहले समीक्षा के लिए ट्रांसक्रिप्शन दिखाएं"
+  "settings.behavior.autoPasteDesc": "कर्सर स्थान पर स्वचालित रूप से ट्रांसक्रिप्शन चिपकाएं"
 }

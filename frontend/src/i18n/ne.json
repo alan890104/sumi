@@ -5,12 +5,10 @@
   "nav.history": "इतिहास",
   "nav.about": "बारेमा",
   "nav.test": "परीक्षण",
-
   "settings.title": "सेटिङ्स",
   "settings.language": "भाषा",
   "settings.language.label": "इन्टरफेस भाषा",
   "settings.language.desc": "अनुप्रयोगको लागि प्रदर्शन भाषा चयन गर्नुहोस्",
-
   "settings.shortcuts": "किबोर्ड सर्टकट",
   "settings.shortcuts.hotkey": "श्रुतलेख",
   "settings.shortcuts.hotkeyDesc": "रेकर्डिङ सुरु/बन्द गर्न र ट्रान्सक्राइब गर्न दबाउनुहोस्",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "सेट गरिएको छैन",
   "settings.shortcuts.editRequiresPolish": "सम्पादनको लागि AI पॉलिशिङ सक्षम गर्न आवश्यक छ",
   "settings.shortcuts.clear": "हटाउनुहोस्",
-
   "settings.mic": "माइक्रोफोन",
   "settings.mic.inputDevice": "इनपुट डिभाइस",
   "settings.mic.noMic": "कुनै माइक्रोफोन पत्ता लागेन",
   "settings.mic.noMicDesc": "माइक्रोफोन जोडिएको छैन वा सिस्टम सेटिङ्स जाँच गर्नुहोस्",
   "settings.mic.devicesAvailable": "{n} डिभाइस{s} उपलब्ध",
   "settings.mic.auto": "स्वचालित",
-
   "settings.stt": "भाषण मान्यता",
   "settings.stt.mode": "मोड",
   "settings.stt.modeDesc": "स्थानीय वा क्लाउड ट्रान्सक्रिप्शन इञ्जिन चयन गर्नुहोस्",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "पुनः प्रयास गर्नुहोस्",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "सर्वोच्च बहुभाषिक सटीकता",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "सबैभन्दा छिटो, सबैभन्दा सानो फुटप्रिन्ट",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "परम्परागत चिनियाँको लागि सर्वोत्तम",
-
   "setup.sttModelChoiceTitle": "वाक् पहिचान मॉडल छनोट गर्नुहोस्",
   "setup.sttModelChoiceDesc": "आपनो आवश्यकता अनुसार एक मॉडल छनोट गर्नुहोस्। आप्नो पछि सेटिङ्समा यो परिवर्तन गर्न सक्नुहुन्छ।",
   "setup.recommended": "सिफारिश गरिएको",
   "setup.sttModelDownloadBtn": "डाउनलोड गर्नुहोस् र जारी राख्नुहोस्",
   "setup.sttModelSystemInfo": "प्रणाली: {ram} RAM, {disk} खाली डिस्क",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "परम्परागत चिनियाँको लागि सर्वोत्तम",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "बहुभाषिक",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "नवीनतम बहुभाषिक, सोच्ने/नसोच्ने मोड",
-
   "settings.polish": "AI पॉलिशिङ",
   "settings.polish.toggle": "AI को साथ ट्रान्सक्रिप्शन पॉलिश गर्नुहोस्",
   "settings.polish.toggleDesc": "व्याकरण, टोन र स्पष्टता सुधार गर्नुहोस्",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "यी निर्देशनहरू आधार प्रम्प्टमा जोडिएका छन् जब यो नियम मेल खाता छ।",
   "settings.polish.ruleSave": "सुरक्षित गर्नुहोस्",
   "settings.polish.ruleCancel": "रद्द गर्नुहोस्",
-
   "promptRules.title": "प्रम्प्ट नियमहरू",
   "promptRules.desc": "नियमहरू अगाडिको अनुप्रयोग द्वारा मेल गरिएका छन् — पहिलो मेल खाता नियमको निर्देशनहरू आधार प्रम्प्टमा जोडिएका छन्।",
   "promptRules.voiceTipMain": "आपनो नियम आवाजद्वारा वर्णन गर्न {hotkey} दबाउनुहोस्।",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "सेटअप पुनः चलाउनुहोस्",
   "settings.danger.rerunSetupDesc": "पहिलो-लঞ्च सेटअप ओभरले फेरि देखाउनुहोस्",
   "settings.danger.rerunSetupBtn": "सेटअप चलाउनुहोस्",
-
   "confirm.resetTitle": "पूर्वनिर्धारितमा रीसेट गर्नुहोस्",
   "confirm.resetMessage": "यो सबै सेटिङ्सहरू तिनीहरूको मूल मानहरूमा पुनरुद्धार गर्नेछ। यो पूर्ववत गर्न सकिँदैन।",
   "confirm.cancel": "रद्द गर्नुहोस्",
   "confirm.reset": "रीसेट गर्नुहोस्",
-
   "dictionary.title": "अनुकूल शब्दकोश",
   "dictionary.desc": "उचित नामहरू, नामहरू, वा डोमेन-विशिष्ट शर्तहरू जोडिनुहोस्। AI स्वचालित रूपमा समान-ध्वनि शब्दहरू भेट्टाएको समयमा सही रूप प्रयोग गर्नेछ।",
   "dictionary.toggle": "अनुकूल शब्दकोश सक्षम गर्नुहोस्",
@@ -157,7 +146,6 @@
   "dictionary.disable": "अक्षम गर्नुहोस्",
   "dictionary.emptyTitle": "अझै कुनै शब्दकोश शर्त छैन",
   "dictionary.emptyHint": "AI लाई उचित नामहरू र नामहरू पहिचान गर्न मद्दत गर्न शर्तहरू जोडिनुहोस्।",
-
   "history.title": "इतिहास",
   "history.privacyNote": "आपनो डेटा निजी रहन्छ — सबै इतिहास केवल यस डिभाइसमा स्थानीय रूपमा भण्डारण गरिएको छ।",
   "history.retention": "डेटा प्रतिधारण",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "सबै इतिहास प्रविष्टिहरू र अडियो फाइलहरू स्थायी रूपमा हटाउनुहोस्",
   "history.clearAllConfirm": "के तपाई सबै इतिहास र अडियो फाइलहरू स्थायी रूपमा हटाउन निश्चित हुनुहुन्छ? यो कार्य पूर्ववत गर्न सकिँदैन।",
   "history.loadMore": "थप लोड गर्नुहोस्",
-
   "about.title": "बारेमा",
   "about.version": "संस्करण {version}",
   "about.desc": "आपनो आवाज, लेखनमा। AI-संचालित भाषण-पाठ — एक हटकी दबाएर रेकर्ड गर्नुहोस्, ट्रान्सक्राइब गर्नुहोस्, र आपनो कर्सरमा पेस्ट गर्नुहोस्।",
@@ -208,7 +195,6 @@
   "about.retry": "पुनः प्रयास गर्नुहोस्",
   "about.download": "डाउनलोड र स्थापना गर्नुहोस्",
   "about.gatekeeperNote": "पुनरारम्भ गरेपछि, macOS ले तपाईलाई सिस्टम सेटिङ्स › गोपनीयता र सुरक्षामा फेरि अनुप्रयोग अनुमति दिन सोध्न सक्छ।",
-
   "setup.permissionsTitle": "अनुमतिहरू आवश्यक",
   "setup.permissionsDesc": "Sumi लाई अडियो रेकर्ड गर्न र आपनो कर्सरमा पाठ पेस्ट गर्न यी अनुमतिहरू चाहिन्छ।",
   "setup.permMicName": "माइक्रोफोन",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "{pasteShortcut} को साथ आपनो कर्सरमा पाठ पेस्ट गर्नुहोस्",
   "setup.permGrant": "अनुदान गर्नुहोस्",
   "setup.permContinue": "जारी राखिनुहोस्",
-
   "setup.initialTitle": "भाषण मान्यता सेट अप गर्नुहोस्",
   "setup.initialDesc": "Sumi लाई पूर्ण रूपमा अफलाइन ट्रान्सक्रिप्शनको लागि भाषण मान्यता मोडेल (~1.5 GB) डाउनलोड गर्न आवश्यक छ। यो केवल एक पटक हुन्छ।",
   "setup.downloadBtn": "मोडेल डाउनलोड गर्नुहोस्",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "छिटो, तर पाठ बाहिरी सर्भरमा पठाइएको छ। API कुञ्जी आवश्यक छ।",
   "setup.polishCloudContinue": "जारी राखिनुहोस्",
   "setup.polishSkip": "अहिलेको लागि छोडिनुहोस्",
-
   "setup.stepStt": "भाषण",
   "setup.stepPolish": "पॉलिश",
   "setup.stepTest": "परीक्षण",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "मोडेल ID",
   "setup.testSkip": "परीक्षण छोडिनुहोस्",
   "setup.testDone": "सम्पन्न",
-
   "setup.llmDownloadingTitle": "AI मोडेल डाउनलोड हुँदैछ...",
   "setup.errorTitle": "डाउनलोड असफल",
   "setup.errorDefault": "अप्रत्याशित त्रुटि घटको।",
   "setup.retryBtn": "डाउनलोड पुनः प्रयास गर्नुहोस्",
-
   "test.breadcrumb.mic": "माइक्रोफोन",
   "test.breadcrumb.hotkey": "हटकी",
   "test.breadcrumb.general": "सामान्य",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "इमेल शरीर क्लिक गर्नुहोस्, {hotkey} दबाएर सुरु गर्नुहोस्, बोल्नुहोस्, त्यसपछि {hotkey} फेरि दबाएर बन्द गर्नुहोस्",
   "test.step4.sampleText": "प्रयास गर्नुहोस्: \"हाय एलिस, के हामी भोलि दिउँसो खानको लागि अझै वस्तु छ? एलान\"",
   "test.step4.done": "सम्पन्न",
-
   "test.breadcrumb.polishCheck": "पॉलिशिङ",
   "test.breadcrumb.editByVoice": "आवाजद्वारा सम्पादन गर्नुहोस्",
   "test.step5.title": "आवाजद्वारा सम्पादन गर्नुहोस्",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "नमस्ते Alice, के हामी भोलि दुपारको खानाको लागि अझै पनि तयार छौं? कृपया मलाई बताउनुहोस् यदि यो तपाईको लागि काम गर्छ। धन्यवाद, Alan",
   "test.step6.editorTitle": "सम्पादन परीक्षण",
   "test.step6.done": "पूर्ण",
-
   "overlay.preparing": "तयार हुँदैछ…",
   "overlay.recording": "रेकर्डिङ",
   "overlay.transcribing": "ट्रान्सक्राइब हुँदैछ",
@@ -310,14 +290,7 @@
   "overlay.edited": "सम्पादित",
   "overlay.editRequiresPolish": "सम्पादनको लागि AI पॉलिशिङ आवश्यक छ",
   "overlay.undo": "पूर्ववत गर्नुहोस्",
-  "overlay.previewConfirm": "पुष्टि गर्नुहोस्",
-  "overlay.previewCancel": "रद्द गर्नुहोस्",
-  "overlay.previewEditHint": "सम्पादन गर्न पाठमा क्लिक गर्नुहोस्",
-  "overlay.previewEditingHint": "⌘Enter पुष्टि गर्न · Esc रद्द गर्न",
-
   "settings.behavior": "व्यवहार",
   "settings.behavior.autoPaste": "स्वचालित पेस्ट",
-  "settings.behavior.autoPasteDesc": "कर्सर स्थानमा स्वचालित रूपमा ट्रान्सक्रिप्शन पेस्ट गर्नुहोस्",
-  "settings.behavior.preview": "पेस्ट गर्नु अघि पूर्वावलोकन",
-  "settings.behavior.previewDesc": "पेस्ट गर्नु अघि समीक्षाको लागि ट्रान्सक्रिप्शन देखाउनुहोस्"
+  "settings.behavior.autoPasteDesc": "कर्सर स्थानमा स्वचालित रूपमा ट्रान्सक्रिप्शन पेस्ट गर्नुहोस्"
 }

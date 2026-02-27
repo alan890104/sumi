@@ -5,12 +5,10 @@
   "nav.history": "Istoric",
   "nav.about": "Despre",
   "nav.test": "Test",
-
   "settings.title": "Setări",
   "settings.language": "Limba",
   "settings.language.label": "Limba interfeței",
   "settings.language.desc": "Alegeți limba de afișare a aplicației",
-
   "settings.shortcuts": "Combinații Rapidă de Taste",
   "settings.shortcuts.hotkey": "Dictare",
   "settings.shortcuts.hotkeyDesc": "Apăsați pentru a începe/opri înregistrarea și transcrierea",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Nesetat",
   "settings.shortcuts.editRequiresPolish": "Necesită activarea lustruirii IA",
   "settings.shortcuts.clear": "Ștergere",
-
   "settings.mic": "Microfon",
   "settings.mic.inputDevice": "Dispozitiv de Intrare",
   "settings.mic.noMic": "Niciun microfon detectat",
   "settings.mic.noMicDesc": "Conectați un microfon sau verificați setările sistemului",
   "settings.mic.devicesAvailable": "{n} dispozitiv{s} disponibil",
   "settings.mic.auto": "Automat",
-
   "settings.stt": "Recunoaștere Vocală",
   "settings.stt.mode": "Mod",
   "settings.stt.modeDesc": "Alegeți motorul de transcriere local sau cloud",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Încercați din nou",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Precizie multilingvă maximă",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Cel mai rapid, dimensiuni minime",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Cel mai bun pentru limba chineză tradițională",
-
   "setup.sttModelChoiceTitle": "Alegeți un model de recunoaștere vocală",
   "setup.sttModelChoiceDesc": "Selectați un model în funcție de nevoile dumneavoastră. O puteți schimba mai târziu în Setări.",
   "setup.recommended": "Recomandat",
   "setup.sttModelDownloadBtn": "Descărcați și continuați",
   "setup.sttModelSystemInfo": "Sistem: {ram} RAM, {disk} spațiu liber",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Cel mai bun pentru limba chineză tradițională",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Multilingv",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Multilingv cel mai recent, cu/fără gândire",
-
   "settings.polish": "Polisare AI",
   "settings.polish.toggle": "Polisați transcrierea cu AI",
   "settings.polish.toggleDesc": "Îmbunătățiți gramatica, tonul și claritatea",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Aceste instrucțiuni sunt anexate la promptul de bază atunci când această regulă se potrivește.",
   "settings.polish.ruleSave": "Salvare",
   "settings.polish.ruleCancel": "Anulare",
-
   "promptRules.title": "Reguli Prompturi",
   "promptRules.desc": "Regulile sunt potrivite cu aplicația în prim plan — instrucțiunile primei reguli potrivite sunt anexate la promptul de bază.",
   "promptRules.voiceTipMain": "Apăsați {hotkey} pentru a descrie regula cu voce.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Reexecutare Configurare",
   "settings.danger.rerunSetupDesc": "Afișați din nou suprapunerea de configurare la lansarea inițială",
   "settings.danger.rerunSetupBtn": "Executare Configurare",
-
   "confirm.resetTitle": "Resetare la Implicit",
   "confirm.resetMessage": "Aceasta va restaura toate setările la valorile inițiale. Această acțiune nu poate fi anulată.",
   "confirm.cancel": "Anulare",
   "confirm.reset": "Resetare",
-
   "dictionary.title": "Dicționar Personalizat",
   "dictionary.desc": "Adăugați nume proprii, nume sau termeni specifici domeniului. AI va folosi automat forma corectă atunci când întâlnește cuvinte cu sunet similar.",
   "dictionary.toggle": "Activare Dicționar Personalizat",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Dezactivare",
   "dictionary.emptyTitle": "Nicio term dicționar încă",
   "dictionary.emptyHint": "Adăugați termeni pentru a ajuta AI să recunoască nume proprii și nume.",
-
   "history.title": "Istoric",
   "history.privacyNote": "Datele dvs. rămân private — întregul istoric este stocat local doar pe acest dispozitiv.",
   "history.retention": "Retenție Date",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Ștergeți permanent toate intrările din istoric și fișierele audio",
   "history.clearAllConfirm": "Sigur doriți să ștergeți permanent întregul istoric și fișierele audio? Această acțiune nu poate fi anulată.",
   "history.loadMore": "Încărcați mai multe",
-
   "about.title": "Despre",
   "about.version": "Versiune {version}",
   "about.desc": "Vocea dvs., în scris. Conversie vorbire în text powered by AI — apăsați o combinație pentru a înregistra, transcrie și lipi la cursor.",
@@ -208,7 +195,6 @@
   "about.retry": "Încearcă Din Nou",
   "about.download": "Descarcă și Instalează",
   "about.gatekeeperNote": "După repornire, macOS vă poate cere să permiteți din nou aplicația în Setări Sistem › Confidențialitate și Securitate.",
-
   "setup.permissionsTitle": "Permisiuni Necesare",
   "setup.permissionsDesc": "Sumi necesită aceste permisiuni pentru a înregistra audio și a lipi text la cursor.",
   "setup.permMicName": "Microfon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Lipiți text la cursor cu {pasteShortcut}",
   "setup.permGrant": "Acordare",
   "setup.permContinue": "Continuare",
-
   "setup.initialTitle": "Configurare Recunoaștere Vocală",
   "setup.initialDesc": "Sumi trebuie să descarce un model de recunoaștere vocală (~1,5 GB) pentru transcriere complet offline. Aceasta se întâmplă o singură dată.",
   "setup.downloadBtn": "Descarcă Model",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Mai rapid, dar textul este trimis la server extern. Necesită cheie API.",
   "setup.polishCloudContinue": "Continuare",
   "setup.polishSkip": "Omiteți Deocamdată",
-
   "setup.stepStt": "Vorbire",
   "setup.stepPolish": "Polisare",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID Model",
   "setup.testSkip": "Omiteți Test",
   "setup.testDone": "Gata",
-
   "setup.llmDownloadingTitle": "Se descarcă Model AI...",
   "setup.errorTitle": "Descărcare Eșuată",
   "setup.errorDefault": "A apărut o eroare neașteptată.",
   "setup.retryBtn": "Reîncercați Descărcare",
-
   "test.breadcrumb.mic": "Microfon",
   "test.breadcrumb.hotkey": "Combinație",
   "test.breadcrumb.general": "General",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Faceți clic pe corpul e-mailului, apăsați {hotkey} pentru a începe, vorbiți, apoi apăsați {hotkey} din nou pentru a opri",
   "test.step4.sampleText": "Încercați să spuneți: \"Salut Alice, suntem încă pe prânz mâine conform planului? Alan\"",
   "test.step4.done": "Gata",
-
   "test.breadcrumb.polishCheck": "Lustruire",
   "test.breadcrumb.editByVoice": "Editare cu Voce",
   "test.step5.title": "Editare cu Voce",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Salut Alice, ne mai vedem mâine la prânz? Anunță-mă dacă îți convine. Mulțumiri, Alan",
   "test.step6.editorTitle": "Test de editare",
   "test.step6.done": "Gata",
-
   "overlay.preparing": "Se pregătește…",
   "overlay.recording": "Înregistrare",
   "overlay.transcribing": "Se transcrie",
@@ -310,14 +290,7 @@
   "overlay.edited": "Editat",
   "overlay.editRequiresPolish": "Lustruirea IA necesară pentru editare",
   "overlay.undo": "Anulare",
-  "overlay.previewConfirm": "Confirmați",
-  "overlay.previewCancel": "Anulați",
-  "overlay.previewEditHint": "Faceți clic pe text pentru a edita",
-  "overlay.previewEditingHint": "⌘Enter pentru a confirma · Esc pentru a anula",
-
   "settings.behavior": "Comportament",
   "settings.behavior.autoPaste": "Lipire automată",
-  "settings.behavior.autoPasteDesc": "Lipiți automat transcriere la poziția cursorului",
-  "settings.behavior.preview": "Previzualizare înainte de lipire",
-  "settings.behavior.previewDesc": "Afișați transcriere pentru revizuire înainte de lipire"
+  "settings.behavior.autoPasteDesc": "Lipiți automat transcriere la poziția cursorului"
 }

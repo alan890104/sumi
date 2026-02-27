@@ -5,12 +5,10 @@
   "nav.history": "Historique",
   "nav.about": "À propos",
   "nav.test": "Test",
-
   "settings.title": "Paramètres",
   "settings.language": "Langue",
   "settings.language.label": "Langue de l'interface",
   "settings.language.desc": "Choisissez la langue d'affichage de l'application",
-
   "settings.shortcuts": "Raccourcis clavier",
   "settings.shortcuts.hotkey": "Dictée",
   "settings.shortcuts.hotkeyDesc": "Appuyez pour commencer/arrêter l'enregistrement et transcrire",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Non défini",
   "settings.shortcuts.editRequiresPolish": "Nécessite l'activation du polissage IA",
   "settings.shortcuts.clear": "Effacer",
-
   "settings.mic": "Microphone",
   "settings.mic.inputDevice": "Périphérique d'entrée",
   "settings.mic.noMic": "Aucun microphone détecté",
   "settings.mic.noMicDesc": "Connectez un microphone ou vérifiez les paramètres système",
   "settings.mic.devicesAvailable": "{n} appareil{s} disponible{s}",
   "settings.mic.auto": "Auto",
-
   "settings.stt": "Reconnaissance vocale",
   "settings.stt.mode": "Mode",
   "settings.stt.modeDesc": "Choisissez un moteur de transcription local ou cloud",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Réessayer",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Précision multilingue maximale",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Plus rapide, empreinte minimale",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Meilleur pour le chinois traditionnel",
-
   "setup.sttModelChoiceTitle": "Choisir un modèle de reconnaissance vocale",
   "setup.sttModelChoiceDesc": "Sélectionnez un modèle selon vos besoins. Vous pouvez le modifier ultérieurement dans les paramètres.",
   "setup.recommended": "Recommandé",
   "setup.sttModelDownloadBtn": "Télécharger et continuer",
   "setup.sttModelSystemInfo": "Système : {ram} RAM, {disk} espace libre",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Meilleur pour le chinois traditionnel",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Multilingue",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Multilingue dernier cri, avec/sans réflexion",
-
   "settings.polish": "Polissage IA",
   "settings.polish.toggle": "Polir la transcription avec l'IA",
   "settings.polish.toggleDesc": "Affinez la grammaire, le ton et la clarté",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Ces instructions sont ajoutées à l'invite de base lorsque cette règle correspond.",
   "settings.polish.ruleSave": "Enregistrer",
   "settings.polish.ruleCancel": "Annuler",
-
   "promptRules.title": "Règles d'invite",
   "promptRules.desc": "Les règles sont mises en correspondance par l'application au premier plan — les instructions de la première règle correspondante sont ajoutées à l'invite de base.",
   "promptRules.voiceTipMain": "Appuyez sur {hotkey} pour décrire votre règle par la voix.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Relancer la configuration",
   "settings.danger.rerunSetupDesc": "Afficher la superposition de configuration au premier lancement à nouveau",
   "settings.danger.rerunSetupBtn": "Lancer la configuration",
-
   "confirm.resetTitle": "Réinitialiser par défaut",
   "confirm.resetMessage": "Ceci restaurera tous les paramètres à leurs valeurs d'origine. Cette action ne peut pas être annulée.",
   "confirm.cancel": "Annuler",
   "confirm.reset": "Réinitialiser",
-
   "dictionary.title": "Dictionnaire personnalisé",
   "dictionary.desc": "Ajoutez des noms propres, des noms ou des termes spécifiques au domaine. L'IA utilisera automatiquement la forme correcte lorsqu'elle rencontre des mots similaires.",
   "dictionary.toggle": "Activer le dictionnaire personnalisé",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Désactiver",
   "dictionary.emptyTitle": "Pas encore de termes de dictionnaire",
   "dictionary.emptyHint": "Ajoutez des termes pour aider l'IA à reconnaître les noms propres et les noms.",
-
   "history.title": "Historique",
   "history.privacyNote": "Vos données restent privées — tout l'historique est stocké localement sur cet appareil uniquement.",
   "history.retention": "Rétention des données",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Supprimer définitivement toutes les entrées de l'historique et les fichiers audio",
   "history.clearAllConfirm": "Êtes-vous sûr de vouloir supprimer définitivement tout l'historique et les fichiers audio? Cette action ne peut pas être annulée.",
   "history.loadMore": "Charger plus",
-
   "about.title": "À propos",
   "about.version": "Version {version}",
   "about.desc": "Votre voix, par écrit. Conversion parole-texte alimentée par l'IA — appuyez sur un raccourci pour enregistrer, transcrire et coller à votre curseur.",
@@ -208,7 +195,6 @@
   "about.retry": "Réessayer",
   "about.download": "Télécharger et installer",
   "about.gatekeeperNote": "Après le redémarrage, macOS peut vous demander d'autoriser l'application à nouveau dans Paramètres système › Confidentialité et sécurité.",
-
   "setup.permissionsTitle": "Autorisations requises",
   "setup.permissionsDesc": "Sumi a besoin de ces autorisations pour enregistrer l'audio et coller du texte à votre curseur.",
   "setup.permMicName": "Microphone",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Collez le texte à votre curseur avec {pasteShortcut}",
   "setup.permGrant": "Accorder",
   "setup.permContinue": "Continuer",
-
   "setup.initialTitle": "Configurer la reconnaissance vocale",
   "setup.initialDesc": "Sumi doit télécharger un modèle de reconnaissance vocale (~1,5 GB) pour une transcription entièrement hors ligne. Cela n'arrive qu'une seule fois.",
   "setup.downloadBtn": "Télécharger le modèle",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Plus rapide, mais le texte est envoyé à un serveur externe. Nécessite une clé API.",
   "setup.polishCloudContinue": "Continuer",
   "setup.polishSkip": "Ignorer pour maintenant",
-
   "setup.stepStt": "Parole",
   "setup.stepPolish": "Polissage",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID du modèle",
   "setup.testSkip": "Ignorer les tests",
   "setup.testDone": "Terminé",
-
   "setup.llmDownloadingTitle": "Téléchargement du modèle IA...",
   "setup.errorTitle": "Téléchargement échoué",
   "setup.errorDefault": "Une erreur inattendue s'est produite.",
   "setup.retryBtn": "Réessayer le téléchargement",
-
   "test.breadcrumb.mic": "Microphone",
   "test.breadcrumb.hotkey": "Raccourci",
   "test.breadcrumb.general": "Général",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Cliquez sur le corps de l'e-mail, appuyez sur {hotkey} pour commencer, parlez, puis appuyez sur {hotkey} pour arrêter",
   "test.step4.sampleText": "Essayez de dire: « Salut Alice, sommes-nous toujours d'accord pour le déjeuner demain? Alan »",
   "test.step4.done": "Terminé",
-
   "test.breadcrumb.polishCheck": "Polissage",
   "test.breadcrumb.editByVoice": "Édition vocale",
   "test.step5.title": "Édition vocale",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Salut Alice, on se voit toujours pour le déjeuner demain ? Fais-moi savoir si ça te convient. Merci, Alan",
   "test.step6.editorTitle": "Test d'édition",
   "test.step6.done": "Terminé",
-
   "overlay.preparing": "Préparation…",
   "overlay.recording": "Enregistrement",
   "overlay.transcribing": "Transcription",
@@ -310,14 +290,7 @@
   "overlay.edited": "Édité",
   "overlay.editRequiresPolish": "Polissage IA requis pour l'édition",
   "overlay.undo": "Annuler",
-  "overlay.previewConfirm": "Confirmer",
-  "overlay.previewCancel": "Annuler",
-  "overlay.previewEditHint": "Cliquer le texte pour éditer",
-  "overlay.previewEditingHint": "⌘Entrée pour confirmer · Esc pour annuler",
-
   "settings.behavior": "Comportement",
   "settings.behavior.autoPaste": "Collage automatique",
-  "settings.behavior.autoPasteDesc": "Coller automatiquement la transcription à la position du curseur",
-  "settings.behavior.preview": "Aperçu avant collage",
-  "settings.behavior.previewDesc": "Afficher la transcription pour révision avant collage"
+  "settings.behavior.autoPasteDesc": "Coller automatiquement la transcription à la position du curseur"
 }

@@ -5,12 +5,10 @@
   "nav.history": "Geschiedenis",
   "nav.about": "Over",
   "nav.test": "Test",
-
   "settings.title": "Instellingen",
   "settings.language": "Taal",
   "settings.language.label": "Interfacetaal",
   "settings.language.desc": "Kies de weergavetaal voor de app",
-
   "settings.shortcuts": "Toetsenbordssneltoetsen",
   "settings.shortcuts.hotkey": "Dicteren",
   "settings.shortcuts.hotkeyDesc": "Druk om opname te starten/stoppen en transcriptie uit te voeren",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Niet ingesteld",
   "settings.shortcuts.editRequiresPolish": "Vereist dat AI-verbetering is ingeschakeld",
   "settings.shortcuts.clear": "Wissen",
-
   "settings.mic": "Microfoon",
   "settings.mic.inputDevice": "Invoerapparaat",
   "settings.mic.noMic": "Geen microfoon gedetecteerd",
   "settings.mic.noMicDesc": "Verbind een microfoon of controleer systeeminstellingen",
   "settings.mic.devicesAvailable": "{n} apparaat{s} beschikbaar",
   "settings.mic.auto": "Automatisch",
-
   "settings.stt": "Spraakherkenning",
   "settings.stt.mode": "Modus",
   "settings.stt.modeDesc": "Kies lokale of cloud-transcriptie-engine",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Opnieuw proberen",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Hoogste meertalige nauwkeurigheid",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Snelste, kleinste voetafdruk",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Het beste voor Traditioneel Chinees",
-
   "setup.sttModelChoiceTitle": "Kies een spraakherkenningsmodel",
   "setup.sttModelChoiceDesc": "Selecteer een model op basis van uw behoeften. U kunt dit later in Instellingen wijzigen.",
   "setup.recommended": "Aanbevolen",
   "setup.sttModelDownloadBtn": "Downloaden & Doorgaan",
   "setup.sttModelSystemInfo": "Systeem: {ram} RAM, {disk} vrije schijfruimte",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Het beste voor Traditioneel Chinees",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Meertalig",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Nieuwste meertalig, denken/niet-denken",
-
   "settings.polish": "AI Oppoetsen",
   "settings.polish.toggle": "Transcriptie oppoetsen met AI",
   "settings.polish.toggleDesc": "Verbeter grammatica, toon en helderheid",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Deze instructies worden toegevoegd aan de basisprompt wanneer deze regel overeenkomt.",
   "settings.polish.ruleSave": "Opslaan",
   "settings.polish.ruleCancel": "Annuleren",
-
   "promptRules.title": "Promptregels",
   "promptRules.desc": "Regels worden gematcht door de app op de voorgrond — instructies van de eerste overeenkomende regel worden toegevoegd aan de basisprompt.",
   "promptRules.voiceTipMain": "Druk {hotkey} in om uw regel per spraak te beschrijven.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Setup Opnieuw Uitvoeren",
   "settings.danger.rerunSetupDesc": "Toon het setup-overlay bij het eerste starten opnieuw",
   "settings.danger.rerunSetupBtn": "Setup Uitvoeren",
-
   "confirm.resetTitle": "Herstellen naar Standaardwaarden",
   "confirm.resetMessage": "Dit zal alle instellingen naar hun originele waarden herstellen. Dit kan niet ongedaan gemaakt worden.",
   "confirm.cancel": "Annuleren",
   "confirm.reset": "Herstellen",
-
   "dictionary.title": "Aangepast Woordenboek",
   "dictionary.desc": "Voeg eigennamen, namen of domeinspecifieke termen toe. De AI zal automatisch de juiste vorm gebruiken wanneer deze gelijkluidende woorden tegenkomt.",
   "dictionary.toggle": "Aangepast woordenboek inschakelen",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Uitschakelen",
   "dictionary.emptyTitle": "Nog geen woordenboekvakken",
   "dictionary.emptyHint": "Voeg termen toe om de AI te helpen eigennamen en persoonsnamen herkennen.",
-
   "history.title": "Geschiedenis",
   "history.privacyNote": "Uw gegevens blijven privé — alle geschiedenis wordt alleen lokaal op dit apparaat opgeslagen.",
   "history.retention": "Gegevensbewaring",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Verwijder permanent alle geschiedenisgegevens en audiobestanden",
   "history.clearAllConfirm": "Weet je zeker dat je alle geschiedenis en audiobestanden permanent wilt verwijderen? Deze actie kan niet ongedaan gemaakt worden.",
   "history.loadMore": "Meer laden",
-
   "about.title": "Over",
   "about.version": "Versie {version}",
   "about.desc": "Uw stem, schriftelijk. AI-aangedreven spraak-naar-tekst — druk een sneltoets in om op te nemen, over te schrijven en in te plakken bij uw cursor.",
@@ -208,7 +195,6 @@
   "about.retry": "Opnieuw Proberen",
   "about.download": "Downloaden en Installeren",
   "about.gatekeeperNote": "Na opnieuw starten kan macOS je vragen de app opnieuw toe te staan in Systeeminstellingen › Privacy en Beveiliging.",
-
   "setup.permissionsTitle": "Vereiste Machtigingen",
   "setup.permissionsDesc": "Sumi heeft deze machtigingen nodig om audio op te nemen en tekst in te plakken bij uw cursor.",
   "setup.permMicName": "Microfoon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Plak tekst in bij uw cursor met {pasteShortcut}",
   "setup.permGrant": "Verlenen",
   "setup.permContinue": "Doorgaan",
-
   "setup.initialTitle": "Spraakherkenning Instellen",
   "setup.initialDesc": "Sumi moet een spraakherkenningsmodel (~1,5 GB) downloaden voor volledig offline transcriptie. Dit gebeurt slechts eenmaal.",
   "setup.downloadBtn": "Model Downloaden",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Sneller, maar tekst wordt naar externe server verzonden. Vereist een API-sleutel.",
   "setup.polishCloudContinue": "Doorgaan",
   "setup.polishSkip": "Voor Nu Overslaan",
-
   "setup.stepStt": "Spraak",
   "setup.stepPolish": "Oppoetsen",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Model-ID",
   "setup.testSkip": "Test Overslaan",
   "setup.testDone": "Klaar",
-
   "setup.llmDownloadingTitle": "AI-model Bezig Met Downloaden...",
   "setup.errorTitle": "Download Mislukt",
   "setup.errorDefault": "Er is een onverwachte fout opgetreden.",
   "setup.retryBtn": "Download Opnieuw Proberen",
-
   "test.breadcrumb.mic": "Microfoon",
   "test.breadcrumb.hotkey": "Sneltoets",
   "test.breadcrumb.general": "Algemeen",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Klik op de e-mailbody, druk {hotkey} in om te starten, spreek en druk vervolgens {hotkey} opnieuw in om te stoppen",
   "test.step4.sampleText": "Probeer te zeggen: \"Hallo Alice, gaan we morgen nog steeds lunchen zoals gepland? Alan\"",
   "test.step4.done": "Klaar",
-
   "test.breadcrumb.polishCheck": "Verbetering",
   "test.breadcrumb.editByVoice": "Bewerken via Spraak",
   "test.step5.title": "Bewerken via Spraak",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hallo Alice, gaat de lunch morgen nog door? Laat me weten of dat uitkomt. Dank je, Alan",
   "test.step6.editorTitle": "Bewerkingstest",
   "test.step6.done": "Klaar",
-
   "overlay.preparing": "Voorbereiding…",
   "overlay.recording": "Opnemen",
   "overlay.transcribing": "Transcriptie",
@@ -310,14 +290,7 @@
   "overlay.edited": "Bewerkt",
   "overlay.editRequiresPolish": "AI-verbetering vereist voor bewerking",
   "overlay.undo": "Ongedaan Maken",
-  "overlay.previewConfirm": "Bevestigen",
-  "overlay.previewCancel": "Annuleren",
-  "overlay.previewEditHint": "Klik op tekst om te bewerken",
-  "overlay.previewEditingHint": "⌘Enter om te bevestigen · Esc om te annuleren",
-
   "settings.behavior": "Gedrag",
   "settings.behavior.autoPaste": "Automatisch plakken",
-  "settings.behavior.autoPasteDesc": "Transcriptie automatisch op curseurpositie plakken",
-  "settings.behavior.preview": "Voorbeeld voor plakken",
-  "settings.behavior.previewDesc": "Transcriptie ter controle weergeven voordat deze wordt geplakt"
+  "settings.behavior.autoPasteDesc": "Transcriptie automatisch op curseurpositie plakken"
 }

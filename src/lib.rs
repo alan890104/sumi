@@ -33,34 +33,6 @@ use stt::{SttConfig, SttMode};
 
 const MAX_RECORDING_SECS: u64 = 30;
 
-// ── Preview Payload (sent to overlay) ────────────────────────────────────────
-
-#[derive(serde::Serialize, Clone)]
-struct PreviewPayload {
-    text: String,
-    hotkey: String,
-}
-
-// ── Pending Preview ─────────────────────────────────────────────────────────
-
-pub struct PendingPreview {
-    pub text: String,
-    pub raw_text: String,
-    pub reasoning: Option<String>,
-    pub samples_16k: Vec<f32>,
-    pub audio_duration_secs: f64,
-    pub stt_config_snapshot: SttConfig,
-    pub polish_config_snapshot: polisher::PolishConfig,
-    pub stt_elapsed_ms: u64,
-    pub polish_elapsed_ms: Option<u64>,
-    pub pipeline_start: Instant,
-    pub chars_per_sec: f64,
-    pub history_context: context_detect::AppContext,
-    pub is_edit: bool,
-    pub auto_paste: bool,
-    pub retention_days: u32,
-}
-
 // ── App State ───────────────────────────────────────────────────────────────
 
 pub struct AppState {
@@ -83,7 +55,6 @@ pub struct AppState {
     pub edit_selected_text: Mutex<Option<String>>,
     pub edit_text_override: Mutex<Option<String>>,
     pub saved_clipboard: Mutex<Option<String>>,
-    pub pending_preview: Mutex<Option<PendingPreview>>,
     pub vad_ctx: Mutex<Option<transcribe::VadContextCache>>,
 }
 
@@ -113,126 +84,6 @@ fn hide_overlay_delayed(app: &AppHandle, delay_ms: u64) {
             }
         });
     });
-}
-
-/// Confirm a pending preview: copy to clipboard, optionally paste, save history.
-pub fn do_confirm_preview(app: &AppHandle, edited_text: Option<String>) {
-    let state = app.state::<AppState>();
-    let preview = state.pending_preview.lock().ok().and_then(|mut p| p.take());
-    let Some(preview) = preview else {
-        println!("[Sumi] confirm_preview: no pending preview");
-        return;
-    };
-
-    let text = edited_text.unwrap_or(preview.text);
-
-    let clipboard_ok = match arboard::Clipboard::new() {
-        Ok(mut clipboard) => {
-            if let Err(e) = clipboard.set_text(&text) {
-                eprintln!("[Sumi] Clipboard error: {}", e);
-                false
-            } else {
-                true
-            }
-        }
-        Err(e) => {
-            eprintln!("[Sumi] Clipboard init error: {}", e);
-            false
-        }
-    };
-
-    if clipboard_ok {
-        std::thread::sleep(std::time::Duration::from_millis(100));
-
-        if preview.auto_paste {
-            let pasted = platform::simulate_paste();
-            if pasted {
-                println!("[Sumi] 📋 Preview confirmed → auto-pasted");
-                if let Some(overlay) = app.get_webview_window("overlay") {
-                    let _ = overlay.emit("recording-status", "pasted");
-                }
-            } else {
-                println!("[Sumi] 📋 Preview confirmed → copied (paste failed)");
-                if let Some(overlay) = app.get_webview_window("overlay") {
-                    let _ = overlay.emit("recording-status", "copied");
-                }
-            }
-        } else {
-            println!("[Sumi] 📋 Preview confirmed → copied (auto-paste disabled)");
-            if let Some(overlay) = app.get_webview_window("overlay") {
-                let _ = overlay.emit("recording-status", "copied");
-            }
-        }
-    }
-
-    if preview.is_edit {
-        restore_clipboard(&state);
-    }
-
-    // Save history
-    let total_elapsed_ms = preview.pipeline_start.elapsed().as_millis() as u64;
-    let stt_model = match preview.stt_config_snapshot.mode {
-        SttMode::Cloud => {
-            format!("{} (Cloud/{})", preview.stt_config_snapshot.cloud.model_id, preview.stt_config_snapshot.cloud.provider.as_key())
-        }
-        SttMode::Local => preview.stt_config_snapshot.whisper_model.display_name().to_string(),
-    };
-    let polish_model_name = if preview.polish_config_snapshot.enabled {
-        match preview.polish_config_snapshot.mode {
-            polisher::PolishMode::Cloud => {
-                format!("{} (Cloud/{})", preview.polish_config_snapshot.cloud.model_id, preview.polish_config_snapshot.cloud.provider.as_key())
-            }
-            polisher::PolishMode::Local => {
-                format!("{} (Local)", preview.polish_config_snapshot.model.display_name())
-            }
-        }
-    } else {
-        "None".to_string()
-    };
-
-    if !preview.is_edit {
-        let entry_id = history::generate_id();
-        let has_audio = history::save_audio_wav(&audio_dir(), &entry_id, &preview.samples_16k);
-        let entry = history::HistoryEntry {
-            id: entry_id,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as i64,
-            text: text.clone(),
-            raw_text: preview.raw_text,
-            reasoning: preview.reasoning,
-            stt_model,
-            polish_model: polish_model_name,
-            duration_secs: preview.audio_duration_secs,
-            has_audio,
-            stt_elapsed_ms: preview.stt_elapsed_ms,
-            polish_elapsed_ms: preview.polish_elapsed_ms,
-            total_elapsed_ms,
-            app_name: preview.history_context.app_name.clone(),
-            bundle_id: preview.history_context.bundle_id.clone(),
-            chars_per_sec: preview.chars_per_sec,
-        };
-        history::add_entry(&history_dir(), &audio_dir(), entry, preview.retention_days);
-        println!("[Sumi] 📝 Preview → history entry saved");
-    }
-
-    hide_overlay_delayed(app, 1500);
-}
-
-/// Cancel a pending preview: discard text, hide overlay.
-pub fn do_cancel_preview(app: &AppHandle) {
-    let state = app.state::<AppState>();
-    let preview = state.pending_preview.lock().ok().and_then(|mut p| p.take());
-
-    if let Some(preview) = preview {
-        if preview.is_edit {
-            restore_clipboard(&state);
-        }
-        println!("[Sumi] Preview cancelled");
-    }
-
-    hide_overlay_delayed(app, 0);
 }
 
 /// Shared logic: stop recording, transcribe, copy/paste, and hide the overlay.
@@ -397,47 +248,6 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 };
                 let text = final_text;
 
-                // Preview mode: store pending preview and show in overlay
-                let preview_mode = state.settings.lock()
-                    .map(|s| s.preview_before_paste)
-                    .unwrap_or(false);
-
-                if preview_mode {
-                    *state.pending_preview.lock().unwrap() = Some(PendingPreview {
-                        text: text.clone(),
-                        raw_text,
-                        reasoning,
-                        samples_16k,
-                        audio_duration_secs,
-                        stt_config_snapshot: stt_config,
-                        polish_config_snapshot: polish_config,
-                        stt_elapsed_ms,
-                        polish_elapsed_ms,
-                        pipeline_start,
-                        chars_per_sec,
-                        history_context,
-                        is_edit: false,
-                        auto_paste,
-                        retention_days,
-                    });
-                    let hotkey_str = state.settings.lock()
-                        .map(|s| s.hotkey.clone())
-                        .unwrap_or_default();
-                    if let Some(overlay) = app_handle.get_webview_window("overlay") {
-                        let _ = overlay.emit("recording-status", "preview");
-                        let _ = overlay.emit("preview-text", PreviewPayload {
-                            text: text.clone(),
-                            hotkey: hotkey_str,
-                        });
-                    }
-                    if let Some(main_win) = app_handle.get_webview_window("main") {
-                        let _ = main_win.emit("transcription-result", &text);
-                    }
-                    state.is_processing.store(false, Ordering::SeqCst);
-                    println!("[Sumi] Preview mode: waiting for user confirmation");
-                    return;
-                }
-
                 if let Some(main_win) = app_handle.get_webview_window("main") {
                     let _ = main_win.emit("transcription-result", &text);
                 }
@@ -584,11 +394,11 @@ fn stop_edit_and_replace(app: &AppHandle) {
         let pipeline_start = Instant::now();
         let state = app_handle.state::<AppState>();
 
-        let (auto_paste, polish_config, retention_days, mut stt_config, preview_mode) = state
+        let (polish_config, mut stt_config) = state
             .settings
             .lock()
-            .map(|s| (s.auto_paste, s.polish.clone(), s.history_retention_days, s.stt.clone(), s.preview_before_paste))
-            .unwrap_or((true, polisher::PolishConfig::default(), 0, SttConfig::default(), false));
+            .map(|s| (s.polish.clone(), s.stt.clone()))
+            .unwrap_or((polisher::PolishConfig::default(), SttConfig::default()));
 
         if stt_config.mode == SttMode::Cloud {
             let key = get_cached_api_key(&state.api_key_cache, stt_config.cloud.provider.as_key());
@@ -687,46 +497,6 @@ fn stop_edit_and_replace(app: &AppHandle) {
                             edited_text,
                             pipeline_start.elapsed()
                         );
-
-                        let history_context = state
-                            .captured_context
-                            .lock()
-                            .ok()
-                            .and_then(|c| c.clone())
-                            .unwrap_or_default();
-
-                        if preview_mode {
-                            *state.pending_preview.lock().unwrap() = Some(PendingPreview {
-                                text: edited_text.clone(),
-                                raw_text: selected_text.clone(),
-                                reasoning: None,
-                                samples_16k: vec![],
-                                audio_duration_secs: 0.0,
-                                stt_config_snapshot: stt_config.clone(),
-                                polish_config_snapshot: polish_config.clone(),
-                                stt_elapsed_ms: 0,
-                                polish_elapsed_ms: Some(pipeline_start.elapsed().as_millis() as u64),
-                                pipeline_start,
-                                chars_per_sec: 0.0,
-                                history_context,
-                                is_edit: true,
-                                auto_paste,
-                                retention_days,
-                            });
-                            let hotkey_str = state.settings.lock()
-                                .map(|s| s.hotkey.clone())
-                                .unwrap_or_default();
-                            if let Some(overlay) = app_handle.get_webview_window("overlay") {
-                                let _ = overlay.emit("recording-status", "preview");
-                                let _ = overlay.emit("preview-text", PreviewPayload {
-                                    text: edited_text.clone(),
-                                    hotkey: hotkey_str,
-                                });
-                            }
-                            state.is_processing.store(false, Ordering::SeqCst);
-                            println!("[Sumi] Preview mode (edit): waiting for user confirmation");
-                            return;
-                        }
 
                         let clipboard_ok = match arboard::Clipboard::new() {
                             Ok(mut clipboard) => clipboard.set_text(&edited_text).is_ok(),
@@ -827,8 +597,6 @@ pub fn run() {
             commands::get_whisper_model_recommendation,
             commands::switch_whisper_model,
             commands::download_whisper_model,
-            commands::confirm_preview,
-            commands::cancel_preview,
             commands::check_vad_model_status,
             commands::download_vad_model,
         ])
@@ -880,7 +648,6 @@ pub fn run() {
                 edit_selected_text: Mutex::new(None),
                 edit_text_override: Mutex::new(None),
                 saved_clipboard: Mutex::new(None),
-                pending_preview: Mutex::new(None),
                 vad_ctx: Mutex::new(None),
             });
 
@@ -1060,14 +827,6 @@ pub fn run() {
 
                             if state.is_processing.load(Ordering::SeqCst) {
                                 return;
-                            }
-
-                            // If there's a pending preview, hotkey confirms it
-                            if !is_edit_hotkey {
-                                if state.pending_preview.lock().ok().map(|p| p.is_some()).unwrap_or(false) {
-                                    do_confirm_preview(app, None);
-                                    return;
-                                }
                             }
 
                             let is_recording = state.is_recording.load(Ordering::SeqCst);

@@ -5,12 +5,10 @@
   "nav.history": "Historie",
   "nav.about": "Om",
   "nav.test": "Test",
-
   "settings.title": "Indstillinger",
   "settings.language": "Sprog",
   "settings.language.label": "Grænsefladesprog",
   "settings.language.desc": "Vælg appens visningssprog",
-
   "settings.shortcuts": "Tastaturgenveje",
   "settings.shortcuts.hotkey": "Diktation",
   "settings.shortcuts.hotkeyDesc": "Tryk for at starte/stoppe optagelse og transskribering",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Ikke indstillet",
   "settings.shortcuts.editRequiresPolish": "Kræver at AI-polering er aktiveret",
   "settings.shortcuts.clear": "Ryd",
-
   "settings.mic": "Mikrofon",
   "settings.mic.inputDevice": "Inputenhed",
   "settings.mic.noMic": "Ingen mikrofon fundet",
   "settings.mic.noMicDesc": "Tilslut en mikrofon eller tjek systemindstillinger",
   "settings.mic.devicesAvailable": "{n} enhed{s} tilgængelig{s}",
   "settings.mic.auto": "Automatisk",
-
   "settings.stt": "Talegenkendelses",
   "settings.stt.mode": "Tilstand",
   "settings.stt.modeDesc": "Vælg lokal eller cloud-transskriptionsmotor",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Prøv igen",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Højeste flersproget nøjagtighed",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Hurtigst, mindste fodaftryk",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Bedst til traditionel kinesisk",
-
   "setup.sttModelChoiceTitle": "Vælg en talegenkendelsesmodel",
   "setup.sttModelChoiceDesc": "Vælg en model baseret på dine behov. Du kan ændre dette senere i Indstillinger.",
   "setup.recommended": "Anbefalet",
   "setup.sttModelDownloadBtn": "Download & Fortsæt",
   "setup.sttModelSystemInfo": "System: {ram} RAM, {disk} fri diskplads",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Bedst til traditionel kinesisk",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Flersproget",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Nyeste flersproget, tænkende/ikke-tænkende",
-
   "settings.polish": "AI Polering",
   "settings.polish.toggle": "Polér transskription med AI",
   "settings.polish.toggleDesc": "Forbedrer grammatik, tone og klarhed",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Disse instruktioner tilføjes til basisprompten når denne regel matcher.",
   "settings.polish.ruleSave": "Gem",
   "settings.polish.ruleCancel": "Annuller",
-
   "promptRules.title": "Prompt-regler",
   "promptRules.desc": "Regler matches af app'en i forgrunden — instruktioner fra den første matchende regel tilføjes til basisprompten.",
   "promptRules.voiceTipMain": "Tryk {hotkey} for at beskrive din regel med stemme.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Kør Opsætning igen",
   "settings.danger.rerunSetupDesc": "Vis setupoverlayét ved første lancering igen",
   "settings.danger.rerunSetupBtn": "Kør Opsætning",
-
   "confirm.resetTitle": "Nulstil til Standarder",
   "confirm.resetMessage": "Dette nulstiller alle indstillinger til deres oprindelige værdier. Dette kan ikke fortrydes.",
   "confirm.cancel": "Annuller",
   "confirm.reset": "Nulstil",
-
   "dictionary.title": "Brugerdefineret Ordbog",
   "dictionary.desc": "Tilføj egne navne, navne eller domænespecifikke termer. AI bruger automatisk den rigtige form når den møder lignende lyd ord.",
   "dictionary.toggle": "Aktivér brugerdefineret ordbog",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Deaktivér",
   "dictionary.emptyTitle": "Ingen ordbogsord endnu",
   "dictionary.emptyHint": "Tilføj ord for at hjælpe AI med at genkende ordentlige og personlige navne.",
-
   "history.title": "Historie",
   "history.privacyNote": "Dine data forbliver private — al historie gemmes lokalt kun på denne enhed.",
   "history.retention": "Dataopbevaring",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Slet alle historieindtastninger og lydfiler permanent",
   "history.clearAllConfirm": "Er du sikker på at du vil permanent slette al historie og lydfiler? Denne handling kan ikke fortrydes.",
   "history.loadMore": "Indlæs mere",
-
   "about.title": "Om",
   "about.version": "Version {version}",
   "about.desc": "Din stemme, skriftlig. AI-drevet tale-til-tekst — tryk en genvej for at optage, transskribere og indsætte ved din markør.",
@@ -208,7 +195,6 @@
   "about.retry": "Prøv igen",
   "about.download": "Download og Installer",
   "about.gatekeeperNote": "Efter genstart kan macOS bede dig om at tillade appen igen i Systemindstillinger › Privatliv og sikkerhed.",
-
   "setup.permissionsTitle": "Påkrævede Tilladelser",
   "setup.permissionsDesc": "Sumi kræver disse tilladelser for at optage lyd og indsætte tekst ved din markør.",
   "setup.permMicName": "Mikrofon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Indsæt tekst ved din markør med {pasteShortcut}",
   "setup.permGrant": "Tildel",
   "setup.permContinue": "Fortsæt",
-
   "setup.initialTitle": "Opsætning af Talegenkendelses",
   "setup.initialDesc": "Sumi skal downloade en talegenkendelses-model (~1,5 GB) til fuldstændig offline transskription. Dette sker kun en gang.",
   "setup.downloadBtn": "Download Model",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Hurtigere, men tekst sendes til ekstern server. Kræver API-nøgle.",
   "setup.polishCloudContinue": "Fortsæt",
   "setup.polishSkip": "Spring over for nu",
-
   "setup.stepStt": "Tale",
   "setup.stepPolish": "Polering",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Model-ID",
   "setup.testSkip": "Spring over test",
   "setup.testDone": "Færdig",
-
   "setup.llmDownloadingTitle": "Downloader AI Model...",
   "setup.errorTitle": "Download Mislykkedes",
   "setup.errorDefault": "Der opstod en uventet fejl.",
   "setup.retryBtn": "Prøv at Download igen",
-
   "test.breadcrumb.mic": "Mikrofon",
   "test.breadcrumb.hotkey": "Genvej",
   "test.breadcrumb.general": "Generelt",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Klik på e-mailens brødtekst, tryk {hotkey} for at starte, tal, og tryk derefter {hotkey} igen for at stoppe",
   "test.step4.sampleText": "Prøv at sige: \"Hej Alice, er vi stadig til frokost i morgen som planlagt? Alan\"",
   "test.step4.done": "Færdig",
-
   "test.breadcrumb.polishCheck": "Polering",
   "test.breadcrumb.editByVoice": "Rediger med Stemme",
   "test.step5.title": "Rediger med Stemme",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hej Alice, holder vi stadig til frokost i morgen? Giv mig besked hvis det passer dig. Tak, Alan",
   "test.step6.editorTitle": "Redigeringstest",
   "test.step6.done": "Færdig",
-
   "overlay.preparing": "Forbereder…",
   "overlay.recording": "Optager",
   "overlay.transcribing": "Transskriberer",
@@ -310,14 +290,7 @@
   "overlay.edited": "Redigeret",
   "overlay.editRequiresPolish": "AI-polering påkrævet for redigering",
   "overlay.undo": "Fortryd",
-  "overlay.previewConfirm": "Bekræft",
-  "overlay.previewCancel": "Annuller",
-  "overlay.previewEditHint": "Klik på tekst for at redigere",
-  "overlay.previewEditingHint": "⌘Retur for at bekræfte · Esc for at annuller",
-
   "settings.behavior": "Opførsel",
   "settings.behavior.autoPaste": "Auto-indsætning",
-  "settings.behavior.autoPasteDesc": "Indsæt automatisk transskription på markørposition",
-  "settings.behavior.preview": "Forhåndsvisning før indsætning",
-  "settings.behavior.previewDesc": "Vis transskription til gennemgang før indsætning"
+  "settings.behavior.autoPasteDesc": "Indsæt automatisk transskription på markørposition"
 }

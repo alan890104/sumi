@@ -5,12 +5,10 @@
   "nav.history": "Sejarah",
   "nav.about": "Tentang",
   "nav.test": "Ujian",
-
   "settings.title": "Tetapan",
   "settings.language": "Bahasa",
   "settings.language.label": "Bahasa antara muka",
   "settings.language.desc": "Pilih bahasa paparan untuk aplikasi",
-
   "settings.shortcuts": "Pintas Papan Kunci",
   "settings.shortcuts.hotkey": "Diktat",
   "settings.shortcuts.hotkeyDesc": "Tekan untuk memulai/henti rakaman dan tukarkan ke teks",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Tidak ditetapkan",
   "settings.shortcuts.editRequiresPolish": "Memerlukan AI Polish didayakan untuk menyunting",
   "settings.shortcuts.clear": "Kosongkan",
-
   "settings.mic": "Mikrofon",
   "settings.mic.inputDevice": "Peranti Masukan",
   "settings.mic.noMic": "Tiada mikrofon dikesan",
   "settings.mic.noMicDesc": "Sambungkan mikrofon atau periksa tetapan sistem",
   "settings.mic.devicesAvailable": "{n} peranti{s} tersedia",
   "settings.mic.auto": "Auto",
-
   "settings.stt": "Pengenalan Suara",
   "settings.stt.mode": "Mod",
   "settings.stt.modeDesc": "Pilih enjin transkripsi lokal atau awan",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Cuba Lagi",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Ketepatan multibahasa tertinggi",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Paling cepat, jejak terkecil",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Terbaik untuk Bahasa Cina Tradisional",
-
   "setup.sttModelChoiceTitle": "Pilih Model Pengecaman Ucapan",
   "setup.sttModelChoiceDesc": "Pilih model berdasarkan keperluan anda. Anda boleh mengubah ini kemudian dalam Tetapan.",
   "setup.recommended": "Disyorkan",
   "setup.sttModelDownloadBtn": "Muat Turun & Sambung",
   "setup.sttModelSystemInfo": "Sistem: {ram} RAM, {disk} ruang disk",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Terbaik untuk Bahasa Cina Tradisional",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Multibahasa",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Multibahasa terbaru, mod berfikir/tidak berfikir",
-
   "settings.polish": "Penggilap AI",
   "settings.polish.toggle": "Gunakan AI untuk mengilap transkripsi",
   "settings.polish.toggleDesc": "Tingkatkan tatabahasa, nada, dan kejelasan",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Arahan ini ditambahkan ke prompt asas apabila peraturan ini sepadan.",
   "settings.polish.ruleSave": "Simpan",
   "settings.polish.ruleCancel": "Batal",
-
   "promptRules.title": "Peraturan Prompt",
   "promptRules.desc": "Peraturan dipadankan oleh aplikasi terdepan — arahan peraturan pertama yang sepadan ditambahkan ke prompt asas.",
   "promptRules.voiceTipMain": "Tekan {hotkey} untuk menerangkan peraturan anda melalui suara.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Jalankan Semula Persediaan",
   "settings.danger.rerunSetupDesc": "Tunjukkan lapisan persediaan permulaan kali pertama sekali lagi",
   "settings.danger.rerunSetupBtn": "Jalankan Persediaan",
-
   "confirm.resetTitle": "Tetapkan Semula ke Lalai",
   "confirm.resetMessage": "Ini akan memulihkan semua tetapan kepada nilai asal mereka. Ini tidak boleh dibuat asal.",
   "confirm.cancel": "Batal",
   "confirm.reset": "Tetapkan Semula",
-
   "dictionary.title": "Kamus Tersuai",
   "dictionary.desc": "Tambah nama watak, nama, atau istilah khusus domain. AI secara automatik akan menggunakan bentuk yang betul apabila ia menemui perkataan yang terdengar serupa.",
   "dictionary.toggle": "Dayakan kamus tersuai",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Nyahdayakan",
   "dictionary.emptyTitle": "Tiada istilah kamus lagi",
   "dictionary.emptyHint": "Tambah istilah untuk membantu AI mengenali nama watak dan nama.",
-
   "history.title": "Sejarah",
   "history.privacyNote": "Data anda tetap peribadi — semua sejarah disimpan secara tempatan hanya pada peranti ini.",
   "history.retention": "Pengekalan data",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Padam semua entri sejarah dan fail audio secara kekal",
   "history.clearAllConfirm": "Adakah anda pasti mahu memadam semua sejarah dan fail audio secara kekal? Tindakan ini tidak boleh dibuat asal.",
   "history.loadMore": "Muat Lebih Banyak",
-
   "about.title": "Tentang",
   "about.version": "Versi {version}",
   "about.desc": "Suara anda, dalam tulisan. Penukaran suara ke teks berkuasa AI — tekan pintas untuk merakam, mengtranskripsi, dan menampal pada kursor anda.",
@@ -208,7 +195,6 @@
   "about.retry": "Cuba Lagi",
   "about.download": "Muat Turun & Pasang",
   "about.gatekeeperNote": "Selepas memulakan semula, macOS mungkin meminta anda untuk membenarkan aplikasi sekali lagi dalam Tetapan Sistem › Privasi & Keselamatan.",
-
   "setup.permissionsTitle": "Kebenaran Diperlukan",
   "setup.permissionsDesc": "Sumi memerlukan kebenaran ini untuk merakam audio dan menampal teks pada kursor anda.",
   "setup.permMicName": "Mikrofon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Tampal teks pada kursor dengan {pasteShortcut}",
   "setup.permGrant": "Benarkan",
   "setup.permContinue": "Teruskan",
-
   "setup.initialTitle": "Sediakan Pengenalan Suara",
   "setup.initialDesc": "Sumi perlu memuat turun model pengenalan suara (~1.5 GB) untuk transkripsi luar talian sepenuhnya. Ini hanya berlaku sekali.",
   "setup.downloadBtn": "Muat Turun Model",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Lebih cepat, tetapi teks dihantar ke pelayan luaran. Memerlukan kunci API.",
   "setup.polishCloudContinue": "Teruskan",
   "setup.polishSkip": "Langkau buat saat",
-
   "setup.stepStt": "Suara",
   "setup.stepPolish": "Poles",
   "setup.stepTest": "Ujian",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID Model",
   "setup.testSkip": "Langkau ujian",
   "setup.testDone": "Selesai",
-
   "setup.llmDownloadingTitle": "Memuat turun model AI...",
   "setup.errorTitle": "Muat Turun Gagal",
   "setup.errorDefault": "Ralat yang tidak dijangka telah berlaku.",
   "setup.retryBtn": "Cuba Muat Turun Semula",
-
   "test.breadcrumb.mic": "Mikrofon",
   "test.breadcrumb.hotkey": "Pintas",
   "test.breadcrumb.general": "Umum",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Klik badan e-mel, tekan {hotkey} untuk mula, bercara, kemudian tekan {hotkey} lagi untuk berhenti",
   "test.step4.sampleText": "Cuba katakan: “Halo Alice, adakah kita masih tepat untuk makan tengahari esok seperti yang dirancang? Alan”",
   "test.step4.done": "Selesai",
-
   "test.breadcrumb.polishCheck": "Polish",
   "test.breadcrumb.editByVoice": "Edit Melalui Suara",
   "test.step5.title": "Edit Melalui Suara",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hai Alice, adakah kita masih siap untuk makan tengah hari esok? Beritahu saya jika itu sesuai untuk anda. Terima kasih, Alan",
   "test.step6.editorTitle": "Ujian Sunting",
   "test.step6.done": "Selesai",
-
   "overlay.preparing": "Sedang mempersiapkan…",
   "overlay.recording": "Merakam",
   "overlay.transcribing": "Mengtranskripsi",
@@ -310,14 +290,7 @@
   "overlay.edited": "Diedit",
   "overlay.editRequiresPolish": "Sunting memerlukan AI Polish",
   "overlay.undo": "Buat Asal",
-  "overlay.previewConfirm": "Sahkan",
-  "overlay.previewCancel": "Batal",
-  "overlay.previewEditHint": "Klik teks untuk menyunting",
-  "overlay.previewEditingHint": "⌘Enter untuk sahkan · Esc untuk batal",
-
   "settings.behavior": "Kelakuan",
   "settings.behavior.autoPaste": "Tampal Secara Automatik",
-  "settings.behavior.autoPasteDesc": "Tampal transkrip secara automatik di kedudukan kursor",
-  "settings.behavior.preview": "Pratonton sebelum menempel",
-  "settings.behavior.previewDesc": "Tunjukkan transkrip untuk semakan sebelum menempel"
+  "settings.behavior.autoPasteDesc": "Tampal transkrip secara automatik di kedudukan kursor"
 }

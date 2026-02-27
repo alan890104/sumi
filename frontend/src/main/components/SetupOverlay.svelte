@@ -36,6 +36,9 @@
     switchWhisperModel,
     downloadWhisperModel,
     onWhisperModelDownloadProgress,
+    checkVadModelStatus,
+    downloadVadModel,
+    onVadModelDownloadProgress,
     saveApiKey,
     getApiKey,
     saveSettings as saveSettingsApi,
@@ -227,10 +230,17 @@
     } catch (e) {
       console.error('Failed to switch whisper model:', e);
     }
-    // Check if recommended model already exists
+
     if (sttModelAlreadyDownloaded) {
-      goToPolishChoice();
-      return;
+      // Check if VAD model also exists — if both ready, skip download screen
+      try {
+        const vadStatus = await checkVadModelStatus();
+        if (vadStatus.downloaded) {
+          goToPolishChoice();
+          return;
+        }
+      } catch {}
+      // VAD missing — go through download flow (Whisper will complete instantly)
     }
     startSttDownload();
   }
@@ -241,30 +251,59 @@
   let downloadedBytes = $state(0);
   let downloadTotalBytes = $state(0);
   let sttDownloadUnlisten: (() => void) | null = null;
+  let vadDownloadUnlisten: (() => void) | null = null;
+  let whisperDone = $state(false);
+  let vadDone = $state(false);
+
+  // Transition to complete only when both Whisper and VAD are ready
+  $effect(() => {
+    if (whisperDone && vadDone && currentState === 'downloading') {
+      downloadPercent = 100;
+      currentState = 'complete';
+      setTimeout(() => goToPolishChoice(), 1500);
+    }
+  });
 
   async function startSttDownload() {
     currentState = 'downloading';
     downloadPercent = 0;
     downloadedBytes = 0;
     downloadTotalBytes = 0;
+    whisperDone = false;
+    vadDone = false;
 
-    // Clean up previous listener
+    // Clean up previous listeners
     if (sttDownloadUnlisten) {
       sttDownloadUnlisten();
       sttDownloadUnlisten = null;
     }
+    if (vadDownloadUnlisten) {
+      vadDownloadUnlisten();
+      vadDownloadUnlisten = null;
+    }
 
+    // Start VAD model download in parallel (~1.6 MB)
+    vadDownloadUnlisten = await onVadModelDownloadProgress((p: DownloadProgress) => {
+      if (p.status === 'complete') {
+        vadDone = true;
+      } else if (p.status === 'error') {
+        console.warn('VAD model download failed:', p.message);
+        vadDone = true; // treat as done — VAD has RMS fallback
+      }
+    });
+    downloadVadModel().catch(() => { vadDone = true; });
+
+    // Start Whisper model download with progress tracking
     sttDownloadUnlisten = await onWhisperModelDownloadProgress((p: DownloadProgress) => {
       if (p.status === 'downloading') {
         const total = p.total || 1;
         const downloaded = p.downloaded || 0;
-        downloadPercent = Math.min((downloaded / total) * 100, 100);
+        downloadPercent = Math.min((downloaded / total) * 100, 99);
         downloadedBytes = downloaded;
         downloadTotalBytes = total;
       } else if (p.status === 'complete') {
-        downloadPercent = 100;
-        currentState = 'complete';
-        setTimeout(() => goToPolishChoice(), 1500);
+        whisperDone = true;
+        // $effect handles transition when both are done
       } else if (p.status === 'error') {
         errorMessage = p.message || t('setup.errorDefault');
         lastFailedDownload = 'stt';
@@ -493,6 +532,10 @@
     if (sttDownloadUnlisten) {
       sttDownloadUnlisten();
       sttDownloadUnlisten = null;
+    }
+    if (vadDownloadUnlisten) {
+      vadDownloadUnlisten();
+      vadDownloadUnlisten = null;
     }
     if (llmDownloadUnlisten) {
       llmDownloadUnlisten();

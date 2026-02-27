@@ -5,12 +5,10 @@
   "nav.history": "Historial",
   "nav.about": "Quant a",
   "nav.test": "Prova",
-
   "settings.title": "Configuració",
   "settings.language": "Idioma",
   "settings.language.label": "Idioma de la interfície",
   "settings.language.desc": "Tria l'idioma de visualització de l'aplicació",
-
   "settings.shortcuts": "Dreceres de Teclat",
   "settings.shortcuts.hotkey": "Dictat",
   "settings.shortcuts.hotkeyDesc": "Prem per iniciar/parar la gravació i transcriure",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "No establert",
   "settings.shortcuts.editRequiresPolish": "Requereix que el poliment d'IA estigui activat",
   "settings.shortcuts.clear": "Esborrar",
-
   "settings.mic": "Micròfon",
   "settings.mic.inputDevice": "Dispositiu d'Entrada",
   "settings.mic.noMic": "No s'ha detectat micròfon",
   "settings.mic.noMicDesc": "Connecta un micròfon o comprova la configuració del sistema",
   "settings.mic.devicesAvailable": "{n} dispositiu{s} disponible{s}",
   "settings.mic.auto": "Automàtic",
-
   "settings.stt": "Reconeixement de Veu",
   "settings.stt.mode": "Mode",
   "settings.stt.modeDesc": "Tria motor de transcripció local o núvol",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Torna-ho a intentar",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Màxima precisió multilingüe",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Més ràpid, mida més petita",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Millor per a xinès tradicional",
-
   "setup.sttModelChoiceTitle": "Tria un model de reconeixement de veu",
   "setup.sttModelChoiceDesc": "Selecciona un model segons les teves necessitats. Pots canviar-lo més tard a Configuració.",
   "setup.recommended": "Recomanat",
   "setup.sttModelDownloadBtn": "Descarrega i continua",
   "setup.sttModelSystemInfo": "Sistema: {ram} RAM, {disk} espai lliure",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Millor per a xinès tradicional",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Multilingüe",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Multilingüe més recent, amb/sense raonament",
-
   "settings.polish": "Poliment d'IA",
   "settings.polish.toggle": "Polir la transcripció amb IA",
   "settings.polish.toggleDesc": "Refina la gramàtica, el to i la claredat",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Aquestes instruccions s'afegeixen al prompt base quan aquesta regla coincideix.",
   "settings.polish.ruleSave": "Guardar",
   "settings.polish.ruleCancel": "Cancel·lar",
-
   "promptRules.title": "Regles de Prompt",
   "promptRules.desc": "Les regles es comparen per l'app en primer pla — les instruccions de la primera regla coincident s'afegeixen al prompt base.",
   "promptRules.voiceTipMain": "Prem {hotkey} per descriure la teva regla per veu.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Re-executar la Configuració",
   "settings.danger.rerunSetupDesc": "Mostra de nou la superposició de configuració del primer llançament",
   "settings.danger.rerunSetupBtn": "Executar Configuració",
-
   "confirm.resetTitle": "Restablir als Valors per Defecte",
   "confirm.resetMessage": "Això restaurarà tota la configuració als seus valors originals. Això no es pot desfer.",
   "confirm.cancel": "Cancel·lar",
   "confirm.reset": "Restablir",
-
   "dictionary.title": "Diccionari Personalitzat",
   "dictionary.desc": "Afegeix noms propis, noms o termes específics del domini. L'IA utilitzarà automàticament la forma correcta quan es trobi paraules de so similar.",
   "dictionary.toggle": "Habilitar diccionari personalitzat",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Deshabilitar",
   "dictionary.emptyTitle": "Cap terme del diccionari encara",
   "dictionary.emptyHint": "Afegeix termes per ajudar l'IA a reconèixer noms propis i noms.",
-
   "history.title": "Historial",
   "history.privacyNote": "Les teves dades es mantenen privades — tot l'historial es desa localment en aquest dispositiu només.",
   "history.retention": "Retenció de dades",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Suprimeix permanentment totes les entrades d'historial i arxius d'àudio",
   "history.clearAllConfirm": "Estàs segur que vols suprimir permanentment tot l'historial i els arxius d'àudio? Aquesta acció no es pot desfer.",
   "history.loadMore": "Carrega més",
-
   "about.title": "Quant a",
   "about.version": "Versió {version}",
   "about.desc": "La teva veu, per escrit. Transcripció de veu a text amb potència d'IA — prem una drecera per gravar, transcriure i enganxar al teu cursor.",
@@ -208,7 +195,6 @@
   "about.retry": "Reintentar",
   "about.download": "Descarregar i Instal·lar",
   "about.gatekeeperNote": "Després de reiniciar, macOS pot demanar-te que permitis l'aplicació de nou a Configuració del Sistema › Privacitat i Seguretat.",
-
   "setup.permissionsTitle": "Permisos Requerits",
   "setup.permissionsDesc": "Sumi necessita aquests permisos per gravar àudio i enganxar text al teu cursor.",
   "setup.permMicName": "Micròfon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Enganxa text al teu cursor amb {pasteShortcut}",
   "setup.permGrant": "Concedir",
   "setup.permContinue": "Continuar",
-
   "setup.initialTitle": "Configurar Reconeixement de Veu",
   "setup.initialDesc": "Sumi necessita descarregar un model de reconeixement de veu (~1.5 GB) per a transcripció completament offline. Això només passa una vegada.",
   "setup.downloadBtn": "Descarregar Model",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Més ràpid, però el text s'envia a un servidor extern. Requereix una clau API.",
   "setup.polishCloudContinue": "Continuar",
   "setup.polishSkip": "Saltar per ara",
-
   "setup.stepStt": "Veu",
   "setup.stepPolish": "Poliment",
   "setup.stepTest": "Prova",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID del Model",
   "setup.testSkip": "Saltar prova",
   "setup.testDone": "Fet",
-
   "setup.llmDownloadingTitle": "Descarregant Model d'IA...",
   "setup.errorTitle": "Ha Fallat la Descàrrega",
   "setup.errorDefault": "Ha ocorregut un error inesperat.",
   "setup.retryBtn": "Reintentar Descàrrega",
-
   "test.breadcrumb.mic": "Micròfon",
   "test.breadcrumb.hotkey": "Drecera",
   "test.breadcrumb.general": "General",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Fes clic al cos del correu, prem {hotkey} per iniciar, parla, després prem {hotkey} de nou per parar",
   "test.step4.sampleText": "Prova de dir: \"Hola Alice, seguim endavant amb el dinar demà com estava previst? Alan\"",
   "test.step4.done": "Fet",
-
   "test.breadcrumb.polishCheck": "Poliment",
   "test.breadcrumb.editByVoice": "Editar per Veu",
   "test.step5.title": "Editar per Veu",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hola Alice, ens veiem demà per dinar? Avisa'm si t'està bé. Gràcies, Alan",
   "test.step6.editorTitle": "Prova d'edició",
   "test.step6.done": "Fet",
-
   "overlay.preparing": "Preparant…",
   "overlay.recording": "Gravant",
   "overlay.transcribing": "Transcrivint",
@@ -310,14 +290,7 @@
   "overlay.edited": "Editat",
   "overlay.editRequiresPolish": "Poliment d'IA necessari per editar",
   "overlay.undo": "Desfer",
-  "overlay.previewConfirm": "Confirma",
-  "overlay.previewCancel": "Cancel·la",
-  "overlay.previewEditHint": "Fes clic al text per editar",
-  "overlay.previewEditingHint": "⌘Retorn per confirmar · Esc per cancel·lar",
-
   "settings.behavior": "Comportament",
   "settings.behavior.autoPaste": "Enganxa automàticament",
-  "settings.behavior.autoPasteDesc": "Enganxa automàticament la transcripció a la posició del cursor",
-  "settings.behavior.preview": "Visualitza abans d'enganxar",
-  "settings.behavior.previewDesc": "Mostra la transcripció per revisar-la abans d'enganxar"
+  "settings.behavior.autoPasteDesc": "Enganxa automàticament la transcripció a la posició del cursor"
 }

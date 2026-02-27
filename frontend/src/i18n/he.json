@@ -5,12 +5,10 @@
   "nav.history": "היסטוריה",
   "nav.about": "אודות",
   "nav.test": "בדיקה",
-
   "settings.title": "הגדרות",
   "settings.language": "שפה",
   "settings.language.label": "שפת ממשק",
   "settings.language.desc": "בחר את שפת התצוגה של האפליקציה",
-
   "settings.shortcuts": "קיצורי מקלדת",
   "settings.shortcuts.hotkey": "הכתבה",
   "settings.shortcuts.hotkeyDesc": "לחץ להתחיל/עצור הקלטה וטרנסקריבציה",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "לא הוגדר",
   "settings.shortcuts.editRequiresPolish": "דורש הפעלת שיפור AI",
   "settings.shortcuts.clear": "נקה",
-
   "settings.mic": "מיקרופון",
   "settings.mic.inputDevice": "מכשיר קלט",
   "settings.mic.noMic": "לא זוהה מיקרופון",
   "settings.mic.noMicDesc": "חבר מיקרופון או בדוק הגדרות מערכת",
   "settings.mic.devicesAvailable": "{n} מכשיר{s} זמין",
   "settings.mic.auto": "אוטומטי",
-
   "settings.stt": "זיהוי דיבור",
   "settings.stt.mode": "מצב",
   "settings.stt.modeDesc": "בחר מנוע טרנסקריפציה מקומי או בענן",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "נסה שוב",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "דיוק רב-לשוני הגבוה ביותר",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "הכי מהיר, גודל מינימלי",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "הטוב ביותר לסינית מסורתית",
-
   "setup.sttModelChoiceTitle": "בחר מודל זיהוי דיבור",
   "setup.sttModelChoiceDesc": "בחר מודל על סמך הצרכים שלך. אתה יכול לשנות זאת מאוחר יותר בהגדרות.",
   "setup.recommended": "מומלץ",
   "setup.sttModelDownloadBtn": "הורדה והמשך",
   "setup.sttModelSystemInfo": "מערכת: {ram} RAM, {disk} דיסק פנוי",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "הטוב ביותר לסינית מסורתית",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "רב-לשוני",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "הכי חדש רב-לשוני, חשיבה/ללא חשיבה",
-
   "settings.polish": "הברקת AI",
   "settings.polish.toggle": "הברק טרנסקריפציה עם AI",
   "settings.polish.toggleDesc": "שפר דקדוק, טון ובהירות",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "הוראות אלה מתווספות לנושאה בסיסה כאשר כלל זה תואם.",
   "settings.polish.ruleSave": "שמור",
   "settings.polish.ruleCancel": "ביטול",
-
   "promptRules.title": "כללי הנושאות",
   "promptRules.desc": "כללים מתואמים לאפליקציה בחזית — ההוראות של הכלל המתאים הראשון מתווספות לנושאה בסיסה.",
   "promptRules.voiceTipMain": "לחץ {hotkey} כדי לתאר את הכלל שלך בקול.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "הפעל מחדש הגדרה",
   "settings.danger.rerunSetupDesc": "הצג את שכבת ההגדרה הראשונה שוב",
   "settings.danger.rerunSetupBtn": "הגדרה ריצה",
-
   "confirm.resetTitle": "אפס לברירות מחדל",
   "confirm.resetMessage": "זה יחזיר את כל ההגדרות לערכיהם המקוריים. לא ניתן לבטל פעולה זו.",
   "confirm.cancel": "ביטול",
   "confirm.reset": "אפס",
-
   "dictionary.title": "מילון מותאם אישית",
   "dictionary.desc": "הוסף שמות עצם, שמות או מונחים ספציפיים לתחום. ה-AI ישתמש באופן אוטומטי בצורה הנכונה כאשר הוא נתקל במילים דומות קול.",
   "dictionary.toggle": "אפשר מילון מותאם אישית",
@@ -157,7 +146,6 @@
   "dictionary.disable": "בטל",
   "dictionary.emptyTitle": "עדיין אין תנאים של מילון",
   "dictionary.emptyHint": "הוסף תנאים כדי לעזור ל-AI להכיר שמות עצם ושמות.",
-
   "history.title": "היסטוריה",
   "history.privacyNote": "הנתונים שלך נשארים פרטיים — כל ההיסטוריה מאוחסנת באופן מקומי רק במכשיר זה.",
   "history.retention": "שימור נתונים",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "מחק קבוע את כל רשומות ההיסטוריה וקבצי אודיו",
   "history.clearAllConfirm": "האם אתה בטוח שברצונך למחוק קבוע את כל ההיסטוריה וקבצי אודיו? לא ניתן לבטל פעולה זו.",
   "history.loadMore": "טען עוד",
-
   "about.title": "אודות",
   "about.version": "גרסה {version}",
   "about.desc": "הקול שלך, בכתב. דיבור לטקסט מונע AI — לחץ על קיצור כדי להקליט, טרנסקריבציה והדבק בסמן שלך.",
@@ -208,7 +195,6 @@
   "about.retry": "נסה שוב",
   "about.download": "הורד והתקן",
   "about.gatekeeperNote": "לאחר הפעלה מחדש, macOS עשוי לבקש ממך לאפשר את האפליקציה שוב בהגדרות מערכת › פרטיות וביטחון.",
-
   "setup.permissionsTitle": "הרשאות נדרשות",
   "setup.permissionsDesc": "Sumi זקוק להרשאות אלה כדי להקליט אודיו ולהדביק טקסט בסמן שלך.",
   "setup.permMicName": "מיקרופון",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "הדבק טקסט בסמן שלך עם {pasteShortcut}",
   "setup.permGrant": "הקצה",
   "setup.permContinue": "המשך",
-
   "setup.initialTitle": "הגדר זיהוי דיבור",
   "setup.initialDesc": "Sumi צריך להוריד מודל זיהוי דיבור (~1.5 GB) לטרנסקריפציה לחלוטין באופן לא מקוון. זה קורה רק פעם אחת.",
   "setup.downloadBtn": "הורד מודל",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "מהיר יותר, אך הטקסט נשלח לשרת חיצוני. דורש מפתח API.",
   "setup.polishCloudContinue": "המשך",
   "setup.polishSkip": "דלג בינתיים",
-
   "setup.stepStt": "קול",
   "setup.stepPolish": "פוליש",
   "setup.stepTest": "בדיקה",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "זהות מודל",
   "setup.testSkip": "דלג בדיקה",
   "setup.testDone": "בוצע",
-
   "setup.llmDownloadingTitle": "הורדת מודל AI...",
   "setup.errorTitle": "ההורדה נכשלה",
   "setup.errorDefault": "אירעה שגיאה בלתי צפויה.",
   "setup.retryBtn": "הורדה חוזרת",
-
   "test.breadcrumb.mic": "מיקרופון",
   "test.breadcrumb.hotkey": "קיצור",
   "test.breadcrumb.general": "כללי",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "לחץ על גוף האימייל, לחץ {hotkey} להתחיל, דבר, לחץ {hotkey} להפסיק",
   "test.step4.sampleText": "נסה לומר: \"היי אליס, האם אנחנו עדיין בארוחה צהריים מחר כמתוכנן? אלן\"",
   "test.step4.done": "בוצע",
-
   "test.breadcrumb.polishCheck": "שיפור",
   "test.breadcrumb.editByVoice": "עריכה קולית",
   "test.step5.title": "עריכה קולית",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "היי אליס, אנחנו עדיין נפגשים לארוחת צהריים מחר? תודיעי לי אם זה מתאים לך. תודה, אלן",
   "test.step6.editorTitle": "בדיקת עריכה",
   "test.step6.done": "בוצע",
-
   "overlay.preparing": "הכנה…",
   "overlay.recording": "הקלטה",
   "overlay.transcribing": "טרנסקריביציה",
@@ -310,14 +290,7 @@
   "overlay.edited": "ערוך",
   "overlay.editRequiresPolish": "שיפור AI נדרש לעריכה",
   "overlay.undo": "בטל",
-  "overlay.previewConfirm": "אישור",
-  "overlay.previewCancel": "ביטול",
-  "overlay.previewEditHint": "לחץ על הטקסט כדי לערוך",
-  "overlay.previewEditingHint": "⌘Enter לאישור · Esc לביטול",
-
   "settings.behavior": "התנהגות",
   "settings.behavior.autoPaste": "הדבקה אוטומטית",
-  "settings.behavior.autoPasteDesc": "הדבקה אוטומטית של תמלול במיקום הסמן",
-  "settings.behavior.preview": "תצוגה מקדימה לפני הדבקה",
-  "settings.behavior.previewDesc": "הצג את התמלול לסקירה לפני הדבקה"
+  "settings.behavior.autoPasteDesc": "הדבקה אוטומטית של תמלול במיקום הסמן"
 }

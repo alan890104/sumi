@@ -5,12 +5,10 @@
   "nav.history": "Tarix",
   "nav.about": "Haqqında",
   "nav.test": "Test",
-
   "settings.title": "Ayarlar",
   "settings.language": "Dil",
   "settings.language.label": "İnterfeysə dil",
   "settings.language.desc": "Tətbiqin görüntülənmə dilini seçin",
-
   "settings.shortcuts": "Klaviatur Qısayolları",
   "settings.shortcuts.hotkey": "Diktə",
   "settings.shortcuts.hotkeyDesc": "Yazıya almağı başlatmaq/dayandırmaq və transkripsiya etmək üçün basın",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Təyin edilməyib",
   "settings.shortcuts.editRequiresPolish": "AI təkmilləşdirmənin aktivləşdirilməsi tələb olunur",
   "settings.shortcuts.clear": "Təmizlə",
-
   "settings.mic": "Mikrofon",
   "settings.mic.inputDevice": "Girişəd Cihazı",
   "settings.mic.noMic": "Mikrofon tapılmadı",
   "settings.mic.noMicDesc": "Mikrofon qoşun və ya sistem ayarlarını yoxlayın",
   "settings.mic.devicesAvailable": "{n} cihaz{s} mövcud",
   "settings.mic.auto": "Avtomatik",
-
   "settings.stt": "Nitq Tanıması",
   "settings.stt.mode": "Rejim",
   "settings.stt.modeDesc": "Lokal və ya bulut transkripsiya motorunu seçin",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Yenidən Cəhd Et",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Ən yüksək çoxdilli dəqiqlik",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Ən sürətli, ən kiçik ölçü",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Ənənəvi Çincə üçün ən yaxşı",
-
   "setup.sttModelChoiceTitle": "Nitq Tanıma Modeli Seçin",
   "setup.sttModelChoiceDesc": "Ehtiyaclarınıza əsasən model seçin. Bunu daha sonra Parametrlərdə dəyişə bilərsiniz.",
   "setup.recommended": "Tövsiyə olunur",
   "setup.sttModelDownloadBtn": "Endir və Davam Et",
   "setup.sttModelSystemInfo": "Sistem: {ram} RAM, {disk} boş disk",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Ənənəvi Çincə üçün ən yaxşı",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Çoxdilli",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Ən yeni çoxdilli, düşünmə/düşünməmə",
-
   "settings.polish": "AI Ətraflı",
   "settings.polish.toggle": "Transkripsiyağı AI ilə təmizləyin",
   "settings.polish.toggleDesc": "Qrammatika, ton və aydınlığı yaxşılaşdırın",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Bu təlimatlar bu qayda uyğun gələndə əsas tələbəy əlavə edilir.",
   "settings.polish.ruleSave": "Saxlayın",
   "settings.polish.ruleCancel": "Ləğv et",
-
   "promptRules.title": "Promt Qaydaları",
   "promptRules.desc": "Qaydalar ön tətbiq ilə uyğun - ilk uyğun qaydanın təlimatları əsas tələbəy əlavə edilir.",
   "promptRules.voiceTipMain": "Qaidəninizi səslə təsvir etmək üçün {hotkey} basın.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Qurulumu Yenidən Jura",
   "settings.danger.rerunSetupDesc": "Birinci başlanğıc qurulumu ekranını yenidən göstərin",
   "settings.danger.rerunSetupBtn": "Qurulumu Çalıştırın",
-
   "confirm.resetTitle": "Standart olaraq Sıfırla",
   "confirm.resetMessage": "Bu, bütün ayarları orijinal dəyərlərinə bərpa edəcəkdir. Bu geri alına bilməz.",
   "confirm.cancel": "Ləğv et",
   "confirm.reset": "Sıfırla",
-
   "dictionary.title": "Xüsusi Lüğət",
   "dictionary.desc": "Öz adlar, adlar və ya domen spesifik şərtlər əlavə edin. AI, oxşar səsli sözlərlə qarşılaşdığında avtomatik olaraq düzgün formanı istifadə edəcəkdir.",
   "dictionary.toggle": "Xüsusi lüğəti aktiv edin",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Deaktiv edin",
   "dictionary.emptyTitle": "Hələ lüğət şərtləri yoxdur",
   "dictionary.emptyHint": "AI-ə öz adlar və adları tanımağa kömək etmək üçün şərtlər əlavə edin.",
-
   "history.title": "Tarix",
   "history.privacyNote": "Sizin məlumatlarınız xüsusi qalır - bütün tarix yalnız bu cihazda yerli olaraq saxlanılır.",
   "history.retention": "Məlumat saxlanması",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Bütün tarix girişlərini və ses fayllarını həmişəlik silin",
   "history.clearAllConfirm": "Bütün tarix və ses fayllarını həmişəlik silmək istəyirsiniz? Bu səbəb geri alına bilməz.",
   "history.loadMore": "Daha çox yüklə",
-
   "about.title": "Haqqında",
   "about.version": "Versiya {version}",
   "about.desc": "Sizin səsiniz yazılı. AI-powered nitq-mətn - qısayolu basın, transkripsiya edin və kursorunuzda yapışdırın.",
@@ -208,7 +195,6 @@
   "about.retry": "Yenidən cəhd et",
   "about.download": "Endir & Quraşdırın",
   "about.gatekeeperNote": "Yenidən başladıqdan sonra, macOS tətbiqə Sistem Ayarları › Gizlilik & Təhlükəsizlik içində yenidən icazə verməyi tələb edə bilər.",
-
   "setup.permissionsTitle": "İcazələr Tələb olunur",
   "setup.permissionsDesc": "Sumi sesi yazı almaq və mətni kursorunuzda yapışdırmaq üçün bu icazələrə ehtiyac duyur.",
   "setup.permMicName": "Mikrofon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Mətni kursorunuzda {pasteShortcut} ilə yapışdırın",
   "setup.permGrant": "Veriniz",
   "setup.permContinue": "Davam edin",
-
   "setup.initialTitle": "Nitq Tanıması Qurulumu",
   "setup.initialDesc": "Sumi tamamilə oflayn transkripsiya üçün nitq tanıması modelini (~1.5 GB) endirməlidir. Bu yalnız bir dəfə baş verir.",
   "setup.downloadBtn": "Modeli Endir",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Daha sürətli, lakin mətn xarici serverə göndərilir. API açarı tələb olunur.",
   "setup.polishCloudContinue": "Davam edin",
   "setup.polishSkip": "Hələlik keçin",
-
   "setup.stepStt": "Nitq",
   "setup.stepPolish": "Təmizləmə",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Model Şəxsiyyəti",
   "setup.testSkip": "Testi keçin",
   "setup.testDone": "Bitdi",
-
   "setup.llmDownloadingTitle": "AI Model endirilir...",
   "setup.errorTitle": "Endir Başarısız",
   "setup.errorDefault": "Gözlənilməz xəta baş verdi.",
   "setup.retryBtn": "Endirməyi Yenidən Cəhd Edin",
-
   "test.breadcrumb.mic": "Mikrofon",
   "test.breadcrumb.hotkey": "Qısayol",
   "test.breadcrumb.general": "Ümumi",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "E-poçt mətninə klikləyin, başlamaq üçün {hotkey} basın, danışın, sonra dayandırmaq üçün {hotkey} yenidən basın",
   "test.step4.sampleText": "Dəmə kəsib desə: \"Salam Alis, biz hələ də sabah nahar üçün planlaşdırıldığı kimi yoxdur? Alan\"",
   "test.step4.done": "Bitdi",
-
   "test.breadcrumb.polishCheck": "Təkmilləşdirmə",
   "test.breadcrumb.editByVoice": "Səs ilə Redaktə et",
   "test.step5.title": "Səs ilə Redaktə et",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Salam Alice, sabah nahar üçün hələ də görüşürükmü? Sənə uyğun olub-olmadığını bildir. Təşəkkür, Alan",
   "test.step6.editorTitle": "Redaktə Testi",
   "test.step6.done": "Hazır",
-
   "overlay.preparing": "Hazırlanır...",
   "overlay.recording": "Yazı alınır",
   "overlay.transcribing": "Transkripsiya",
@@ -310,14 +290,7 @@
   "overlay.edited": "Redaktə edildi",
   "overlay.editRequiresPolish": "Redaktə üçün AI təkmilləşdirmə tələb olunur",
   "overlay.undo": "Geri Al",
-  "overlay.previewConfirm": "Təsdiq et",
-  "overlay.previewCancel": "Ləğv et",
-  "overlay.previewEditHint": "Redaktə etmək üçün mətnə klikləyin",
-  "overlay.previewEditingHint": "⌘Enter təsdiq üçün · Esc ləğv üçün",
-
   "settings.behavior": "Davranış",
   "settings.behavior.autoPaste": "Avtomatik yapışdır",
-  "settings.behavior.autoPasteDesc": "Dökümü avtomatik olaraq kursor mövqeyinə yapışdır",
-  "settings.behavior.preview": "Yapışdırmadan əvvəl ön baxış",
-  "settings.behavior.previewDesc": "Yapışdırmadan əvvəl dökümü nəzərdən keçirmək üçün göstər"
+  "settings.behavior.autoPasteDesc": "Dökümü avtomatik olaraq kursor mövqeyinə yapışdır"
 }

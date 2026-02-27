@@ -5,12 +5,10 @@
   "nav.history": "Тарихы",
   "nav.about": "Туралы",
   "nav.test": "Тест",
-
   "settings.title": "Параметрлер",
   "settings.language": "Тіл",
   "settings.language.label": "Интерфейс тілі",
   "settings.language.desc": "Қолданба дисплей тілін таңдаңыз",
-
   "settings.shortcuts": "Пернетақта қысқартулары",
   "settings.shortcuts.hotkey": "Диктовка",
   "settings.shortcuts.hotkeyDesc": "Жазуды бастау/тоқтату және транскрипцияны басыңыз",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Орнатылмаған",
   "settings.shortcuts.editRequiresPolish": "AI жақсартуды қосу қажет",
   "settings.shortcuts.clear": "Тазалау",
-
   "settings.mic": "Микрофон",
   "settings.mic.inputDevice": "Енгізу құрылғысы",
   "settings.mic.noMic": "Микрофон анықталмады",
   "settings.mic.noMicDesc": "Микрофонды қосыңыз немесе жүйелік параметрлерді тексеріңіз",
   "settings.mic.devicesAvailable": "{n} құрылғы{s} қол жетімді",
   "settings.mic.auto": "Автоматты",
-
   "settings.stt": "Сөз тану",
   "settings.stt.mode": "Режім",
   "settings.stt.modeDesc": "Жергілік немесе облақты API транскрипция құрылғысын таңдаңыз",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Қайта әрекеттену",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Ең жоғары көптілді дәлдік",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Ең жылдам, ең кіші өлшем",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Дәстүрлі қытай тілі үшін ең жақсы",
-
   "setup.sttModelChoiceTitle": "Сөйлеу тану моделін таңдаңыз",
   "setup.sttModelChoiceDesc": "Өзіңіздің қажеттіліктеріңіз бойынша модель таңдаңыз. Оны кейінірек Параметрлерде өзгерте аласыз.",
   "setup.recommended": "Ұсынылады",
   "setup.sttModelDownloadBtn": "Жүктеп алу және жалғастыру",
   "setup.sttModelSystemInfo": "Жүйе: {ram} RAM, {disk} бос орын",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Дәстүрлі қытай тілі үшін ең жақсы",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Көптілді",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Ең жаңа көптілді, ойлану/ойланбау",
-
   "settings.polish": "AI Полирлеу",
   "settings.polish.toggle": "AI сайын транскрипцияны полирлеңіз",
   "settings.polish.toggleDesc": "Грамматиканы, тонды және түсінігіштігін жақсартыңыз",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Бұл нұсқамалар ереже сәйкес болғанда негіз подсказкасына қосылады.",
   "settings.polish.ruleSave": "Сақтау",
   "settings.polish.ruleCancel": "Болдырмау",
-
   "promptRules.title": "Подсказка ережелері",
   "promptRules.desc": "Ережелер ең алдымен қолданба бойынша сәйкес келеді — бірінші сәйкесті ереженің нұсқамалары негіз подсказкасына қосылады.",
   "promptRules.voiceTipMain": "Ережеңізді дыбыс бойынша сипаттау үшін {hotkey} басыңыз.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Орнату қайтадан өндіру",
   "settings.danger.rerunSetupDesc": "Бірінші іске қосу орнату үстінде қайта көрсету",
   "settings.danger.rerunSetupBtn": "Орнату іске қосу",
-
   "confirm.resetTitle": "Әдепкі мәндерге қайтару",
   "confirm.resetMessage": "Бұл барлық параметрлерді бастапқы мәндеріне қайтарады. Бұл болдырмалауға болмайды.",
   "confirm.cancel": "Болдырмау",
   "confirm.reset": "Қайтару",
-
   "dictionary.title": "Ынамдалған сөздік",
   "dictionary.desc": "Атты есімдер, есімдер немесе домен-нақты терминдерді қосыңыз. AI ұқсас естелік сөздер кезінде автоматты түрде дұрыс пішімді қолданады.",
   "dictionary.toggle": "Ынамдалған сөздіктерді әрушақтандыру",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Ағымсыздандыру",
   "dictionary.emptyTitle": "Сөздік терминдері жоқ",
   "dictionary.emptyHint": "AI ы сақтай атты есімдер мен есімдерді тану үшін терминдер қосыңыз.",
-
   "history.title": "Тарихы",
   "history.privacyNote": "Сіздің деректеріңіз жеке болып қалады — барлық тарихы осы құрылғыда ғана орын сақтайды.",
   "history.retention": "Деректер сақтау",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Барлық тарихы жазбалары мен дыбыс файлдарын біржола жою",
   "history.clearAllConfirm": "Барлық тарихы және дыбыс файлдарын біржола жойғыңыз келе ме? Бұл әрекетті болдырмалайды.",
   "history.loadMore": "Көбірек жүктеу",
-
   "about.title": "Туралы",
   "about.version": "Нұсқасы {version}",
   "about.desc": "Сіздің дыбысы, жазба түрінде. AI-қуатты сөз-мәтінге аудару — жазуды басыңыз, транскрипцияны өндіңіз және курсордағы ығуға сүндіңіз.",
@@ -208,7 +195,6 @@
   "about.retry": "Қайтадан талпыну",
   "about.download": "Жүктеп алыңыз және орнатыңыз",
   "about.gatekeeperNote": "Қайта бастағаннан кейін macOS Жүйелік параметрлер › Құпия және қауіпсіздік бөлімінде қолданбаға рұқсат беруді сұра алады.",
-
   "setup.permissionsTitle": "Қажет рұқсаттар",
   "setup.permissionsDesc": "Sumi дыбысты жазуды және мәтінді курсордағы ығуға ығуды өндік үшін осы рұқсаттарды өндік.",
   "setup.permMicName": "Микрофон",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "{pasteShortcut} ығу курсордағы мәтін",
   "setup.permGrant": "Беру",
   "setup.permContinue": "Жалғастыру",
-
   "setup.initialTitle": "Сөз танулы орнату",
   "setup.initialDesc": "Sumi толық автономды транскрипция үшін сөз тану моделін (~1.5 GB) жүктеп алуы керек. Бұл бір ғана рет орын алады.",
   "setup.downloadBtn": "Модель жүктеп алу",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Тезірек, бірақ мәтін сыртқы серверге жіберіледі. API кілті қажет.",
   "setup.polishCloudContinue": "Жалғастыру",
   "setup.polishSkip": "Қазір өткізіңіз",
-
   "setup.stepStt": "Сөз",
   "setup.stepPolish": "Полирлеу",
   "setup.stepTest": "Тест",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Модель ID",
   "setup.testSkip": "Тестті өткізіңіз",
   "setup.testDone": "Орындалды",
-
   "setup.llmDownloadingTitle": "AI Модель жүктеп алынуда...",
   "setup.errorTitle": "Жүктеп алу сәтсіз",
   "setup.errorDefault": "Күтпеген қателік болды.",
   "setup.retryBtn": "Жүктеп алуды қайтадан талпыну",
-
   "test.breadcrumb.mic": "Микрофон",
   "test.breadcrumb.hotkey": "Ысыл түймесі",
   "test.breadcrumb.general": "Жалпы",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Электронды пошта денесін басыңыз, іске қосу үшін {hotkey} басыңыз, айтыңыз, содан соң тоқтау үшін {hotkey} қайтадан басыңыз",
   "test.step4.sampleText": "Айтуға талпыну: \"Сәлем Алис, ертеңгі түске әзір сәйкес келе ме? Алан\"",
   "test.step4.done": "Орындалды",
-
   "test.breadcrumb.polishCheck": "Жақсарту",
   "test.breadcrumb.editByVoice": "Дыбыс бойынша өңдеу",
   "test.step5.title": "Дыбыс бойынша өңдеу",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Сәлем Алис, ертеңгі түскі асқа бармыз ба? Саған ыңғайлы болса, маған хабарла. Рахмет, Алан",
   "test.step6.editorTitle": "Редакциялау сынағы",
   "test.step6.done": "Дайын",
-
   "overlay.preparing": "Дайындау...",
   "overlay.recording": "Жазу",
   "overlay.transcribing": "Транскрипциялау",
@@ -310,14 +290,7 @@
   "overlay.edited": "Өңделді",
   "overlay.editRequiresPolish": "Редакциялау үшін AI жақсарту қажет",
   "overlay.undo": "Болдырмау",
-  "overlay.previewConfirm": "Растау",
-  "overlay.previewCancel": "Бас тарту",
-  "overlay.previewEditHint": "Редакциялау үшін мәтінді басыңыз",
-  "overlay.previewEditingHint": "⌘Enter растау үшін · Esc бас тарту үшін",
-
   "settings.behavior": "Мінез-құлық",
   "settings.behavior.autoPaste": "Автоматты қою",
-  "settings.behavior.autoPasteDesc": "Транскрипцияны курсор орнына автоматты қою",
-  "settings.behavior.preview": "Қоюдан бұрын алдын ала қарау",
-  "settings.behavior.previewDesc": "Қоюдан бұрын транскрипцияны қарап шығу үшін көрсету"
+  "settings.behavior.autoPasteDesc": "Транскрипцияны курсор орнына автоматты қою"
 }

@@ -5,12 +5,10 @@
   "nav.history": "历史记录",
   "nav.about": "关于",
   "nav.test": "测试",
-
   "settings.title": "设置",
   "settings.language": "语言",
   "settings.language.label": "界面语言",
   "settings.language.desc": "选择应用程序的显示语言",
-
   "settings.shortcuts": "键盘快捷键",
   "settings.shortcuts.hotkey": "听写",
   "settings.shortcuts.hotkeyDesc": "按下开始/停止录音并转录",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "未设置",
   "settings.shortcuts.editRequiresPolish": "需要启用 AI 润色才能使用",
   "settings.shortcuts.clear": "清除",
-
   "settings.mic": "麦克风",
   "settings.mic.inputDevice": "输入设备",
   "settings.mic.noMic": "未检测到麦克风",
   "settings.mic.noMicDesc": "连接麦克风或检查系统设置",
   "settings.mic.devicesAvailable": "{n}个设备可用",
   "settings.mic.auto": "自动",
-
   "settings.stt": "语音识别",
   "settings.stt.mode": "模式",
   "settings.stt.modeDesc": "选择本地或云转录引擎",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "语音活动检测",
   "settings.stt.vadDesc": "转录前过滤背景噪音",
   "settings.stt.retry": "重试",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "多语言准确度最高",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "速度最快，文件最小",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "繁体中文识别最佳",
-
   "setup.sttModelChoiceTitle": "选择语音识别模型",
   "setup.sttModelChoiceDesc": "根据您的需求选择模型，之后可在设置中随时更改。",
   "setup.recommended": "推荐",
   "setup.sttModelDownloadBtn": "下载并继续",
   "setup.sttModelSystemInfo": "系统：{ram} RAM，{disk} 可用空间",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "繁体中文最佳",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "多语言",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "最新多语言，支持思考/非思考模式",
-
   "settings.polish": "AI润色",
   "settings.polish.toggle": "使用AI润色转录",
   "settings.polish.toggleDesc": "改进语法、语调和清晰度",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "当此规则匹配时，这些说明会附加到基础提示。",
   "settings.polish.ruleSave": "保存",
   "settings.polish.ruleCancel": "取消",
-
   "promptRules.title": "提示规则",
   "promptRules.desc": "规则由最前面的应用匹配 — 第一条匹配规则的说明附加到基础提示。",
   "promptRules.voiceTipMain": "按 {hotkey} 用语音描述您的规则。",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "重新运行设置",
   "settings.danger.rerunSetupDesc": "再次显示首次启动设置覆盖层",
   "settings.danger.rerunSetupBtn": "运行设置",
-
   "confirm.resetTitle": "重置为默认值",
   "confirm.resetMessage": "这将把所有设置恢复为原始值。此操作无法撤销。",
   "confirm.cancel": "取消",
   "confirm.reset": "重置",
-
   "dictionary.title": "自定义词典",
   "dictionary.desc": "添加专有名词、名称或特定领域术语。AI在遇到发音相似的单词时会自动使用正确形式。",
   "dictionary.toggle": "启用自定义词典",
@@ -157,7 +146,6 @@
   "dictionary.disable": "禁用",
   "dictionary.emptyTitle": "还没有词典术语",
   "dictionary.emptyHint": "添加术语以帮助AI识别专有名词和名称。",
-
   "history.title": "历史记录",
   "history.privacyNote": "您的数据保持私密 — 所有历史记录仅本地存储在此设备上。",
   "history.retention": "数据保留",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "永久删除所有历史条目和音频文件",
   "history.clearAllConfirm": "您确定要永久删除所有历史记录和音频文件吗？此操作无法撤销。",
   "history.loadMore": "加载更多",
-
   "about.title": "关于",
   "about.version": "版本 {version}",
   "about.desc": "您的声音，书面形式。AI驱动的语音转文本 — 按快捷键录制、转录并粘贴到光标处。",
@@ -208,7 +195,6 @@
   "about.retry": "重试",
   "about.download": "下载并安装",
   "about.gatekeeperNote": "重启后，macOS可能会要求您在“系统设置”>“隐私和安全”中再次允许该应用。",
-
   "setup.permissionsTitle": "需要权限",
   "setup.permissionsDesc": "Sumi需要这些权限来录制音频并在光标处粘贴文本。",
   "setup.permMicName": "麦克风",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "使用 {pasteShortcut} 在光标处粘贴文本",
   "setup.permGrant": "授予",
   "setup.permContinue": "继续",
-
   "setup.initialTitle": "设置语音识别",
   "setup.initialDesc": "Sumi需要下载语音识别模型（约1.5 GB）以实现完全离线转录。这仅发生一次。",
   "setup.downloadBtn": "下载模型",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "更快，但文本会发送到外部服务器。需要API密钥。",
   "setup.polishCloudContinue": "继续",
   "setup.polishSkip": "暂时跳过",
-
   "setup.stepStt": "语音",
   "setup.stepPolish": "润色",
   "setup.stepTest": "测试",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "模型ID",
   "setup.testSkip": "跳过测试",
   "setup.testDone": "完成",
-
   "setup.llmDownloadingTitle": "下载AI模型中...",
   "setup.errorTitle": "下载失败",
   "setup.errorDefault": "发生意外错误。",
   "setup.retryBtn": "重试下载",
-
   "test.breadcrumb.mic": "麦克风",
   "test.breadcrumb.hotkey": "快捷键",
   "test.breadcrumb.general": "常规",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "点击电子邮件正文，按 {hotkey} 开始，说话，然后再按 {hotkey} 停止",
   "test.step4.sampleText": "尝试说：“你好爱丽丝，我们还是按计划明天一起吃午饭吗？艾伦”",
   "test.step4.done": "完成",
-
   "test.breadcrumb.polishCheck": "润色",
   "test.breadcrumb.editByVoice": "语音编辑",
   "test.step5.title": "AI 润色",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "你好爱丽丝，我们还是按计划明天一起吃午饭吗？如果可以请告诉我。谢谢，艾伦",
   "test.step6.editorTitle": "编辑测试",
   "test.step6.done": "完成",
-
   "overlay.preparing": "准备中…",
   "overlay.recording": "录制中",
   "overlay.transcribing": "转录中",
@@ -310,14 +290,7 @@
   "overlay.edited": "已编辑",
   "overlay.editRequiresPolish": "编辑功能需要启用 AI 润色",
   "overlay.undo": "撤销",
-  "overlay.previewConfirm": "确认",
-  "overlay.previewCancel": "取消",
-  "overlay.previewEditHint": "点击文字编辑",
-  "overlay.previewEditingHint": "⌘Enter 确认 · Esc 取消",
-
   "settings.behavior": "行为",
   "settings.behavior.autoPaste": "自动粘贴",
-  "settings.behavior.autoPasteDesc": "自动将转录文字粘贴到光标位置",
-  "settings.behavior.preview": "粘贴前预览",
-  "settings.behavior.previewDesc": "粘贴前先显示转录文字供确认"
+  "settings.behavior.autoPasteDesc": "自动将转录文字粘贴到光标位置"
 }

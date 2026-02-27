@@ -5,12 +5,10 @@
   "nav.history": "Historia",
   "nav.about": "Om",
   "nav.test": "Test",
-
   "settings.title": "Inställningar",
   "settings.language": "Språk",
   "settings.language.label": "Gränssnittsspråk",
   "settings.language.desc": "Välj visningsspråk för appen",
-
   "settings.shortcuts": "Tangentbordsgenvägar",
   "settings.shortcuts.hotkey": "Diktering",
   "settings.shortcuts.hotkeyDesc": "Tryck för att starta/stoppa inspelning och transkription",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Inte inställd",
   "settings.shortcuts.editRequiresPolish": "Kräver att AI-polering är aktiverad",
   "settings.shortcuts.clear": "Rensa",
-
   "settings.mic": "Mikrofon",
   "settings.mic.inputDevice": "Indataenhet",
   "settings.mic.noMic": "Mikrofon ej detekterad",
   "settings.mic.noMicDesc": "Anslut en mikrofon eller kontrollera systeminställningarna",
   "settings.mic.devicesAvailable": "{n} enhet{s} tillgänglig{s}",
   "settings.mic.auto": "Automatisk",
-
   "settings.stt": "Taligenkänning",
   "settings.stt.mode": "Läge",
   "settings.stt.modeDesc": "Välj lokal eller molnbaserad transkriptionsmotor",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Försök igen",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Högsta flerspråkig noggrannhet",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Snabbaste, minsta fotavtryck",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Bäst för traditionell kinesiska",
-
   "setup.sttModelChoiceTitle": "Välj en taligenkänningsmodell",
   "setup.sttModelChoiceDesc": "Välj en modell baserat på dina behov. Du kan ändra detta senare i Inställningar.",
   "setup.recommended": "Rekommenderad",
   "setup.sttModelDownloadBtn": "Ladda ner & Fortsätt",
   "setup.sttModelSystemInfo": "System: {ram} RAM, {disk} ledigt diskutrymme",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Bäst för traditionell kinesiska",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Flerspråkig",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Senaste flerspråkig, tänkande/icke-tänkande",
-
   "settings.polish": "AI-polering",
   "settings.polish.toggle": "Polera transkription med AI",
   "settings.polish.toggleDesc": "Förbättra grammatik, ton och klarhet",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Dessa instruktioner läggs till baspreomten när denna regel matchar.",
   "settings.polish.ruleSave": "Spara",
   "settings.polish.ruleCancel": "Avbryt",
-
   "promptRules.title": "Promptregler",
   "promptRules.desc": "Regler matchar efter den aktiva appen — instruktionerna från den första matchande regeln läggs till baspreomten.",
   "promptRules.voiceTipMain": "Tryck {hotkey} för att beskriva din regel med röst.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Kör installation igen",
   "settings.danger.rerunSetupDesc": "Visa installationsöverlagringen för första körning igen",
   "settings.danger.rerunSetupBtn": "Kör installation",
-
   "confirm.resetTitle": "Återställ till standardvärden",
   "confirm.resetMessage": "Detta kommer att återställa alla inställningar till sina ursprungliga värden. Detta kan inte ångras.",
   "confirm.cancel": "Avbryt",
   "confirm.reset": "Återställ",
-
   "dictionary.title": "Anpassad ordbok",
   "dictionary.desc": "Lägg till egennamn, namn eller domänspecifika termer. AI kommer automatiskt att använda rätt form när den stöter på liknande ljud ord.",
   "dictionary.toggle": "Aktivera anpassad ordbok",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Inaktivera",
   "dictionary.emptyTitle": "Inga ordbok termer ännu",
   "dictionary.emptyHint": "Lägg till termer för att hjälpa AI att känna igen egennamn och namn.",
-
   "history.title": "Historia",
   "history.privacyNote": "Dina data förblir privata — all historia lagras lokalt endast på denna enhet.",
   "history.retention": "Databehållning",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Permanent radera alla historieposter och ljudfiler",
   "history.clearAllConfirm": "Är du säker på att du vill permanent radera all historia och ljudfiler? Denna åtgärd kan inte ångras.",
   "history.loadMore": "Ladda mer",
-
   "about.title": "Om",
   "about.version": "Version {version}",
   "about.desc": "Din röst, i skrift. AI-driven taligenkänning — tryck på en genväg för att spela in, transkribera och klistra in vid din markör.",
@@ -208,7 +195,6 @@
   "about.retry": "Försök igen",
   "about.download": "Ladda ned och installera",
   "about.gatekeeperNote": "Efter omstart kan macOS be dig att tillåta appen igen i Systeminställningar › Sekretess och säkerhet.",
-
   "setup.permissionsTitle": "Behörigheter krävs",
   "setup.permissionsDesc": "Sumi behöver dessa behörigheter för att spela in ljud och klistra in text vid din markör.",
   "setup.permMicName": "Mikrofon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Klistra in text vid din markör med {pasteShortcut}",
   "setup.permGrant": "Bevilja",
   "setup.permContinue": "Fortsätt",
-
   "setup.initialTitle": "Konfigurera taligenkänning",
   "setup.initialDesc": "Sumi måste ladda ned en taligenkänningsmodell (~1,5 GB) för helt offline transkription. Detta händer bara en gång.",
   "setup.downloadBtn": "Ladda ned modell",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Snabbare, men text skickas till en extern server. Kräver en API-nyckel.",
   "setup.polishCloudContinue": "Fortsätt",
   "setup.polishSkip": "Hoppa över för nu",
-
   "setup.stepStt": "Tal",
   "setup.stepPolish": "Polering",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Modell-ID",
   "setup.testSkip": "Hoppa över testning",
   "setup.testDone": "Klart",
-
   "setup.llmDownloadingTitle": "Laddar ned AI-modell...",
   "setup.errorTitle": "Nedladdning misslyckades",
   "setup.errorDefault": "Ett oväntat fel uppstod.",
   "setup.retryBtn": "Försök ladda ned igen",
-
   "test.breadcrumb.mic": "Mikrofon",
   "test.breadcrumb.hotkey": "Genväg",
   "test.breadcrumb.general": "Allmänt",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Klicka på e-posttexten, tryck {hotkey} för att starta, säg, tryck sedan {hotkey} igen för att stoppa",
   "test.step4.sampleText": "Försök säga: \"Hej Alice, är vi fortfarande på för lunch imorgon som planerat? Alan\"",
   "test.step4.done": "Klart",
-
   "test.breadcrumb.polishCheck": "Polering",
   "test.breadcrumb.editByVoice": "Redigera med röst",
   "test.step5.title": "Redigera med röst",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hej Alice, är vi fortfarande på för lunch imorgon? Meddela mig om det passar dig. Tack, Alan",
   "test.step6.editorTitle": "Redigeringstest",
   "test.step6.done": "Klart",
-
   "overlay.preparing": "Förbereder...",
   "overlay.recording": "Spelar in",
   "overlay.transcribing": "Transkriberar",
@@ -310,14 +290,7 @@
   "overlay.edited": "Redigerad",
   "overlay.editRequiresPolish": "AI-polering krävs för redigering",
   "overlay.undo": "Ångra",
-  "overlay.previewConfirm": "Bekräfta",
-  "overlay.previewCancel": "Avbryt",
-  "overlay.previewEditHint": "Klicka på text för att redigera",
-  "overlay.previewEditingHint": "⌘Retur för att bekräfta · Esc för att avbryta",
-
   "settings.behavior": "Beteende",
   "settings.behavior.autoPaste": "Automatisk inklistring",
-  "settings.behavior.autoPasteDesc": "Klistra in transkription automatiskt vid markörposition",
-  "settings.behavior.preview": "Förhandsvisning före inklistring",
-  "settings.behavior.previewDesc": "Visa transkription för granskning innan inklistring"
+  "settings.behavior.autoPasteDesc": "Klistra in transkription automatiskt vid markörposition"
 }

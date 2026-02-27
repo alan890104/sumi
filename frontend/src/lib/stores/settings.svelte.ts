@@ -40,7 +40,6 @@ let settings = $state<Settings>({
     vad_enabled: true,
   },
   edit_hotkey: null,
-  preview_before_paste: false,
 });
 
 let onboardingCompleted = $state(true);
@@ -208,14 +207,6 @@ export function setHistoryRetention(days: number) {
 
 export function setAutoPaste(v: boolean) {
   settings.auto_paste = v;
-}
-
-export function getPreviewBeforePaste(): boolean {
-  return settings.preview_before_paste;
-}
-
-export function setPreviewBeforePaste(v: boolean) {
-  settings.preview_before_paste = v;
 }
 
 // ── Prompt rules ──

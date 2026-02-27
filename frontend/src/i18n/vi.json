@@ -5,12 +5,10 @@
   "nav.history": "Lịch sử",
   "nav.about": "Về",
   "nav.test": "Kiểm tra",
-
   "settings.title": "Cài đặt",
   "settings.language": "Ngôn ngữ",
   "settings.language.label": "Ngôn ngữ giao diện",
   "settings.language.desc": "Chọn ngôn ngữ hiển thị cho ứng dụng",
-
   "settings.shortcuts": "Phím tắt",
   "settings.shortcuts.hotkey": "Chính tả",
   "settings.shortcuts.hotkeyDesc": "Nhấn để bắt đầu/dừng ghi âm và chuyển đổi thành văn bản",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Chưa được đặt",
   "settings.shortcuts.editRequiresPolish": "Yêu cầu bật tính năng AI Polish để chỉnh sửa",
   "settings.shortcuts.clear": "Xóa",
-
   "settings.mic": "Micro",
   "settings.mic.inputDevice": "Thiết bị đầu vào",
   "settings.mic.noMic": "Không tìm thấy micro",
   "settings.mic.noMicDesc": "Kết nối micro hoặc kiểm tra cài đặt hệ thống",
   "settings.mic.devicesAvailable": "{n} thiết bị{s} khả dụng",
   "settings.mic.auto": "Tự động",
-
   "settings.stt": "Nhận diện giọng nói",
   "settings.stt.mode": "Chế độ",
   "settings.stt.modeDesc": "Chọn công cụ chuyển đổi giọng nói cục bộ hoặc đám mây",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Thử lại",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Độ chính xác đa ngôn ngữ cao nhất",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Nhanh nhất, dấu chân nhỏ nhất",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Tốt nhất cho Tiếng Trung Quốc truyền thống",
-
   "setup.sttModelChoiceTitle": "Chọn mô hình nhận dạng giọng nói",
   "setup.sttModelChoiceDesc": "Chọn một mô hình dựa trên nhu cầu của bạn. Bạn có thể thay đổi điều này sau trong Cài đặt.",
   "setup.recommended": "Được khuyến cáo",
   "setup.sttModelDownloadBtn": "Tải xuống và tiếp tục",
   "setup.sttModelSystemInfo": "Hệ thống: {ram} RAM, {disk} dung lượng trống",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Tốt nhất cho Tiếng Trung Quốc truyền thống",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Đa ngôn ngữ",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Đa ngôn ngữ mới nhất, chế độ suy nghĩ/không suy nghĩ",
-
   "settings.polish": "AI Đánh bóng",
   "settings.polish.toggle": "Đánh bóng bản chuyển đổi bằng AI",
   "settings.polish.toggleDesc": "Cải thiện ngữ pháp, giọng điệu và sự rõ ràng",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Những hướng dẫn này được thêm vào lời nhắc cơ bản khi quy tắc này khớp.",
   "settings.polish.ruleSave": "Lưu",
   "settings.polish.ruleCancel": "Hủy",
-
   "promptRules.title": "Quy tắc nhắc nhở",
   "promptRules.desc": "Các quy tắc được khớp với ứng dụng ở phía trước — hướng dẫn của quy tắc khớp đầu tiên được thêm vào lời nhắc cơ bản.",
   "promptRules.voiceTipMain": "Nhấn {hotkey} để mô tả quy tắc của bạn bằng giọng nói.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Chạy lại Cài đặt",
   "settings.danger.rerunSetupDesc": "Hiển thị lại lớp phủ cài đặt lần đầu tiên",
   "settings.danger.rerunSetupBtn": "Chạy Cài đặt",
-
   "confirm.resetTitle": "Đặt lại về mặc định",
   "confirm.resetMessage": "Điều này sẽ khôi phục tất cả cài đặt về các giá trị ban đầu. Không thể hoàn tác.",
   "confirm.cancel": "Hủy",
   "confirm.reset": "Đặt lại",
-
   "dictionary.title": "Từ điển tùy chỉnh",
   "dictionary.desc": "Thêm tên riêng, tên hoặc thuật ngữ dành riêng cho lĩnh vực. AI sẽ tự động sử dụng hình thức chính xác khi gặp các từ có âm thanh tương tự.",
   "dictionary.toggle": "Bật từ điển tùy chỉnh",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Tắt",
   "dictionary.emptyTitle": "Chưa có thuật ngữ từ điển",
   "dictionary.emptyHint": "Thêm các thuật ngữ để giúp AI nhận diện tên riêng và tên.",
-
   "history.title": "Lịch sử",
   "history.privacyNote": "Dữ liệu của bạn vẫn riêng tư — toàn bộ lịch sử được lưu trữ cục bộ chỉ trên thiết bị này.",
   "history.retention": "Lưu giữ dữ liệu",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Xóa vĩnh viễn tất cả các mục nhập lịch sử và tệp âm thanh",
   "history.clearAllConfirm": "Bạn có chắc chắn muốn xóa vĩnh viễn tất cả lịch sử và tệp âm thanh không? Không thể hoàn tác hành động này.",
   "history.loadMore": "Tải thêm",
-
   "about.title": "Về",
   "about.version": "Phiên bản {version}",
   "about.desc": "Giọng nói của bạn, được viết ra. Chuyển đổi giọng nói thành văn bản do AI hỗ trợ — nhấn phím tắt để ghi âm, chuyển đổi và dán vào vị trí con trỏ.",
@@ -208,7 +195,6 @@
   "about.retry": "Thử lại",
   "about.download": "Tải xuống và cài đặt",
   "about.gatekeeperNote": "Sau khi khởi động lại, macOS có thể yêu cầu bạn cho phép ứng dụng lại trong System Settings › Privacy & Security.",
-
   "setup.permissionsTitle": "Cần có quyền",
   "setup.permissionsDesc": "Sumi cần những quyền này để ghi âm và dán văn bản vào vị trí con trỏ.",
   "setup.permMicName": "Micro",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Dán văn bản vào vị trí con trỏ với {pasteShortcut}",
   "setup.permGrant": "Cấp",
   "setup.permContinue": "Tiếp tục",
-
   "setup.initialTitle": "Thiết lập Nhận diện giọng nói",
   "setup.initialDesc": "Sumi cần tải xuống mô hình nhận diện giọng nói (~1,5 GB) để chuyển đổi hoàn toàn ngoại tuyến. Điều này chỉ xảy ra một lần.",
   "setup.downloadBtn": "Tải xuống mô hình",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Nhanh hơn, nhưng văn bản được gửi đến máy chủ bên ngoài. Cần API Key.",
   "setup.polishCloudContinue": "Tiếp tục",
   "setup.polishSkip": "Bỏ qua bây giờ",
-
   "setup.stepStt": "Giọng nói",
   "setup.stepPolish": "Đánh bóng",
   "setup.stepTest": "Kiểm tra",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID mô hình",
   "setup.testSkip": "Bỏ qua kiểm tra",
   "setup.testDone": "Xong",
-
   "setup.llmDownloadingTitle": "Đang tải xuống mô hình AI...",
   "setup.errorTitle": "Tải xuống không thành công",
   "setup.errorDefault": "Đã xảy ra lỗi không mong muốn.",
   "setup.retryBtn": "Thử tải xuống lại",
-
   "test.breadcrumb.mic": "Micro",
   "test.breadcrumb.hotkey": "Phím tắt",
   "test.breadcrumb.general": "Chung",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Nhấp vào nội dung email, nhấn {hotkey} để bắt đầu, nói, sau đó nhấn {hotkey} lần nữa để dừng",
   "test.step4.sampleText": "Hãy thử nói: \"Xin chào Alice, chúng ta vẫn dự định gặp nhau vào bữa trưa ngày mai không? Alan\"",
   "test.step4.done": "Xong",
-
   "test.breadcrumb.polishCheck": "Sửa đổi",
   "test.breadcrumb.editByVoice": "Chỉnh sửa bằng giọng nói",
   "test.step5.title": "Chỉnh sửa bằng giọng nói",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Xin chào Alice, chúng ta vẫn dùng cơm trưa vào ngày mai chứ? Vui lòng cho tôi biết nếu điều đó phù hợp với bạn. Cảm ơn, Alan",
   "test.step6.editorTitle": "Bài kiểm tra chỉnh sửa",
   "test.step6.done": "Xong",
-
   "overlay.preparing": "Đang chuẩn bị…",
   "overlay.recording": "Ghi âm",
   "overlay.transcribing": "Đang chuyển đổi",
@@ -310,14 +290,7 @@
   "overlay.edited": "Đã chỉnh sửa",
   "overlay.editRequiresPolish": "Chỉnh sửa yêu cầu AI Polish",
   "overlay.undo": "Hoàn tác",
-  "overlay.previewConfirm": "Xác nhận",
-  "overlay.previewCancel": "Hủy",
-  "overlay.previewEditHint": "Nhấp vào văn bản để chỉnh sửa",
-  "overlay.previewEditingHint": "⌘Enter để xác nhận · Esc để hủy",
-
   "settings.behavior": "Hành vi",
   "settings.behavior.autoPaste": "Tự động dán",
-  "settings.behavior.autoPasteDesc": "Tự động dán bản ghi âm tại vị trí con trỏ",
-  "settings.behavior.preview": "Xem trước trước khi dán",
-  "settings.behavior.previewDesc": "Hiển thị bản ghi âm để xem lại trước khi dán"
+  "settings.behavior.autoPasteDesc": "Tự động dán bản ghi âm tại vị trí con trỏ"
 }

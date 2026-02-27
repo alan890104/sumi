@@ -52,7 +52,6 @@ pub fn save_settings(
     current.stt.cloud.language = current.stt.language.clone();
     current.edit_hotkey = new_settings.edit_hotkey;
     current.onboarding_completed = new_settings.onboarding_completed;
-    current.preview_before_paste = new_settings.preview_before_paste;
     settings::save_settings_to_disk(&current);
     Ok(())
 }
@@ -1434,25 +1433,6 @@ pub fn download_whisper_model(app: AppHandle, model: WhisperModel) -> Result<(),
         println!("[Sumi] Whisper model downloaded: {:?}", model_path);
     });
 
-    Ok(())
-}
-
-// ── Preview commands ────────────────────────────────────────────────────────
-
-#[tauri::command]
-pub fn confirm_preview(
-    app: AppHandle,
-    edited_text: Option<String>,
-) -> Result<(), String> {
-    crate::do_confirm_preview(&app, edited_text);
-    Ok(())
-}
-
-#[tauri::command]
-pub fn cancel_preview(
-    app: AppHandle,
-) -> Result<(), String> {
-    crate::do_cancel_preview(&app);
     Ok(())
 }
 

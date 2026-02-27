@@ -5,12 +5,10 @@
   "nav.history": "История",
   "nav.about": "О приложении",
   "nav.test": "Тест",
-
   "settings.title": "Параметры",
   "settings.language": "Язык",
   "settings.language.label": "Язык интерфейса",
   "settings.language.desc": "Выберите язык отображения приложения",
-
   "settings.shortcuts": "Сочетания Клавиш",
   "settings.shortcuts.hotkey": "Диктовка",
   "settings.shortcuts.hotkeyDesc": "Нажмите для запуска/остановки записи и транскрибирования",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Не установлено",
   "settings.shortcuts.editRequiresPolish": "Требует включения улучшения AI",
   "settings.shortcuts.clear": "Очистить",
-
   "settings.mic": "Микрофон",
   "settings.mic.inputDevice": "Устройство Ввода",
   "settings.mic.noMic": "Микрофон не обнаружен",
   "settings.mic.noMicDesc": "Подключите микрофон или проверьте параметры системы",
   "settings.mic.devicesAvailable": "{n} устройство{s} доступно",
   "settings.mic.auto": "Автоматически",
-
   "settings.stt": "Распознавание Речи",
   "settings.stt.mode": "Режим",
   "settings.stt.modeDesc": "Выберите локальный или облачный механизм транскрибирования",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Повторить",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Наивысшая многоязычная точность",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Самая быстрая, минимальный размер",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Лучше всего для традиционного китайского",
-
   "setup.sttModelChoiceTitle": "Выберите модель распознавания речи",
   "setup.sttModelChoiceDesc": "Выберите модель в соответствии с вашими потребностями. Вы можете изменить это позже в Настройках.",
   "setup.recommended": "Рекомендуется",
   "setup.sttModelDownloadBtn": "Загрузить и продолжить",
   "setup.sttModelSystemInfo": "Система: {ram} ОЗУ, {disk} свободного места на диске",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Лучше всего для традиционного китайского",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Многоязычная",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Новейшая многоязычная, с/без рассуждений",
-
   "settings.polish": "Полировка AI",
   "settings.polish.toggle": "Полировать транскрипцию с помощью AI",
   "settings.polish.toggleDesc": "Улучшите грамматику, тон и ясность",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Эти инструкции добавляются к основной подсказке при совпадении этого правила.",
   "settings.polish.ruleSave": "Сохранить",
   "settings.polish.ruleCancel": "Отмена",
-
   "promptRules.title": "Правила Подсказок",
   "promptRules.desc": "Правила сопоставляются с приложением на переднем плане — инструкции первого совпадающего правила добавляются к основной подсказке.",
   "promptRules.voiceTipMain": "Нажмите {hotkey} для описания правила голосом.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Повторить Настройку",
   "settings.danger.rerunSetupDesc": "Снова показать экран начальной настройки",
   "settings.danger.rerunSetupBtn": "Запустить Настройку",
-
   "confirm.resetTitle": "Сброс на Умолчание",
   "confirm.resetMessage": "Это восстановит все параметры к исходным значениям. Это действие нельзя отменить.",
   "confirm.cancel": "Отмена",
   "confirm.reset": "Сброс",
-
   "dictionary.title": "Пользовательский Словарь",
   "dictionary.desc": "Добавьте собственные имена, имена или термины специального назначения. AI автоматически будет использовать правильную форму при встречении слов с похожим звучанием.",
   "dictionary.toggle": "Включить Пользовательский Словарь",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Отключить",
   "dictionary.emptyTitle": "Нет терминов словаря",
   "dictionary.emptyHint": "Добавьте термины для помощи AI в распознавании собственных имен и имен.",
-
   "history.title": "История",
   "history.privacyNote": "Ваши данные остаются приватными — вся история хранится локально только на этом устройстве.",
   "history.retention": "Хранение Данных",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Окончательно удалить все записи истории и аудиофайлы",
   "history.clearAllConfirm": "Вы уверены, что хотите окончательно удалить всю историю и аудиофайлы? Это действие нельзя отменить.",
   "history.loadMore": "Загрузить ещё",
-
   "about.title": "О приложении",
   "about.version": "Версия {version}",
   "about.desc": "Ваш голос, в письменном виде. Преобразование речи в текст с помощью AI — нажмите горячую клавишу для записи, транскрибирования и вставки в позицию курсора.",
@@ -208,7 +195,6 @@
   "about.retry": "Повторить",
   "about.download": "Скачать и Установить",
   "about.gatekeeperNote": "После перезагрузки macOS может попросить вас разрешить приложение снова в Параметры системы › Конфиденциальность и безопасность.",
-
   "setup.permissionsTitle": "Требуются Разрешения",
   "setup.permissionsDesc": "Sumi требует этих разрешений для записи аудио и вставки текста в позицию курсора.",
   "setup.permMicName": "Микрофон",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Вставляйте текст в позицию курсора с помощью {pasteShortcut}",
   "setup.permGrant": "Предоставить",
   "setup.permContinue": "Продолжить",
-
   "setup.initialTitle": "Установка Распознавания Речи",
   "setup.initialDesc": "Sumi должен загрузить модель распознавания речи (~1,5 GB) для полностью автономного транскрибирования. Это происходит только один раз.",
   "setup.downloadBtn": "Скачать Модель",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Быстрее, но текст отправляется на внешний сервер. Требует ключ API.",
   "setup.polishCloudContinue": "Продолжить",
   "setup.polishSkip": "Пропустить на Время",
-
   "setup.stepStt": "Речь",
   "setup.stepPolish": "Полировка",
   "setup.stepTest": "Тест",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID Модели",
   "setup.testSkip": "Пропустить Тест",
   "setup.testDone": "Готово",
-
   "setup.llmDownloadingTitle": "Загрузка Модели AI...",
   "setup.errorTitle": "Загрузка Не Удалась",
   "setup.errorDefault": "Произошла неожиданная ошибка.",
   "setup.retryBtn": "Повторить Загрузку",
-
   "test.breadcrumb.mic": "Микрофон",
   "test.breadcrumb.hotkey": "Горячая Клавиша",
   "test.breadcrumb.general": "Общие",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Кликните в тело письма, нажмите {hotkey} для начала, говорите, затем нажмите {hotkey} снова для остановки",
   "test.step4.sampleText": "Попробуйте сказать: \"Привет Алиса, мы еще на обед завтра как планировали? Алан\"",
   "test.step4.done": "Готово",
-
   "test.breadcrumb.polishCheck": "Улучшение",
   "test.breadcrumb.editByVoice": "Редактирование Голосом",
   "test.step5.title": "Редактирование Голосом",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Привет Алиса, мы всё ещё планируем обед завтра? Дай мне знать, если тебе это подходит. Спасибо, Алан",
   "test.step6.editorTitle": "Тест редактирования",
   "test.step6.done": "Готово",
-
   "overlay.preparing": "Подготовка…",
   "overlay.recording": "Запись",
   "overlay.transcribing": "Транскрибирование",
@@ -310,14 +290,7 @@
   "overlay.edited": "Отредактировано",
   "overlay.editRequiresPolish": "Требуется улучшение AI для редактирования",
   "overlay.undo": "Отменить",
-  "overlay.previewConfirm": "Подтвердить",
-  "overlay.previewCancel": "Отмена",
-  "overlay.previewEditHint": "Нажмите на текст для редактирования",
-  "overlay.previewEditingHint": "⌘Enter для подтверждения · Esc для отмены",
-
   "settings.behavior": "Поведение",
   "settings.behavior.autoPaste": "Автоматическая вставка",
-  "settings.behavior.autoPasteDesc": "Автоматически вставлять транскрипцию в позицию курсора",
-  "settings.behavior.preview": "Предпросмотр перед вставкой",
-  "settings.behavior.previewDesc": "Показать транскрипцию для проверки перед вставкой"
+  "settings.behavior.autoPasteDesc": "Автоматически вставлять транскрипцию в позицию курсора"
 }

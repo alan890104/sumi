@@ -5,12 +5,10 @@
   "nav.history": "تاریخچه",
   "nav.about": "درباره",
   "nav.test": "آزمایش",
-
   "settings.title": "تنظیمات",
   "settings.language": "زبان",
   "settings.language.label": "زبان رابط کاربری",
   "settings.language.desc": "زبان نمایشی برای اپلیکیشن را انتخاب کنید",
-
   "settings.shortcuts": "میانبرهای صفحه‌کلید",
   "settings.shortcuts.hotkey": "دیکته‌کردن",
   "settings.shortcuts.hotkeyDesc": "برای شروع/توقف ضبط و رونویسی، فشار دهید",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "تنظیم نشده",
   "settings.shortcuts.editRequiresPolish": "نیاز به فعال‌سازی بهبود AI دارد",
   "settings.shortcuts.clear": "پاک کردن",
-
   "settings.mic": "میکروفون",
   "settings.mic.inputDevice": "دستگاه ورودی",
   "settings.mic.noMic": "هیچ میکروفونی تشخیص داده نشد",
   "settings.mic.noMicDesc": "میکروفون را متصل کنید یا تنظیمات سیستم را بررسی کنید",
   "settings.mic.devicesAvailable": "{n} دستگاه{s} در دسترس",
   "settings.mic.auto": "خودکار",
-
   "settings.stt": "تشخیص صدا",
   "settings.stt.mode": "حالت",
   "settings.stt.modeDesc": "موتور رونویسی محلی یا ابری را انتخاب کنید",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "تلاش دوباره",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "بالاترین دقت چند زبانه",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "سریع‌ترین، کوچک‌ترین حجم",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "بهترین برای چینی سنتی",
-
   "setup.sttModelChoiceTitle": "مدل تشخیص گفتار را انتخاب کنید",
   "setup.sttModelChoiceDesc": "مدلی را بر اساس نیازهای خود انتخاب کنید. می‌توانید این را بعداً در تنظیمات تغییر دهید.",
   "setup.recommended": "توصیه شده",
   "setup.sttModelDownloadBtn": "دانلود و ادامه",
   "setup.sttModelSystemInfo": "سیستم: {ram} RAM، {disk} فضای خالی",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "بهترین برای چینی سنتی",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "چند زبانه",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "جدیدترین چند زبانه، تفکر/بدون تفکر",
-
   "settings.polish": "پرداخت AI",
   "settings.polish.toggle": "رونویسی را با AI پرداخت کنید",
   "settings.polish.toggleDesc": "دستور زبان، تن و شفافیت را بهبود بخشید",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "این دستورالعمل‌ها به درخواست پایه اضافه می‌شوند وقتی این قانون مطابقت داشته باشد.",
   "settings.polish.ruleSave": "ذخیره",
   "settings.polish.ruleCancel": "لغو",
-
   "promptRules.title": "قوانین درخواست",
   "promptRules.desc": "قوانین با اپلیکیشن پیش‌رو مطابقت دارند — دستورالعمل‌های قانون مطابق‌شده اول به درخواست پایه اضافه می‌شوند.",
   "promptRules.voiceTipMain": "{hotkey} را فشار دهید تا قانون خود را با صدا توصیف کنید.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "راه‌اندازی دوباره",
   "settings.danger.rerunSetupDesc": "کاغذ راه‌اندازی اول استفاده را دوباره نشان دهید",
   "settings.danger.rerunSetupBtn": "راه‌اندازی را اجرا کنید",
-
   "confirm.resetTitle": "بازنشانی به پیش‌فرض",
   "confirm.resetMessage": "این کار تمام تنظیمات را به مقادیر اصلی بازگردانی خواهد کرد. این کار را نمی‌توان خنثی کرد.",
   "confirm.cancel": "لغو",
   "confirm.reset": "بازنشانی",
-
   "dictionary.title": "واژه‌نامه سفارشی",
   "dictionary.desc": "نام‌های خاص، نام‌ها یا واژگان مختص دامنه اضافه کنید. AI به‌طور خودکار هنگام مواجهه با کلمات مشابه‌صدا از فرم صحیح استفاده خواهد کرد.",
   "dictionary.toggle": "فعال‌سازی واژه‌نامه سفارشی",
@@ -157,7 +146,6 @@
   "dictionary.disable": "غیرفعال کردن",
   "dictionary.emptyTitle": "هنوز واژگان واژه‌نامه‌ای وجود ندارد",
   "dictionary.emptyHint": "واژگان اضافه کنید تا AI بتواند نام‌های خاص و نام‌ها را تشخیص دهد.",
-
   "history.title": "تاریخچه",
   "history.privacyNote": "داده‌های شما محرمانه می‌مانند — تمام تاریخچه فقط محلی روی این دستگاه ذخیره می‌شود.",
   "history.retention": "نگهداری داده",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "تمام ورودی‌های تاریخچه و فایل‌های صدا را برای همیشه حذف کنید",
   "history.clearAllConfirm": "آیا مطمئن هستید که می‌خواهید تمام تاریخچه و فایل‌های صدا را برای همیشه حذف کنید؟ این کار را نمی‌توان خنثی کرد.",
   "history.loadMore": "بارگذاری بیشتر",
-
   "about.title": "درباره",
   "about.version": "نسخه {version}",
   "about.desc": "صدای شما، به نوشتار. تشخیص صدا با قدرت AI — یک میانبر را فشار دهید تا ضبط کنید، رونویسی کنید و در نشانگر خود بچسبانید.",
@@ -208,7 +195,6 @@
   "about.retry": "تلاش دوباره",
   "about.download": "دانلود و نصب",
   "about.gatekeeperNote": "پس از راه‌اندازی دوباره، macOS ممکن است از شما خواهش کند تا برنامه را دوباره در تنظیمات سیستم › حفظ‌الاطلاعات و امنیت مجاز کنید.",
-
   "setup.permissionsTitle": "مجوزهای لازم",
   "setup.permissionsDesc": "Sumi برای ضبط صوت و چسباندن متن در نشانگر شما به این مجوزها نیاز دارد.",
   "setup.permMicName": "میکروفون",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "متن را با {pasteShortcut} در نشانگر خود بچسبانید",
   "setup.permGrant": "اعطا کردن",
   "setup.permContinue": "ادامه",
-
   "setup.initialTitle": "تشخیص صدا را راه‌اندازی کنید",
   "setup.initialDesc": "Sumi برای رونویسی کاملاً آفلاین باید یک مدل تشخیص صدا (~1.5 GB) دانلود کند. این تنها یک بار اتفاق می‌افتد.",
   "setup.downloadBtn": "مدل را دانلود کنید",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "سریع‌تر، اما متن به سرور خارجی ارسال می‌شود. کلید API لازم است.",
   "setup.polishCloudContinue": "ادامه",
   "setup.polishSkip": "فعلاً رد کنید",
-
   "setup.stepStt": "صدا",
   "setup.stepPolish": "پرداخت",
   "setup.stepTest": "آزمایش",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "شناسه مدل",
   "setup.testSkip": "آزمایش را رد کنید",
   "setup.testDone": "تمام",
-
   "setup.llmDownloadingTitle": "درحال دانلود مدل AI...",
   "setup.errorTitle": "دانلود ناموفق",
   "setup.errorDefault": "خطای غیرمنتظره‌ای رخ داد.",
   "setup.retryBtn": "دانلود را دوباره امتحان کنید",
-
   "test.breadcrumb.mic": "میکروفون",
   "test.breadcrumb.hotkey": "میانبر",
   "test.breadcrumb.general": "عمومی",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "بر بدنه ایمیل کلیک کنید، {hotkey} را برای شروع فشار دهید، صحبت کنید، سپس {hotkey} را دوباره برای توقف فشار دهید",
   "test.step4.sampleText": "سعی کنید بگویید: \"سلام الیس، آیا ما برای ناهار فردا که برنامه‌ریزی کردیم هنوز قرار دارد؟ الن\"",
   "test.step4.done": "تمام",
-
   "test.breadcrumb.polishCheck": "بهبود",
   "test.breadcrumb.editByVoice": "ویرایش با صدا",
   "test.step5.title": "ویرایش با صدا",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "سلام الیس، آیا ما برای ناهار فردا هنوز موافق هستیم؟ اگر این برای تو مناسب است به من بگو. متشکرم، آلان",
   "test.step6.editorTitle": "تست ویرایش",
   "test.step6.done": "انجام شد",
-
   "overlay.preparing": "در حال آماده‌سازی…",
   "overlay.recording": "ضبط",
   "overlay.transcribing": "درحال رونویسی",
@@ -310,14 +290,7 @@
   "overlay.edited": "ویرایش شد",
   "overlay.editRequiresPolish": "بهبود AI برای ویرایش ضروری است",
   "overlay.undo": "خنثی کردن",
-  "overlay.previewConfirm": "تایید",
-  "overlay.previewCancel": "لغو",
-  "overlay.previewEditHint": "برای ویرایش بر متن کلیک کنید",
-  "overlay.previewEditingHint": "⌘Enter برای تایید · Esc برای لغو",
-
   "settings.behavior": "رفتار",
   "settings.behavior.autoPaste": "چسباندن خودکار",
-  "settings.behavior.autoPasteDesc": "چسباندن خودکار رونوشت در موضع مکان‌نما",
-  "settings.behavior.preview": "پیش‌نمایش قبل از چسباندن",
-  "settings.behavior.previewDesc": "نمایش رونوشت برای بررسی قبل از چسباندن"
+  "settings.behavior.autoPasteDesc": "چسباندن خودکار رونوشت در موضع مکان‌نما"
 }

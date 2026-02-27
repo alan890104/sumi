@@ -5,12 +5,10 @@
   "nav.history": "История",
   "nav.about": "За програмата",
   "nav.test": "Тест",
-
   "settings.title": "Настройки",
   "settings.language": "Език",
   "settings.language.label": "Език на интерфейса",
   "settings.language.desc": "Изберете езика на екрана за програмата",
-
   "settings.shortcuts": "Клавишни комбинации",
   "settings.shortcuts.hotkey": "Диктовка",
   "settings.shortcuts.hotkeyDesc": "Натиснете, за да начнете/спрете записване и транскрибиране",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Не е зададен",
   "settings.shortcuts.editRequiresPolish": "Изисква включено подобряване с AI",
   "settings.shortcuts.clear": "Изчисти",
-
   "settings.mic": "Микрофон",
   "settings.mic.inputDevice": "Входно Устройство",
   "settings.mic.noMic": "Микрофонът не е намерен",
   "settings.mic.noMicDesc": "Подключете микрофон или проверете системните настройки",
   "settings.mic.devicesAvailable": "{n} устройств{s} налично",
   "settings.mic.auto": "Автоматично",
-
   "settings.stt": "Разпознаване на Глас",
   "settings.stt.mode": "Режим",
   "settings.stt.modeDesc": "Изберете локален или облачен механизъм за транскрибиране",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Опитайте отново",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Най-висока многоезична точност",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Най-бърза, минимален размер",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Най-добро за традиционен китайски",
-
   "setup.sttModelChoiceTitle": "Изберете модел за разпознаване на реч",
   "setup.sttModelChoiceDesc": "Изберете модел според вашите нужди. Можете да го промените по-късно в Настройки.",
   "setup.recommended": "Препоръчва се",
   "setup.sttModelDownloadBtn": "Изтеглете и продължете",
   "setup.sttModelSystemInfo": "Система: {ram} RAM, {disk} свободно място на диска",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Най-добро за традиционен китайски",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Многоезична",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Най-нова многоезична, с/без разсъждения",
-
   "settings.polish": "AI Полиране",
   "settings.polish.toggle": "Полирай транскрипцията с AI",
   "settings.polish.toggleDesc": "Подобри граматиката, тона и яснотата",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Тези инструкции се добавят към базовата подсказка, когато това правило съвпада.",
   "settings.polish.ruleSave": "Запази",
   "settings.polish.ruleCancel": "Отказ",
-
   "promptRules.title": "Правила за Подсказки",
   "promptRules.desc": "Правилата съответстват на преднето приложение — инструкциите на първото съответстващо правило се добавят към базовата подсказка.",
   "promptRules.voiceTipMain": "Натиснете {hotkey}, за да опишете вашето правило с глас.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Повторно Стартирай Настройката",
   "settings.danger.rerunSetupDesc": "Покажи екрана за първо стартиране отново",
   "settings.danger.rerunSetupBtn": "Стартирай Настройката",
-
   "confirm.resetTitle": "Нулирай до Подразбиращите се",
   "confirm.resetMessage": "Това ще възстанови всички настройки до техните оригинални стойности. Това не може да бъде отменено.",
   "confirm.cancel": "Отказ",
   "confirm.reset": "Нулирай",
-
   "dictionary.title": "Персонализиран Речник",
   "dictionary.desc": "Добавьте собствени имена, имена или специфични за домена термини. AI автоматично ще използва правилната форма, когато срещне звучещи същите думи.",
   "dictionary.toggle": "Включи персонализирания речник",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Отключи",
   "dictionary.emptyTitle": "Все още няма термини на речника",
   "dictionary.emptyHint": "Добавьте термините, за да помогнете на AI да разпознава собствени имена и имена.",
-
   "history.title": "История",
   "history.privacyNote": "Вашите данни остават частни — цялата история се съхранява локално само на този уред.",
   "history.retention": "Съхранение на Данни",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Окончателно изтрийте всички записи на историята и звукови файлове",
   "history.clearAllConfirm": "Сигурни ли сте, че искате окончателно да изтриете цялата история и звукови файлове? Това действие не може да бъде отменено.",
   "history.loadMore": "Заредете още",
-
   "about.title": "За програмата",
   "about.version": "Версия {version}",
   "about.desc": "Вашият глас, писано. AI-захранвано преобразуване на глас в текст — натиснете горещ клавиш, за да записвате, транскрибирате и вставяте при курсора.",
@@ -208,7 +195,6 @@
   "about.retry": "Опитай отново",
   "about.download": "Изтегли & Инсталирай",
   "about.gatekeeperNote": "След рестартиране, macOS може да ви поиска да разрешите приложението отново в Системни настройки › Конфиденциалност & Сигурност.",
-
   "setup.permissionsTitle": "Необходими Разрешения",
   "setup.permissionsDesc": "Sumi трябва тези разрешения, за да записва звук и да вставя текст при курсора.",
   "setup.permMicName": "Микрофон",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Вставете текст при курсора с {pasteShortcut}",
   "setup.permGrant": "Даване",
   "setup.permContinue": "Продължи",
-
   "setup.initialTitle": "Настройка на Разпознаване на Глас",
   "setup.initialDesc": "Sumi трябва да изтегли модел за разпознаване на глас (~1,5 GB) за полупълна офлайн транскрипция. Това се дешава само веднъж.",
   "setup.downloadBtn": "Изтегли Модела",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "По-бързо, но текстът се изпраща на външен сервър. Изисква API ключ.",
   "setup.polishCloudContinue": "Продължи",
   "setup.polishSkip": "Пропусни засега",
-
   "setup.stepStt": "Глас",
   "setup.stepPolish": "Полиране",
   "setup.stepTest": "Тест",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID на Модела",
   "setup.testSkip": "Пропусни тестването",
   "setup.testDone": "Готово",
-
   "setup.llmDownloadingTitle": "Изтегляне на AI Модела...",
   "setup.errorTitle": "Изтеглянето Не Успя",
   "setup.errorDefault": "Възникна неочаквана грешка.",
   "setup.retryBtn": "Опитай Отново да Изтеглиш",
-
   "test.breadcrumb.mic": "Микрофон",
   "test.breadcrumb.hotkey": "Пряк път",
   "test.breadcrumb.general": "Общо",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Кликнете на тялото на имейла, натиснете {hotkey} за начало, говорете, след това натиснете {hotkey} отново за спиране",
   "test.step4.sampleText": "Опитайте да кажете: \"Привет Alice, все още ли сме на обед утре по план? Alan\"",
   "test.step4.done": "Готово",
-
   "test.breadcrumb.polishCheck": "Подобряване",
   "test.breadcrumb.editByVoice": "Редактирай с Глас",
   "test.step5.title": "Редактирай с Глас",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Привет Алис, все още ли планираме обед утре? Дай ми знак, ако това ти подходи. Благодаря, Алан",
   "test.step6.editorTitle": "Тест на редактиране",
   "test.step6.done": "Готово",
-
   "overlay.preparing": "Подготовка...",
   "overlay.recording": "Записване",
   "overlay.transcribing": "Транскрибиране",
@@ -310,14 +290,7 @@
   "overlay.edited": "Редактирано",
   "overlay.editRequiresPolish": "Подобряване с AI е необходимо за редактиране",
   "overlay.undo": "Отмяна",
-  "overlay.previewConfirm": "Потвърди",
-  "overlay.previewCancel": "Отказ",
-  "overlay.previewEditHint": "Щракнете върху текста за редактиране",
-  "overlay.previewEditingHint": "⌘Enter за потвърждение · Esc за отказ",
-
   "settings.behavior": "Поведение",
   "settings.behavior.autoPaste": "Автоматично вмъкване",
-  "settings.behavior.autoPasteDesc": "Автоматично вмъкване на транскрипцията в позицията на курсора",
-  "settings.behavior.preview": "Преглед преди вмъкване",
-  "settings.behavior.previewDesc": "Покажи транскрипцията за преглед преди вмъкване"
+  "settings.behavior.autoPasteDesc": "Автоматично вмъкване на транскрипцията в позицията на курсора"
 }

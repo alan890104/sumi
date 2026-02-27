@@ -5,12 +5,10 @@
   "nav.history": "Ajalugu",
   "nav.about": "Teave",
   "nav.test": "Test",
-
   "settings.title": "Seaded",
   "settings.language": "Keel",
   "settings.language.label": "Kasutajaliidese keel",
   "settings.language.desc": "Valige rakenduse kuva keel",
-
   "settings.shortcuts": "Klaviatuurikiirusmälud",
   "settings.shortcuts.hotkey": "Dikteerimine",
   "settings.shortcuts.hotkeyDesc": "Salvestamise ja transkribeerimine alustamiseks/peatamiseks vajutage",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Seadmata",
   "settings.shortcuts.editRequiresPolish": "Nõuab AI-viimistluse lubamist",
   "settings.shortcuts.clear": "Eemalda",
-
   "settings.mic": "Mikrofon",
   "settings.mic.inputDevice": "Sisendseade",
   "settings.mic.noMic": "Mikrofoni ei tuvastatud",
   "settings.mic.noMicDesc": "Ühendage mikrofon või kontrollige süsteemi seadeid",
   "settings.mic.devicesAvailable": "{n} seade{s} saadaval",
   "settings.mic.auto": "Automaatne",
-
   "settings.stt": "Kõne Tuvastamine",
   "settings.stt.mode": "Režiim",
   "settings.stt.modeDesc": "Valige lokaalne või pilve transkrebeerimine",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Proovi uuesti",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Kõrgeim mitmekeelne täpsus",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Kiireim, väikseim maht",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Parim traditsioonilisele hiina keelele",
-
   "setup.sttModelChoiceTitle": "Valige kõnetuvastuse mudel",
   "setup.sttModelChoiceDesc": "Valige mudel vastavalt oma vajadustele. Saate seda hiljem Seadetes muuta.",
   "setup.recommended": "Soovitatav",
   "setup.sttModelDownloadBtn": "Laadi alla ja jätka",
   "setup.sttModelSystemInfo": "Süsteem: {ram} RAM, {disk} vaba kettaruumi",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Parim traditsioonilisele hiina keelele",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Mitmekeelne",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Uusim mitmekeelne, mõtlemise/mittemõtlemise režiim",
-
   "settings.polish": "AI Poleerimine",
   "settings.polish.toggle": "Transkrebeerimine AI-ga poleerimine",
   "settings.polish.toggleDesc": "Parandage grammatikat, tooni ja selgust",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Neid juhiseid lisatakse põhiviibale, kui see reegel sobib.",
   "settings.polish.ruleSave": "Salvesta",
   "settings.polish.ruleCancel": "Tühista",
-
   "promptRules.title": "Viiba reeglid",
   "promptRules.desc": "Reegleid sobitab esiplaanil olev rakendus — esimese vastavusoleva reegli juhiseid lisatakse põhiviibale.",
   "promptRules.voiceTipMain": "Vajutage {hotkey} oma reegli häälega kirjeldamiseks.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Käivitage seadistus uuesti",
   "settings.danger.rerunSetupDesc": "Kuva seadistuse ülekatmine esimesel käivitamisel uuesti",
   "settings.danger.rerunSetupBtn": "Käivita seadistus",
-
   "confirm.resetTitle": "Taasta vaikeväärtused",
   "confirm.resetMessage": "See taastab kõik seaded nende algväärtustele. Seda ei saa tagasi võtta.",
   "confirm.cancel": "Tühista",
   "confirm.reset": "Taasta",
-
   "dictionary.title": "Kohandatud sõnastik",
   "dictionary.desc": "Lisage omade nimed, nimed või domeenispetsiifilised terminid. AI kasutab automaatselt õiget vormi, kui ta kohata sarnaselt kõlavaid sõnu.",
   "dictionary.toggle": "Luba kohandatud sõnastik",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Keela",
   "dictionary.emptyTitle": "Sõnastiku termineid pole",
   "dictionary.emptyHint": "Lisage terminid, et aidata AI-l omade ja isiklike nimesid tuvastada.",
-
   "history.title": "Ajalugu",
   "history.privacyNote": "Teie andmed jäävad privaatseks — kogu ajalugu säilitatakse ainult kohalikult sellel seadmel.",
   "history.retention": "Andmete säilitamine",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Kustutage jäädavalt kõik ajaloo kanded ja helifailid",
   "history.clearAllConfirm": "Kas olete kindel, et tahate jäädavalt kustutada kogu ajaloo ja helifailid? Seda tegevust ei saa tagasi võtta.",
   "history.loadMore": "Laadi rohkem",
-
   "about.title": "Teave",
   "about.version": "Versioon {version}",
   "about.desc": "Teie hääl, kirjutatud kujul. AI-toetatud kõne-tekstiks — vajadusel vajutage kiirusmäluga salvestamiseks, transkrebeerimieks ja liimimiseks oma kursoris.",
@@ -208,7 +195,6 @@
   "about.retry": "Proovige uuesti",
   "about.download": "Laadi alla ja installi",
   "about.gatekeeperNote": "Pärast taaskäivitamist võib macOS paluda teil lubada rakendus uuesti süsteemiseadetes › Privaatsus ja turvalisus.",
-
   "setup.permissionsTitle": "Nõutavad õigused",
   "setup.permissionsDesc": "Sumil on need õigused helisalvestuse ja teksti liimimiseks oma kursoris vajalikud.",
   "setup.permMicName": "Mikrofon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Kleepige tekst kursoris kasutades {pasteShortcut}",
   "setup.permGrant": "Andke",
   "setup.permContinue": "Jätkake",
-
   "setup.initialTitle": "Kõne tuvastamise seadistamine",
   "setup.initialDesc": "Sumil on vaja laadida kõne tuvastamise mudel (~1,5 GB) täielikuks offlaine transkribeerimiseks. See juhtub ainult üks kord.",
   "setup.downloadBtn": "Laadi mudel alla",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Kiirem, kuid tekst saadetakse välisele serverile. Nõuab API võtit.",
   "setup.polishCloudContinue": "Jätkake",
   "setup.polishSkip": "Jätke nüüd vahele",
-
   "setup.stepStt": "Kõne",
   "setup.stepPolish": "Poleerimine",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Mudeli ID",
   "setup.testSkip": "Jätke testid vahele",
   "setup.testDone": "Tehtud",
-
   "setup.llmDownloadingTitle": "AI mudeli laadimine...",
   "setup.errorTitle": "Allalaadimine ebaõnnestus",
   "setup.errorDefault": "Tekkis ootamatu viga.",
   "setup.retryBtn": "Proovige uuesti alla laadida",
-
   "test.breadcrumb.mic": "Mikrofon",
   "test.breadcrumb.hotkey": "Kiirusmälud",
   "test.breadcrumb.general": "Üldine",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Klõpsake e-posti tekstis, vajutage {hotkey} alustamiseks, rääkige ja seejärel vajutage {hotkey} uuesti peatamiseks",
   "test.step4.sampleText": "Proovige öelda: \"Hei Alice, jääme me homme einestusele nagu kavandatud? Alan\"",
   "test.step4.done": "Tehtud",
-
   "test.breadcrumb.polishCheck": "Viimistlus",
   "test.breadcrumb.editByVoice": "Redigeerimine häälega",
   "test.step5.title": "Redigeerimine häälega",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Tere Alice, kas me ikka läheme homme lõunale? Anna teada, kas see sulle sobib. Aitäh, Alan",
   "test.step6.editorTitle": "Redigeerimistest",
   "test.step6.done": "Valmis",
-
   "overlay.preparing": "Ettevalmistamine…",
   "overlay.recording": "Salvestamine",
   "overlay.transcribing": "Transkrebeerimine",
@@ -310,14 +290,7 @@
   "overlay.edited": "Redigeeritud",
   "overlay.editRequiresPolish": "AI-viimistlus on redigeerimiseks vajalik",
   "overlay.undo": "Võta tagasi",
-  "overlay.previewConfirm": "Kinnita",
-  "overlay.previewCancel": "Tühista",
-  "overlay.previewEditHint": "Klõpsake tekstil redigeerimiseks",
-  "overlay.previewEditingHint": "⌘Enter kinnitamiseks · Esc tühistamiseks",
-
   "settings.behavior": "Käitumine",
   "settings.behavior.autoPaste": "Automaatne kleepimine",
-  "settings.behavior.autoPasteDesc": "Ülekande automaatne kleepimine kursori asukohta",
-  "settings.behavior.preview": "Eelvaade enne kleepimist",
-  "settings.behavior.previewDesc": "Ülekande kuvamine ülevaatuseks enne kleepimist"
+  "settings.behavior.autoPasteDesc": "Ülekande automaatne kleepimine kursori asukohta"
 }

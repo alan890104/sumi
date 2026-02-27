@@ -5,12 +5,10 @@
   "nav.history": "Előzmények",
   "nav.about": "Névjegy",
   "nav.test": "Teszt",
-
   "settings.title": "Beállítások",
   "settings.language": "Nyelv",
   "settings.language.label": "Felhasználói felület nyelve",
   "settings.language.desc": "Válassza ki az alkalmazás megjelenítési nyelvét",
-
   "settings.shortcuts": "Billentyűparancsok",
   "settings.shortcuts.hotkey": "Diktálás",
   "settings.shortcuts.hotkeyDesc": "Nyomja meg a felvétel indításához/leállításához és a szöveg feldolgozásához",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Nincs beállítva",
   "settings.shortcuts.editRequiresPolish": "AI-csiszolás engedélyezése szükséges",
   "settings.shortcuts.clear": "Törlés",
-
   "settings.mic": "Mikrofon",
   "settings.mic.inputDevice": "Bemeneti eszköz",
   "settings.mic.noMic": "Nincs mikrofon",
   "settings.mic.noMicDesc": "Csatlakoztasson egy mikrofonot vagy ellenőrizze a rendszerbeállításokat",
   "settings.mic.devicesAvailable": "{n} eszköz{s} elérhető",
   "settings.mic.auto": "Automatikus",
-
   "settings.stt": "Beszédfelismerés",
   "settings.stt.mode": "Mód",
   "settings.stt.modeDesc": "Válasszon helyi vagy felhőalapú beszédfelismerési motort",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Újra",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Legmagasabb többnyelvű pontosság",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Leggyorsabb, legkisebb méret",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Legjobb a hagyományos kínaihoz",
-
   "setup.sttModelChoiceTitle": "Válasszon beszédfelismerési modellt",
   "setup.sttModelChoiceDesc": "Válasszon modellt az igényei alapján. Később módosíthatja a Beállításokban.",
   "setup.recommended": "Ajánlott",
   "setup.sttModelDownloadBtn": "Letöltés és folytatás",
   "setup.sttModelSystemInfo": "Rendszer: {ram} RAM, {disk} szabad lemezterület",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Legjobb a hagyományos kínaihoz",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Többnyelvű",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Legújabb többnyelvű, gondolkodó/nem gondolkodó",
-
   "settings.polish": "AI Tisztítás",
   "settings.polish.toggle": "Szöveg tisztítása AI-val",
   "settings.polish.toggleDesc": "Javítsa a nyelvtant, hangnemet és egyértelműséget",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Ezek az utasítások az alapvető parancshoz kerülnek hozzáadásra, amikor ez a szabály egyezik.",
   "settings.polish.ruleSave": "Mentés",
   "settings.polish.ruleCancel": "Mégse",
-
   "promptRules.title": "Szabályok",
   "promptRules.desc": "A szabályok az aktív alkalmazás alapján illeszkednek — az első egyező szabály utasításai az alapparancshoz kerülnek hozzáadásra.",
   "promptRules.voiceTipMain": "Nyomja meg a {hotkey} gombot a szabály hangról történő leírásához.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Telepítés újrafuttatása",
   "settings.danger.rerunSetupDesc": "Az első indítás beállítási felülete ismét megjelenik",
   "settings.danger.rerunSetupBtn": "Telepítés futtatása",
-
   "confirm.resetTitle": "Visszaállítás alapértelmezett értékekre",
   "confirm.resetMessage": "Ez visszaállítja az összes beállítást az eredeti értékekre. Ez nem visszavonható.",
   "confirm.cancel": "Mégse",
   "confirm.reset": "Visszaállítás",
-
   "dictionary.title": "Egyéni szótár",
   "dictionary.desc": "Adjon hozzá tulajdonnéveket, neveket vagy tartomány-specifikus kifejezéseket. Az AI automatikusan a helyes formát használja, amikor hasonló hangzású szavakra találkozik.",
   "dictionary.toggle": "Egyéni szótár engedélyezése",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Letiltás",
   "dictionary.emptyTitle": "Nincsenek szótári kifejezések",
   "dictionary.emptyHint": "Adjon hozzá kifejezéseket, hogy az AI felismerje a tulajdonnéveket és neveket.",
-
   "history.title": "Előzmények",
   "history.privacyNote": "Az adatok magánjellegűek — az összes előzmény csak az eszközön marad.",
   "history.retention": "Adatmegőrzés",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Az összes előzmény és hangfájl végleg törlése",
   "history.clearAllConfirm": "Biztosan végleg szeretné törölni az összes előzményt és hangfájlt? Ez az intézkedés nem visszavonható.",
   "history.loadMore": "Továbbiak betöltése",
-
   "about.title": "Névjegy",
   "about.version": "Verzió {version}",
   "about.desc": "Az Ön szava, írásban. AI-alapú beszéd-szöveg átalakítás — nyomjon egy billentyűkombinációt a felvételhez, feldolgozáshoz és beillesztéshez a kurzornál.",
@@ -208,7 +195,6 @@
   "about.retry": "Újra",
   "about.download": "Letöltés és telepítés",
   "about.gatekeeperNote": "Az újraindítás után a macOS megkérheti az alkalmazás engedélyezésére a Rendszer beállítások › Adatvédelmi és biztonsági beállítások menüben.",
-
   "setup.permissionsTitle": "Szükséges engedélyek",
   "setup.permissionsDesc": "A Sumi-nak ezekre az engedélyekre van szüksége a hang felvételéhez és a szöveg beillesztéséhez a kurzornál.",
   "setup.permMicName": "Mikrofon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Szöveg beillesztése a kurzornál a {pasteShortcut} billentyűkombinációval",
   "setup.permGrant": "Engedélyezés",
   "setup.permContinue": "Folytatás",
-
   "setup.initialTitle": "Beszédfelismerés beállítása",
   "setup.initialDesc": "A Sumi-nak le kell töltenie egy beszédfelismerési modellt (~1,5 GB) a teljesen offline feldolgozáshoz. Ez csak egyszer történik meg.",
   "setup.downloadBtn": "Modell letöltése",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Gyorsabb, de a szöveg egy külső szerverhez kerül. API kulcs szükséges.",
   "setup.polishCloudContinue": "Folytatás",
   "setup.polishSkip": "Hagyja ki most",
-
   "setup.stepStt": "Beszéd",
   "setup.stepPolish": "Tisztítás",
   "setup.stepTest": "Teszt",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Modell ID",
   "setup.testSkip": "Teszt kihagyása",
   "setup.testDone": "Kész",
-
   "setup.llmDownloadingTitle": "AI Modell letöltése...",
   "setup.errorTitle": "Letöltés meghiúsult",
   "setup.errorDefault": "Váratlan hiba történt.",
   "setup.retryBtn": "Letöltés újrapróbálása",
-
   "test.breadcrumb.mic": "Mikrofon",
   "test.breadcrumb.hotkey": "Billentyűkombináció",
   "test.breadcrumb.general": "Általános",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Kattintson az email szövegére, nyomja meg a {hotkey} gombot az indításhoz, beszéljen, majd nyomja meg ismét a {hotkey} gombot a leállításhoz",
   "test.step4.sampleText": "Próbálja így mondani: \"Halló Alice, még mindig érkezünk a holnapi ebédre, ahogy tervezett? Alan\"",
   "test.step4.done": "Kész",
-
   "test.breadcrumb.polishCheck": "Csiszolás",
   "test.breadcrumb.editByVoice": "Szerkesztés hangból",
   "test.step5.title": "Szerkesztés hangból",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Szia Alice, még mindig ebédelünk holnap? Szólj, ha megfelel. Köszi, Alan",
   "test.step6.editorTitle": "Szerkesztési teszt",
   "test.step6.done": "Kész",
-
   "overlay.preparing": "Előkészítés…",
   "overlay.recording": "Felvétel",
   "overlay.transcribing": "Feldolgozás",
@@ -310,14 +290,7 @@
   "overlay.edited": "Szerkesztve",
   "overlay.editRequiresPolish": "AI-csiszolás szükséges a szerkesztéshez",
   "overlay.undo": "Visszavonás",
-  "overlay.previewConfirm": "Megerősítés",
-  "overlay.previewCancel": "Mégse",
-  "overlay.previewEditHint": "Kattintson a szövegre a szerkesztéshez",
-  "overlay.previewEditingHint": "⌘Enter megerősítés · Esc mégse",
-
   "settings.behavior": "Viselkedés",
   "settings.behavior.autoPaste": "Automatikus beillesztés",
-  "settings.behavior.autoPasteDesc": "Az átirat automatikus beillesztése a kurzor pozíciójában",
-  "settings.behavior.preview": "Előnézet beillesztés előtt",
-  "settings.behavior.previewDesc": "Az átirat megjelenítése ellenőrzésre beillesztés előtt"
+  "settings.behavior.autoPasteDesc": "Az átirat automatikus beillesztése a kurzor pozíciójában"
 }

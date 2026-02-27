@@ -5,12 +5,10 @@
   "nav.history": "History",
   "nav.about": "About",
   "nav.test": "Test",
-
   "settings.title": "Settings",
   "settings.language": "Language",
   "settings.language.label": "Interface language",
   "settings.language.desc": "Choose the display language for the app",
-
   "settings.shortcuts": "Keyboard Shortcuts",
   "settings.shortcuts.hotkey": "Dictation",
   "settings.shortcuts.hotkeyDesc": "Press to start/stop recording and transcribe",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Not set",
   "settings.shortcuts.editRequiresPolish": "Requires AI polishing to be enabled",
   "settings.shortcuts.clear": "Clear",
-
   "settings.mic": "Microphone",
   "settings.mic.inputDevice": "Input Device",
   "settings.mic.noMic": "No microphone detected",
   "settings.mic.noMicDesc": "Connect a microphone or check system settings",
   "settings.mic.devicesAvailable": "{n} device{s} available",
   "settings.mic.auto": "Auto",
-
   "settings.stt": "Speech Recognition",
   "settings.stt.mode": "Mode",
   "settings.stt.modeDesc": "Choose local or cloud transcription engine",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Retry",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Highest multilingual accuracy",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Fastest, smallest footprint",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Best for Traditional Chinese",
-
   "setup.sttModelChoiceTitle": "Choose a Speech Recognition Model",
   "setup.sttModelChoiceDesc": "Select a model based on your needs. You can change this later in Settings.",
   "setup.recommended": "Recommended",
   "setup.sttModelDownloadBtn": "Download & Continue",
   "setup.sttModelSystemInfo": "System: {ram} RAM, {disk} free disk",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Best for Traditional Chinese",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Multilingual",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Latest multilingual, thinking/non-thinking",
-
   "settings.polish": "AI Polishing",
   "settings.polish.toggle": "Polish transcription with AI",
   "settings.polish.toggleDesc": "Refine grammar, tone, and clarity",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "These instructions are appended to the base prompt when this rule matches.",
   "settings.polish.ruleSave": "Save",
   "settings.polish.ruleCancel": "Cancel",
-
   "promptRules.title": "Prompt Rules",
   "promptRules.desc": "Rules are matched by the frontmost app — the first matching rule's instructions are appended to the base prompt.",
   "promptRules.voiceTipMain": "Press {hotkey} to describe your rule by voice.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Re-run Setup",
   "settings.danger.rerunSetupDesc": "Show the first-launch setup overlay again",
   "settings.danger.rerunSetupBtn": "Run Setup",
-
   "confirm.resetTitle": "Reset to Defaults",
   "confirm.resetMessage": "This will restore all settings to their original values. This cannot be undone.",
   "confirm.cancel": "Cancel",
   "confirm.reset": "Reset",
-
   "dictionary.title": "Custom Dictionary",
   "dictionary.desc": "Add proper nouns, names, or domain-specific terms. The AI will automatically use the correct form when it encounters similar-sounding words.",
   "dictionary.toggle": "Enable custom dictionary",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Disable",
   "dictionary.emptyTitle": "No dictionary terms yet",
   "dictionary.emptyHint": "Add terms to help the AI recognize proper nouns and names.",
-
   "history.title": "History",
   "history.privacyNote": "Your data stays private — all history is stored locally on this device only.",
   "history.retention": "Data retention",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Permanently delete all history entries and audio files",
   "history.clearAllConfirm": "Are you sure you want to permanently delete all history and audio files? This action cannot be undone.",
   "history.loadMore": "Load more",
-
   "about.title": "About",
   "about.version": "Version {version}",
   "about.desc": "Your voice, in writing. AI-powered speech-to-text — press a hotkey to record, transcribe, and paste at your cursor.",
@@ -208,7 +195,6 @@
   "about.retry": "Retry",
   "about.download": "Download & Install",
   "about.gatekeeperNote": "After restarting, macOS may ask you to allow the app again in System Settings › Privacy & Security.",
-
   "setup.permissionsTitle": "Permissions Required",
   "setup.permissionsDesc": "Sumi needs these permissions to record audio and paste text at your cursor.",
   "setup.permMicName": "Microphone",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Paste text at your cursor with {pasteShortcut}",
   "setup.permGrant": "Grant",
   "setup.permContinue": "Continue",
-
   "setup.initialTitle": "Set Up Speech Recognition",
   "setup.initialDesc": "Sumi needs to download a speech recognition model (~1.5 GB) for fully offline transcription. This only happens once.",
   "setup.downloadBtn": "Download Model",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Faster, but text is sent to an external server. Requires an API key.",
   "setup.polishCloudContinue": "Continue",
   "setup.polishSkip": "Skip for now",
-
   "setup.stepStt": "Speech",
   "setup.stepPolish": "Polish",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Model ID",
   "setup.testSkip": "Skip testing",
   "setup.testDone": "Done",
-
   "setup.llmDownloadingTitle": "Downloading AI Model...",
   "setup.errorTitle": "Download Failed",
   "setup.errorDefault": "An unexpected error occurred.",
   "setup.retryBtn": "Retry Download",
-
   "test.breadcrumb.mic": "Microphone",
   "test.breadcrumb.hotkey": "Hotkey",
   "test.breadcrumb.general": "General",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Click the email body, press {hotkey} to start, speak, then press {hotkey} again to stop",
   "test.step4.sampleText": "Try saying: “嗨 Alice，我們明天還是照原計劃吃午餐嗎？Alan”",
   "test.step4.done": "Done",
-
   "test.breadcrumb.polishCheck": "Polish",
   "test.breadcrumb.editByVoice": "Edit by Voice",
   "test.step5.title": "AI Polishing",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hi Alice, are we still on for lunch tomorrow? Let me know if that works for you. Thanks, Alan",
   "test.step6.editorTitle": "Edit Test",
   "test.step6.done": "Done",
-
   "overlay.preparing": "Preparing…",
   "overlay.recording": "Recording",
   "overlay.transcribing": "Transcribing",
@@ -310,14 +290,7 @@
   "overlay.edited": "Edited",
   "overlay.editRequiresPolish": "AI polishing required for editing",
   "overlay.undo": "Undo",
-  "overlay.previewConfirm": "Confirm",
-  "overlay.previewCancel": "Cancel",
-  "overlay.previewEditHint": "Click text to edit",
-  "overlay.previewEditingHint": "⌘Enter to confirm · Esc to cancel",
-
   "settings.behavior": "Behavior",
   "settings.behavior.autoPaste": "Auto-paste",
-  "settings.behavior.autoPasteDesc": "Automatically paste transcription at cursor position",
-  "settings.behavior.preview": "Preview before paste",
-  "settings.behavior.previewDesc": "Show transcription for review before pasting"
+  "settings.behavior.autoPasteDesc": "Automatically paste transcription at cursor position"
 }

@@ -5,12 +5,10 @@
   "nav.history": "ಇತಿಹಾಸ",
   "nav.about": "ಬಗ್ಗೆ",
   "nav.test": "ಪರೀಕ್ಷೆ",
-
   "settings.title": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
   "settings.language": "ಭಾಷೆ",
   "settings.language.label": "ಇಂಟರ್‌ಫೇಸ್ ಭಾಷೆ",
   "settings.language.desc": "ಅಪ್ಲಿಕೇಶನ್‌ನ ಡಿಸ್‌ಪ್ಲೇ ಭಾಷೆ ಆಯ್ಕೆ ಮಾಡಿ",
-
   "settings.shortcuts": "ಕೀಬೋರ್ಡ್ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು",
   "settings.shortcuts.hotkey": "ಸುನುವುವ",
   "settings.shortcuts.hotkeyDesc": "ರೆಕಾರ್ಡಿಂಗ್ ಪ್ರಾರಂಭ/ನಿಲ್ಲಿಸಲು ಮತ್ತು ಪ್ರತಿಲೇಖನ ಮಾಡಲು ಒತ್ತಿರಿ",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "ಹೊಂದಿಸಲಾಗಿಲ್ಲ",
   "settings.shortcuts.editRequiresPolish": "ಸಂಪಾದನೆಗೆ AI ಪಾಲಿಶಿಂಗ್ ಸಕ್ರಿಯಗೊಳಿಸುವುದು ಅಗತ್ಯ",
   "settings.shortcuts.clear": "ಸ್ವಚ್ಛ ಮಾಡಿ",
-
   "settings.mic": "ಮೈಕ್ರೋಫೋನ್",
   "settings.mic.inputDevice": "ಇನ್‌ಪುಟ್ ಸಾಧನ",
   "settings.mic.noMic": "ಮೈಕ್ರೋಫೋನ್ ಕಂಡುಬಂದಿಲ್ಲ",
   "settings.mic.noMicDesc": "ಮೈಕ್ರೋಫೋನ್ ಸಂಪರ್ಕಿಸಿ ಅಥವಾ ಸಿಸ್ಟಮ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳು ಪರಿಶೀಲಿಸಿ",
   "settings.mic.devicesAvailable": "{n} ಸಾಧನ{s} ಲಭ್ಯವಿದೆ",
   "settings.mic.auto": "ಸ್ವಯಂಚಾಲಿತ",
-
   "settings.stt": "ಭಾಷಣ ಗುರುತಿಸುವಿಕೆ",
   "settings.stt.mode": "ಮೋಡ್",
   "settings.stt.modeDesc": "ಸ್ಥಳೀಯ ಅಥವಾ ಕ್ಲೌಡ್ API ಪ್ರತಿಲೇಖನ ಇಂಜಿನ್ ಆಯ್ಕೆ ಮಾಡಿ",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "ಹೆಚ್ಚು ಬಹುಭಾಷಿಕ ನಿಖುತತೆ",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "ವೇಗವಾಗಿ, ಸಣ್ಣ ಫುಟ್‌ಪ್ರಿಂಟ್",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "ಸಾಂಪ್ರದಾಯಿಕ ಚೀನೀ ಭಾಷೆಗೆ ಉತ್ತಮ",
-
   "setup.sttModelChoiceTitle": "ವಾಕ್ ಗುರುತಿಸುವಿಕೆ ಮಾದರಿ ಆರಿಸಿ",
   "setup.sttModelChoiceDesc": "ನಿಮ್ಮ ಅಗತ್ಯಗಳ ಆಧಾರದ ಮೇಲೆ ಮಾದರಿ ಆರಿಸಿ. ನೀವು ನಂತರ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಇದನ್ನು ಬದಲಾಯಿಸಬಹುದು.",
   "setup.recommended": "ಶಿಫಾರಸು ಮಾಡಲಾಗಿದೆ",
   "setup.sttModelDownloadBtn": "ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಮತ್ತು ಮುಂದುವರಿಸಿ",
   "setup.sttModelSystemInfo": "ವ್ಯವಸ್ಥೆ: {ram} RAM, {disk} ಉಚಿತ ಡಿಸ್ಕ್",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "ಸಾಂಪ್ರದಾಯಿಕ ಚೀನೀ ಭಾಷೆಗೆ ಉತ್ತಮ",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "ಬಹುಭಾಷಿಕ",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "ಇತ್ತೀಚಿನ ಬಹುಭಾಷಿಕ, ಚಿಂತನೆ/ಚಿಂತನೆಯಲ್ಲದ ಮೋಡ್",
-
   "settings.polish": "AI ಪಾಲಿಷಿಂಗ್",
   "settings.polish.toggle": "AI ಸಹ ಪ್ರತಿಲೇಖನ ಪಾಲಿಷ್ ಮಾಡಿ",
   "settings.polish.toggleDesc": "ವ್ಯಾಕರಣ, ಟೋನ್ ಮತ್ತು ಸ್ಪಷ್ಟತೆ ಸುಧಾರಿಸಿ",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "ಈ ನಿಯಮ ಹೊಂದಿಸಿದಾಗ ಈ ಸೂಚನೆಗಳನ್ನು ಮೂಲ ಪ್ರಾಂಪ್ಟ್‌ಗೆ ಸೇರಿಸಲಾಗುತ್ತದೆ.",
   "settings.polish.ruleSave": "ಉಳಿಸಿ",
   "settings.polish.ruleCancel": "ರದ್ದುಗೊಳಿಸಿ",
-
   "promptRules.title": "ಪ್ರಾಂಪ್ಟ್ ನಿಯಮಗಳು",
   "promptRules.desc": "ನಿಯಮಗಳನ್ನು ಅಗ್ರಭಾಗದ ಅಪ್ಲಿಕೇಶನ್‌ನಿಂದ ಮ್ಯಾಚ್ ಮಾಡಲಾಗುತ್ತದೆ — ಮೊದಲು ಹೊಂದಿಸಿದ ನಿಯಮದ ಸೂಚನೆಗಳನ್ನು ಮೂಲ ಪ್ರಾಂಪ್ಟ್‌ಗೆ ಸೇರಿಸಲಾಗುತ್ತದೆ.",
   "promptRules.voiceTipMain": "ನಿಮ್ಮ ನಿಯಮವನ್ನು ಧ್ವನಿಯಿಂದ ವಿವರಿಸಲು {hotkey} ಅನ್ನು ಒತ್ತಿರಿ.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "ಸೆಟಪ್ ಮುಂದೆ ರನ್ ಮಾಡಿ",
   "settings.danger.rerunSetupDesc": "ಮೊದಲ ಪ್ರಾರಂಭ ಸೆಟಪ್ ಓವರ್ಲೇ ಮುಂದೆ ತೋರಿಸಿ",
   "settings.danger.rerunSetupBtn": "ಸೆಟಪ್ ರನ್ ಮಾಡಿ",
-
   "confirm.resetTitle": "ಪೂರ್ವನಿರ್ಧಾರಿತಕ್ಕೆ ಪುನರಾರಂಭಿಸಿ",
   "confirm.resetMessage": "ಇದು ಎಲ್ಲಾ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಮೂಲ ಮೌಲ್ಯಗಳಿಗೆ ಪುನರುದ್ಧಾರ ಮಾಡುತ್ತದೆ. ಇದನ್ನು ರದ್ದು ಮಾಡಲಾಗುವುದಿಲ್ಲ.",
   "confirm.cancel": "ರದ್ದುಗೊಳಿಸಿ",
   "confirm.reset": "ಪುನರಾರಂಭಿಸಿ",
-
   "dictionary.title": "ಕಸ್ಟಮ್ ನಿಘಂಟು",
   "dictionary.desc": "ಸರಿಯಾದ ನಾವುಗಳು, ನಾವುಗಳು, ಅಥವಾ ಡೊಮೇನ್-ನಿರ್ದಿಷ್ಟ ನಿಯಮಗಳು ಸೇರಿಸಿ. AI ಸ್ವಯಂಚಾಲಿತವಾಗಿ ರಿಚಾರ್ಡ್ ನಿರ್ದಿಷ್ಟ ನಾವುಗಳೊಂದಿಗೆ ಸಿಡಿಲೋಟ ಚೆವುಳುಂಡಾಗ ಸರಿಯಾದ ರೂಪ ಬಳಸುತ್ತದೆ.",
   "dictionary.toggle": "ಕಸ್ಟಮ್ ನಿಘಂಟು ಸಕ್ರಿಯಗೊಳಿಸಿ",
@@ -157,7 +146,6 @@
   "dictionary.disable": "ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ",
   "dictionary.emptyTitle": "ಯಾವುದೇ ನಿಘಂಟು ನಿಯಮಗಳಿಲ್ಲ",
   "dictionary.emptyHint": "AI ಸರಿಯಾದ ನಾವುಗಳು ಮತ್ತು ನಾವುಗಳನ್ನು ಗುರುತಿಸಲು ಸಹಾಯ ಮಾಡಲು ನಿಯಮಗಳು ಸೇರಿಸಿ.",
-
   "history.title": "ಇತಿಹಾಸ",
   "history.privacyNote": "ನಿಮ್ಮ ಡೇಟಾ ಖಾಸಗಿ ಉಳಿದಿದೆ — ಎಲ್ಲಾ ಇತಿಹಾಸ ಕೇವಲ ಈ ಸಾಧನದಲ್ಲಿ ಸ್ಥಳೀಯವಾಗಿ ಸಂಗ್ರಹಿಸಲಾಗುತ್ತದೆ.",
   "history.retention": "ಡೇಟಾ ಧರ್ಮ",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "ಎಲ್ಲಾ ಇತಿಹಾಸ ನಮೂದುಗಳು ಮತ್ತು ಆಡಿಯೋ ಫೈಲ್‌ಗಳನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಿ",
   "history.clearAllConfirm": "ನೀವು ಎಲ್ಲಾ ಇತಿಹಾಸ ಮತ್ತು ಆಡಿಯೋ ಫೈಲ್‌ಗಳನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲು ಖಚಿತವೇ? ಈ ಕ್ರಿಯೆಯನ್ನು ರದ್ದು ಮಾಡಲಾಗುವುದಿಲ್ಲ.",
   "history.loadMore": "ಹೆಚ್ಚು ಲೋಡ್ ಮಾಡಿ",
-
   "about.title": "ಬಗ್ಗೆ",
   "about.version": "ಆವೃತ್ತಿ {version}",
   "about.desc": "ನಿಮ್ಮ ಧ್ವನಿ, ಬರೆಯುವಿಕೆಯಲ್ಲಿ. AI-ಚಾಲಿತ ಭಾಷಣ-ಪಠ್ಯ — ರೆಕಾರ್ಡ್, ಪ್ರತಿಲೇಖನ, ಮತ್ತು ಕರ್ಸರಿನಲ್ಲಿ ಪೇಸ್ಟ್ ಮಾಡಲು hotkey ಒತ್ತಿರಿ.",
@@ -208,7 +195,6 @@
   "about.retry": "ಪುನರಾವೃತ್ತಿ ಮಾಡಿ",
   "about.download": "ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಮತ್ತು ಸ್ಥಾಪಿತ ಮಾಡಿ",
   "about.gatekeeperNote": "ಮುಂದೆ ರನ್ ಮಾಡಿದ ನಂತರ, macOS ಸಿಸ್ಟಮ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳು › ಗೌಪ್ಯತೆ ಮತ್ತು ಭದ್ರತೆಯಲ್ಲಿ ಮುಂದೆ ಅಪ್ಲಿಕೇಶನ್ ಅನುಮತಿ ನೀಡಲು ನಿಮ್ಮನ್ನು ಕೇಳಬಹುದು.",
-
   "setup.permissionsTitle": "ಅಗತ್ಯ ಅನುಮತಿಗಳು",
   "setup.permissionsDesc": "Sumi ಆಡಿಯೋ ರೆಕಾರ್ಡ್ ಮಾಡಲು ಮತ್ತು ಕರ್ಸರಿನಲ್ಲಿ ಪಠ್ಯ ಪೇಸ್ಟ್ ಮಾಡಲು ಈ ಅನುಮತಿಗಳ ಅಗತ್ಯತೆ ಅಪೇಕ್ಷೆ ಎಣಿಸುತ್ತದೆ.",
   "setup.permMicName": "ಮೈಕ್ರೋಫೋನ್",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "{pasteShortcut} ಇದರೊಂದಿಗೆ ಕರ್ಸರಿನಲ್ಲಿ ಪಠ್ಯ ಪೇಸ್ಟ್ ಮಾಡಿ",
   "setup.permGrant": "ನೀಡಿ",
   "setup.permContinue": "ಮುಂದುವರಿಸಿ",
-
   "setup.initialTitle": "ಭಾಷಣ ಗುರುತಿಸುವಿಕೆ ಸೆಟಅಪ್ ಮಾಡಿ",
   "setup.initialDesc": "Sumi ಪೂರ್ಣಾಙ್ಗ ಆನ್‌ಲೈನ್ ಮಾಡಲು ಭಾಷಣ ಗುರುತಿಸುವಿಕೆ ಮಾದರಿ (~1.5 GB) ಡೌನ್‌ಲೋಡ್ ಮಾಡಬೇಕಾಗುತ್ತದೆ ಪ್ರತಿಲೇಖನ. ಇದು ಕೇವಲ ಒಂದು ಸಮಯ ಆಗುತ್ತದೆ.",
   "setup.downloadBtn": "ಮಾದರಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "ಹೆಚ್ಚು ವೇಗವಾಗಿ, ಆದರೆ ಪಠ್ಯವನ್ನು ಬಾಹ್ಯ ಸೇವೆಗೆ ನೀಡಲಾಗುತ್ತದೆ. API ಕೀ ಅಗತ್ಯ ಸತ್ತ ಪಿನ್ ಹೂ ಗೌನ್ಸು ಡೇಸಿ.",
   "setup.polishCloudContinue": "ಮುಂದುವರಿಸಿ",
   "setup.polishSkip": "ಈಗಾಗಿಯೇ ಛಾಡಿ",
-
   "setup.stepStt": "ಭಾಷಣ",
   "setup.stepPolish": "ಪಾಲಿಷಿಂಗ್",
   "setup.stepTest": "ಪರೀಕ್ಷೆ",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ಮಾದರಿ ID",
   "setup.testSkip": "ಪರೀಕ್ಷೆ ಛಾಡಿ",
   "setup.testDone": "ಪೂರ್ಣ",
-
   "setup.llmDownloadingTitle": "AI ಮಾದರಿ ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ...",
   "setup.errorTitle": "ಡೌನ್‌ಲೋಡ್ ವಿಫಲ",
   "setup.errorDefault": "ಅನಿರೀಕ್ಷಿತ ದೋಷ ಆಗಿದೆ.",
   "setup.retryBtn": "ಡೌನ್‌ಲೋಡ್ ಮುಂದೆ ಪ್ರಯತ್ನಿಸಿ",
-
   "test.breadcrumb.mic": "ಮೈಕ್ರೋಫೋನ್",
   "test.breadcrumb.hotkey": "ಹಾಟ್‌ಕೀ",
   "test.breadcrumb.general": "ಸಾಮಾನ್ಯ",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "ಇಮೇಲ್ ದೃಢೀಕರಣ ಕ್ಲಿಕ್ ಮಾಡಿ, {hotkey} ಪ್ರಾರಂಭಿಸಲು ಒತ್ತಿರಿ, ಮಾತನಾಡಿ, ನಂತರ ನಿಲ್ಲಿಸಲು {hotkey} ಮತ್ತೆ ಒತ್ತಿರಿ",
   "test.step4.sampleText": "ಪ್ರಯತ್ನಿಸಿ ಹೇಳಲು: \"ಹೌದು ಆಲಿಸ್, ನಾವು ನಾಳೆ ಕ್ಷಿಪ್ರತೆ ಅವೆ ಖಚಿತ ಯೋಜನೆ ಆಲನ್ ನಮ್?\"",
   "test.step4.done": "ಪೂರ್ಣ",
-
   "test.breadcrumb.polishCheck": "ಪಾಲಿಶಿಂಗ್",
   "test.breadcrumb.editByVoice": "ಧ್ವನಿಯಿಂದ ಸಂಪಾದಿಸಿ",
   "test.step5.title": "ಧ್ವನಿಯಿಂದ ಸಂಪಾದಿಸಿ",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "ಹಾಯ್ Alice, ನಾವು ನಾಳೆ ಮಧ್ಯಾಹ್ನದ ಊಟದ ಮೇಲೆ ಇನ್ನೂ ಬಿಡುಗಡೆ ಮಾಡಿದ್ದೇವೆ? ಇದು ನಿಮಗೆ ಕೆಲಸ ಮಾಡಿದರೆ ದಯವಿಟ್ಟು ನನಗೆ ತಿಳಿಸಿ. ಧನ್ಯವಾದ, Alan",
   "test.step6.editorTitle": "ಸಂಪಾದನೆ ಪರೀಕ್ಷೆ",
   "test.step6.done": "ಪೂರ್ಣ",
-
   "overlay.preparing": "ತಯಾರಿ...",
   "overlay.recording": "ರೆಕಾರ್ಡಿಂಗ್",
   "overlay.transcribing": "ಪ್ರತಿಲೇಖನ",
@@ -310,14 +290,7 @@
   "overlay.edited": "ಸಂಪಾದಿತ",
   "overlay.editRequiresPolish": "ಸಂಪಾದನೆಗೆ AI ಪಾಲಿಶಿಂಗ್ ಅಗತ್ಯ",
   "overlay.undo": "ಗೆಲುವನ್ನು ವಾಪಿಸಿ",
-  "overlay.previewConfirm": "ಖಚಿತಪಡಿಸಿ",
-  "overlay.previewCancel": "ರದ್ದುಗೊಳಿಸಿ",
-  "overlay.previewEditHint": "ಸಂಪಾದನೆ ಮಾಡಲು ಪಠ್ಯ ಕ್ಲಿಕ್ ಮಾಡಿ",
-  "overlay.previewEditingHint": "⌘Enter ಖಚಿತಪಡಿಸಲು · Esc ರದ್ದುಗೊಳಿಸಲು",
-
   "settings.behavior": "ನಡವಳಿಕೆ",
   "settings.behavior.autoPaste": "ಸ್ವಯಂ-ಅಂಟಿಸು",
-  "settings.behavior.autoPasteDesc": "ಕರ್ಸರ್ ಸ್ಥಾನದಲ್ಲಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಪ್ರತಿಲಿಪಿ ಅಂಟಿಸಿ",
-  "settings.behavior.preview": "ಅಂಟಿಸುವ ಮೊದಲು ಪೂರ್ವವೀಕ್ಷಣೆ",
-  "settings.behavior.previewDesc": "ಅಂಟಿಸುವ ಮೊದಲು ವಿಮರ್ಶೆಗಾಗಿ ಪ್ರತಿಲಿಪಿ ತೋರಿಸಿ"
+  "settings.behavior.autoPasteDesc": "ಕರ್ಸರ್ ಸ್ಥಾನದಲ್ಲಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಪ್ರತಿಲಿಪಿ ಅಂಟಿಸಿ"
 }

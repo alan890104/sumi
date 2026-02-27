@@ -5,12 +5,10 @@
   "nav.history": "Historial",
   "nav.about": "Sobre",
   "nav.test": "Proba",
-
   "settings.title": "Configuración",
   "settings.language": "Idioma",
   "settings.language.label": "Idioma da interface",
   "settings.language.desc": "Elixe o idioma de visualización da aplicación",
-
   "settings.shortcuts": "Atallos de teclado",
   "settings.shortcuts.hotkey": "Dictado",
   "settings.shortcuts.hotkeyDesc": "Presa para comezar/parar a gravación e transcribir",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Non configurado",
   "settings.shortcuts.editRequiresPolish": "Require que o pulido da IA estea activado",
   "settings.shortcuts.clear": "Limpar",
-
   "settings.mic": "Micrófono",
   "settings.mic.inputDevice": "Dispositivo de entrada",
   "settings.mic.noMic": "Ningún micrófono detectado",
   "settings.mic.noMicDesc": "Conecta un micrófono ou verifica a configuración do sistema",
   "settings.mic.devicesAvailable": "{n} dispositivo{s} dispoñible{s}",
   "settings.mic.auto": "Automático",
-
   "settings.stt": "Recoñecemento de voz",
   "settings.stt.mode": "Modo",
   "settings.stt.modeDesc": "Elixe un motor de transcrición local ou en nube",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Tentar de novo",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Precisión multilingüe máxima",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Máis rápido, tamaño mínimo",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Mellor para chinés tradicional",
-
   "setup.sttModelChoiceTitle": "Escolle un modelo de recoñecemento de voz",
   "setup.sttModelChoiceDesc": "Seleccione un modelo segundo as súas necesidades. Pode cambialo máis tarde en Configuración.",
   "setup.recommended": "Recomendado",
   "setup.sttModelDownloadBtn": "Descargar e continuar",
   "setup.sttModelSystemInfo": "Sistema: {ram} RAM, {disk} espazo libre",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Mellor para chinés tradicional",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Multilingüe",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Multilingüe máis recente, con/sen razoamento",
-
   "settings.polish": "Pulido de IA",
   "settings.polish.toggle": "Pulir a transcrición coa IA",
   "settings.polish.toggleDesc": "Mellora a gramática, o ton e a claridade",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Estas instrucións se engaden ao indicador base cando esta regra coincide.",
   "settings.polish.ruleSave": "Gardar",
   "settings.polish.ruleCancel": "Cancelar",
-
   "promptRules.title": "Regras de indicación",
   "promptRules.desc": "As regras se comparan coa aplicación en primeiro plano — as instrucións da primeira regra coincidente se engaden ao indicador base.",
   "promptRules.voiceTipMain": "Presa {hotkey} para describir a túa regra por voz.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Volver a executar a configuración",
   "settings.danger.rerunSetupDesc": "Mostrar a superposición de configuración do primeiro lanzamento de novo",
   "settings.danger.rerunSetupBtn": "Executar configuración",
-
   "confirm.resetTitle": "Restablecer por defecto",
   "confirm.resetMessage": "Isto restaurará todos os axustes aos seus valores orixinais. Esta acción non se pode desfacer.",
   "confirm.cancel": "Cancelar",
   "confirm.reset": "Restablecer",
-
   "dictionary.title": "Dicionario personalizado",
   "dictionary.desc": "Engade nomes propios, nomes ou termos específicos do dominio. A IA usará automaticamente a forma correcta cando atope palabras similares.",
   "dictionary.toggle": "Activar dicionario personalizado",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Desactivar",
   "dictionary.emptyTitle": "Aínda non hai termos de dicionario",
   "dictionary.emptyHint": "Engade termos para axudar á IA a recoñecer nomes propios e nomes.",
-
   "history.title": "Historial",
   "history.privacyNote": "Os teus datos permanecen privados — todo o historial se almacena localmente só neste dispositivo.",
   "history.retention": "Retención de datos",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Eliminar permanentemente todas as entradas do historial e ficheiros de audio",
   "history.clearAllConfirm": "¿Estás seguro de que queres eliminar permanentemente todo o historial e os ficheiros de audio? Esta acción non se pode desfacer.",
   "history.loadMore": "Cargar máis",
-
   "about.title": "Sobre",
   "about.version": "Versión {version}",
   "about.desc": "A túa voz, por escrito. Conversión de voz a texto impulsada por IA — presa un atallo para gravar, transcribir e pegar no teu cursor.",
@@ -208,7 +195,6 @@
   "about.retry": "Reintentar",
   "about.download": "Descargar e instalar",
   "about.gatekeeperNote": "Despois de reiniciar, macOS pode pedirte que permitas a aplicación de novo en Axustes do sistema › Privacidade e seguridade.",
-
   "setup.permissionsTitle": "Permisos requiridos",
   "setup.permissionsDesc": "Sumi necesita estes permisos para gravar audio e pegar texto no teu cursor.",
   "setup.permMicName": "Micrófono",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Pega o texto no teu cursor con {pasteShortcut}",
   "setup.permGrant": "Conceder",
   "setup.permContinue": "Continuar",
-
   "setup.initialTitle": "Configurar recoñecemento de voz",
   "setup.initialDesc": "Sumi necesita descargar un modelo de recoñecemento de voz (~1,5 GB) para transcrición totalmente offline. Isto só ocorre unha vez.",
   "setup.downloadBtn": "Descargar modelo",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Máis rápido, pero o texto se envía a un servidor externo. Require unha chave API.",
   "setup.polishCloudContinue": "Continuar",
   "setup.polishSkip": "Saltar por agora",
-
   "setup.stepStt": "Voz",
   "setup.stepPolish": "Pulido",
   "setup.stepTest": "Proba",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID do modelo",
   "setup.testSkip": "Saltar as probas",
   "setup.testDone": "Feito",
-
   "setup.llmDownloadingTitle": "Descargando modelo de IA...",
   "setup.errorTitle": "Descarga fallida",
   "setup.errorDefault": "Ocorreu un erro inesperado.",
   "setup.retryBtn": "Reintentar descarga",
-
   "test.breadcrumb.mic": "Micrófono",
   "test.breadcrumb.hotkey": "Atallo",
   "test.breadcrumb.general": "Xeral",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Fai clic no corpo do correo, presa {hotkey} para comezar, fala, logo presa {hotkey} para parar",
   "test.step4.sampleText": "Intenta dicir: «Ola Alice, ¿seguimos na comida mañá? Alan»",
   "test.step4.done": "Feito",
-
   "test.breadcrumb.polishCheck": "Pulido",
   "test.breadcrumb.editByVoice": "Edición por voz",
   "test.step5.title": "Edición por voz",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Ola Alice, ¿seguimos comendo mañá? Avísame se che vai ben. Grazas, Alan",
   "test.step6.editorTitle": "Proba de edición",
   "test.step6.done": "Feito",
-
   "overlay.preparing": "Preparando…",
   "overlay.recording": "Gravando",
   "overlay.transcribing": "Transcribindo",
@@ -310,14 +290,7 @@
   "overlay.edited": "Editado",
   "overlay.editRequiresPolish": "Pulido de IA necesario para editar",
   "overlay.undo": "Desfacer",
-  "overlay.previewConfirm": "Confirmar",
-  "overlay.previewCancel": "Cancelar",
-  "overlay.previewEditHint": "Faga clic no texto para editar",
-  "overlay.previewEditingHint": "⌘Intro para confirmar · Esc para cancelar",
-
   "settings.behavior": "Comportamento",
   "settings.behavior.autoPaste": "Pegado automático",
-  "settings.behavior.autoPasteDesc": "Pegar automaticamente a transcrición na posición do cursor",
-  "settings.behavior.preview": "Vista previa antes de pegar",
-  "settings.behavior.previewDesc": "Mostrar a transcrición para revisión antes de pegar"
+  "settings.behavior.autoPasteDesc": "Pegar automaticamente a transcrición na posición do cursor"
 }

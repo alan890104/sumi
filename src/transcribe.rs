@@ -286,7 +286,11 @@ pub fn transcribe_with_cached_whisper(
     params.set_single_segment(true);
     params.set_no_timestamps(true);
     params.set_no_context(true);
-    params.set_temperature_inc(-1.0);
+    // Re-enable whisper.cpp quality fallback: compression-ratio, logprob, and
+    // no-speech checks can trigger ONE retry at temperature 0.6.  Without this,
+    // all quality gates are bypassed and hallucinations on silence pass through.
+    params.set_temperature_inc(0.6);
+    params.set_no_speech_thold(0.5);
     params.set_n_threads(num_cpus() as _);
 
     let infer_start = Instant::now();
@@ -304,9 +308,13 @@ pub fn transcribe_with_cached_whisper(
     for i in 0..num_segments {
         if let Some(seg) = wh_state.get_segment(i) {
             let no_speech_prob = seg.no_speech_probability();
-            if no_speech_prob > 0.6 {
+            println!(
+                "[Sumi] segment {} no_speech_prob={:.3}",
+                i, no_speech_prob
+            );
+            if no_speech_prob > 0.5 {
                 println!(
-                    "[Sumi] Skipping segment {} (no_speech_prob={:.3})",
+                    "[Sumi] Skipping segment {} (no_speech_prob={:.3} > 0.5)",
                     i, no_speech_prob
                 );
                 continue;

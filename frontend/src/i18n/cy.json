@@ -5,12 +5,10 @@
   "nav.history": "Hanes",
   "nav.about": "Ynghylch",
   "nav.test": "Prawf",
-
   "settings.title": "Gosodiadau",
   "settings.language": "Iaith",
   "settings.language.label": "Iaith y rhyngwyneb",
   "settings.language.desc": "Dewiswch iaith arddangos yr ap",
-
   "settings.shortcuts": "Llwybrau Byrdymor Bysellfwrdd",
   "settings.shortcuts.hotkey": "Dictation",
   "settings.shortcuts.hotkeyDesc": "Pwyswch i ddechrau/stopio recordio a thrawsnewid",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Heb ei osod",
   "settings.shortcuts.editRequiresPolish": "Mae angen Trwsio AI i fod wedi'i alluogi",
   "settings.shortcuts.clear": "Clirio",
-
   "settings.mic": "Meicroffon",
   "settings.mic.inputDevice": "Dyfais Mewnbwn",
   "settings.mic.noMic": "Heb ganfod meicroffon",
   "settings.mic.noMicDesc": "Cysylltwch feicroffon neu gwiriwch osodiadau'r system",
   "settings.mic.devicesAvailable": "{n} dyfais{s} ar gael",
   "settings.mic.auto": "Awtomatig",
-
   "settings.stt": "Cydnabod Lleferydd",
   "settings.stt.mode": "Modd",
   "settings.stt.modeDesc": "Dewiswch injan trawsnewid lleol neu gwmwl",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Ailgynnig",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Cywirdeb amlieithog uchaf",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Cyflymaf, yr ôl-troed lleiaf",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Gorau ar gyfer Tsieinëeg Traddodiadol",
-
   "setup.sttModelChoiceTitle": "Dewis Model Cydnabod Lleferydd",
   "setup.sttModelChoiceDesc": "Dewiswch fodel yn seiliedig ar eich anghenion. Gallwch newid hwn yn ddiweddarach mewn Gosodiadau.",
   "setup.recommended": "Argymhellir",
   "setup.sttModelDownloadBtn": "Llwytho i Lawr & Parhau",
   "setup.sttModelSystemInfo": "System: {ram} RAM, {disk} digon o le disg",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Gorau ar gyfer Tsieinëeg Traddodiadol",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Amlieithog",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Diweddaraf amlieithog, meddwl/heb feddwl",
-
   "settings.polish": "Peilio AI",
   "settings.polish.toggle": "Polishio trawsnewid â AI",
   "settings.polish.toggleDesc": "Gwella gramadeg, ton a chlirder",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Mae'r cyfarwyddiadau hyn yn cael eu hychwanegu at yr hybina sylfaenol pan fydd y rheol hon yn cydweddu.",
   "settings.polish.ruleSave": "Cadw",
   "settings.polish.ruleCancel": "Canslo",
-
   "promptRules.title": "Rheolau Hybina",
   "promptRules.desc": "Mae rheolau'n cael eu cydweddu gan yr ap sydd ar y blaen — mae cyfarwyddiadau'r rheol cyntaf sy'n cydweddu yn cael eu hychwanegu at yr hybina sylfaenol.",
   "promptRules.voiceTipMain": "Pwyswch {hotkey} i ddisgrifio eich rheol trwy lais.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Ailredeg Gosod",
   "settings.danger.rerunSetupDesc": "Dangos y corcynwyddie gosod cyntaf eto",
   "settings.danger.rerunSetupBtn": "Rhedeg Gosod",
-
   "confirm.resetTitle": "Ailosod i Ddiofyn",
   "confirm.resetMessage": "Bydd hyn yn adfer pob gosodiad i'w werthoedd gwreiddiol. Ni ellir dadwneud hyn.",
   "confirm.cancel": "Canslo",
   "confirm.reset": "Ailosod",
-
   "dictionary.title": "Geiriadur Aralleirio",
   "dictionary.desc": "Ychwanegwch enwau priod, enwau neu delerau penodol i'r parth. Bydd AI yn defnyddio'r ffurf gywir yn awtomatig pan daw ar draws geiriau â seiniau tebyg.",
   "dictionary.toggle": "Galluogi geiriadur aralleirio",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Analluogi",
   "dictionary.emptyTitle": "Dim telerau'r geiriadur eto",
   "dictionary.emptyHint": "Ychwanegwch delerau i helpu AI i adnabod enwau priod ac enwau.",
-
   "history.title": "Hanes",
   "history.privacyNote": "Mae eich data yn parhau'n breifat — mae'r holl hanes yn cael ei storio'n lleol ar y ddyfais hon yn unig.",
   "history.retention": "Cadwraeth Data",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Dileu'n barhaol holl gofnodion hanes a ffeiliau sain",
   "history.clearAllConfirm": "Ydych chi'n siŵr eich bod eisiau dileu holl hanes a ffeiliau sain yn barhaol? Ni ellir dadwneud y gweithred hon.",
   "history.loadMore": "Llwytho mwy",
-
   "about.title": "Ynghylch",
   "about.version": "Fersiwn {version}",
   "about.desc": "Eich llais, mewn ysgrifennu. Trawsnewid lleferydd-i-destun a gynhyrchir gan AI — pwyswch llwybr byrdymor i recordio, trawsnewid a gludo yn lleoliad eich cyrchwr.",
@@ -208,7 +195,6 @@
   "about.retry": "Ailgeisio",
   "about.download": "Llwytho i Lawr ac Osod",
   "about.gatekeeperNote": "Ar ôl ailgychwyn, efallai y gofynna macOS i chi ganiatáu'r ap eto yn System Settings › Privacy & Security.",
-
   "setup.permissionsTitle": "Caniatâdau Gofynnol",
   "setup.permissionsDesc": "Mae Sumi angen y caniatâdau hyn i recordio sain a gludio testun yn lleoliad eich cyrchwr.",
   "setup.permMicName": "Meicroffon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Gludwch destun yn lleoliad eich cyrchwr gyda {pasteShortcut}",
   "setup.permGrant": "Caniatáu",
   "setup.permContinue": "Parhau",
-
   "setup.initialTitle": "Gosod Cydnabod Lleferydd",
   "setup.initialDesc": "Mae Sumi angen llwytho model cydnabod lleferydd (~1.5 GB) ar gyfer trawsnewid cwbl all-lein. Dim ond unwaith y mae hyn yn digwydd.",
   "setup.downloadBtn": "Llwytho Model i Lawr",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Cyflymach, ond mae testun yn cael ei anfon i weinydd allanol. Angen API Key.",
   "setup.polishCloudContinue": "Parhau",
   "setup.polishSkip": "Hepgor Am Nawr",
-
   "setup.stepStt": "Lleferydd",
   "setup.stepPolish": "Peilio",
   "setup.stepTest": "Prawf",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID Model",
   "setup.testSkip": "Hepgor Profi",
   "setup.testDone": "Wedi Gorffen",
-
   "setup.llmDownloadingTitle": "Model AI yn cael ei lwytho i lawr...",
   "setup.errorTitle": "Methwyd Llwytho i Lawr",
   "setup.errorDefault": "Digwyddodd gwall annisgwyl.",
   "setup.retryBtn": "Ailgeisio Llwytho i Lawr",
-
   "test.breadcrumb.mic": "Meicroffon",
   "test.breadcrumb.hotkey": "Llwybr Byrdymor",
   "test.breadcrumb.general": "Cyffredinol",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Cliciwch gorff yr e-bost, pwyswch {hotkey} i ddechrau, siaradwch, yna pwyswch {hotkey} eto i stopio",
   "test.step4.sampleText": "Ceisiwch ddweud: \"Helo Alice, ydym ni'n dal i gwrdd am ginio yfory fel yr oeddem yn ei gynllunio? Alan\"",
   "test.step4.done": "Wedi Gorffen",
-
   "test.breadcrumb.polishCheck": "Trwsio",
   "test.breadcrumb.editByVoice": "Golygu Trwy Lais",
   "test.step5.title": "Golygu Trwy Lais",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hi Alice, are we still on for lunch tomorrow? Let me know if that works for you. Thanks, Alan",
   "test.step6.editorTitle": "Prawf Golygu",
   "test.step6.done": "Wedi Gorffen",
-
   "overlay.preparing": "Yn paratoi…",
   "overlay.recording": "Yn Recordio",
   "overlay.transcribing": "Yn Trawsnewid",
@@ -310,14 +290,7 @@
   "overlay.edited": "Wedi'i Olygu",
   "overlay.editRequiresPolish": "Angen Trwsio AI ar gyfer golygu",
   "overlay.undo": "Dadwneud",
-  "overlay.previewConfirm": "Cadarnhau",
-  "overlay.previewCancel": "Canslo",
-  "overlay.previewEditHint": "Cliciwch testun i olygu",
-  "overlay.previewEditingHint": "⌘Enter i gadarnhau · Esc i ganslo",
-
   "settings.behavior": "Ymddygiad",
   "settings.behavior.autoPaste": "Gludo Awtomatig",
-  "settings.behavior.autoPasteDesc": "Gludo trawsgrifiad yn awtomatig lle mae'r cyrchwr",
-  "settings.behavior.preview": "Rhagolwg cyn gludo",
-  "settings.behavior.previewDesc": "Dangos trawsgrifiad ar gyfer adolygiad cyn gludo"
+  "settings.behavior.autoPasteDesc": "Gludo trawsgrifiad yn awtomatig lle mae'r cyrchwr"
 }

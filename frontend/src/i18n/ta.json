@@ -5,12 +5,10 @@
   "nav.history": "வரலாறு",
   "nav.about": "பற்றி",
   "nav.test": "சோதனை",
-
   "settings.title": "அமைப்புகள்",
   "settings.language": "மொழி",
   "settings.language.label": "இண்டர்ஃபேஸ் மொழி",
   "settings.language.desc": "பயன்பாட்டிற்கான காட்சி மொழியைத் தேர்ந்தெடுக்கவும்",
-
   "settings.shortcuts": "விசைப்பலக கட்டளைகள்",
   "settings.shortcuts.hotkey": "உச்சாடனம்",
   "settings.shortcuts.hotkeyDesc": "பதிவு செய்ய/நிறுத்த மற்றும் எழுத்துப்படி செய்ய அழுத்தவும்",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "அமைக்கப்படவில்லை",
   "settings.shortcuts.editRequiresPolish": "தொகுப்பதற்கு AI பாலிஷிங் இயக்க வேண்டும்",
   "settings.shortcuts.clear": "அழிக்கவும்",
-
   "settings.mic": "மைக்ரோஃபோன்",
   "settings.mic.inputDevice": "உள்ளீட்டு சாதனம்",
   "settings.mic.noMic": "மைக்ரோஃபோன் கண்டறியப்படவில்லை",
   "settings.mic.noMicDesc": "மைக்ரோஃபோனை இணைக்கவும் அல்லது கணினி அமைப்புகளைச் சரிபார்க்கவும்",
   "settings.mic.devicesAvailable": "{n} சாதனம்{s} கிடைக்கிறது",
   "settings.mic.auto": "தானியங்கி",
-
   "settings.stt": "பேச்சு அங்கீகாரம்",
   "settings.stt.mode": "முறை",
   "settings.stt.modeDesc": "உள்ளூர் அல்லது கிளவுட் நகல் செய்ப்பு இயந்திரத்தைத் தேர்ந்தெடுக்கவும்",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "மீண்டும் முயற்சிக்கவும்",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "மிக உচ்ச பன்மொழி கூர்மை",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "மிக வேகமாக, சிறிய அடிச்சுவடு",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "பாரம்பரிய சீனத்திற்கு சிறந்தது",
-
   "setup.sttModelChoiceTitle": "பேச்சு அங்கீகாரம் மாதிரি தேர்ந்தெடுக்கவும்",
   "setup.sttModelChoiceDesc": "உங்கள் தேவைகளின் அடிப்படையில் ஒரு மாதிரியைத் தேர்ந்தெடுக்கவும். நீங்கள் பின்னர் செட்டிங்குகளில் இதை மாற்றலாம்.",
   "setup.recommended": "பரிந்துரைக்கப்படும்",
   "setup.sttModelDownloadBtn": "பதிவிறக்கம் மற்றும் தொடரவும்",
   "setup.sttModelSystemInfo": "கணினி: {ram} RAM, {disk} நிःசுல்க வட்டு",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "பாரம்பரிய சீனத்திற்கு சிறந்தது",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "பன்மொழி",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "சமீபத்திய பன்மொழி, சிந்தனை/சிந்தனை அல்லாத பயன்முறை",
-
   "settings.polish": "AI பொலிஷிங்",
   "settings.polish.toggle": "AI உடன் உச்சாடனத்தை பொலிஷ் செய்யவும்",
   "settings.polish.toggleDesc": "இலக்கணம், டோன் மற்றும் தெளிவுத்தன்மையை மேம்படுத்தவும்",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "இந்த வழிமுறைகள் இந்த விதி பொருந்தும்போது அடிப்படை விசைக்கு சேர்க்கப்படுகிறது.",
   "settings.polish.ruleSave": "சேமிக்கவும்",
   "settings.polish.ruleCancel": "ரத்து செய்யவும்",
-
   "promptRules.title": "விசை விதிகள்",
   "promptRules.desc": "விதிகள் முன்னோக்கி பயன்பாட்டால் பொருந்தாய் — முதல் பொருந்தும் விதியின் வழிமுறைகள் அடிப்படை விசைக்கு சேர்க்கப்படுகின்றன.",
   "promptRules.voiceTipMain": "குரலால் உங்கள் விதியை விவரிக்க {hotkey} அழுத்தவும்.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "அமைப்பை மீண்டும் இயக்கவும்",
   "settings.danger.rerunSetupDesc": "முதல் உயக்கம் அமைப்பு மேலடுக்கு மீண்டும் காட்டவும்",
   "settings.danger.rerunSetupBtn": "அமைப்பு இயக்கவும்",
-
   "confirm.resetTitle": "இயல்பிற்குத் திரும்பவும்",
   "confirm.resetMessage": "இது அனைத்து அமைப்புகளை அவற்றின் அசல் மதிப்புகளுக்கு மீட்டமைக்கும். இதை செய்ய முடியாது.",
   "confirm.cancel": "ரத்து செய்யவும்",
   "confirm.reset": "மீட்டமைக்கவும்",
-
   "dictionary.title": "தனிப்பயன் அகராதி",
   "dictionary.desc": "சரியான பெயர்கள், பெயர்கள் அல்லது களம்-குறிப்பிட்ட சொற்கள் சேர்க்கவும். AI இதே பேடம் உள்ள சொற்களை சந்திக்கும்போது சரியான வடிவம் தானாகவே பயன்படுத்தும்.",
   "dictionary.toggle": "தனிப்பயன் அகராதி செயல்படுத்தவும்",
@@ -157,7 +146,6 @@
   "dictionary.disable": "செயல்நீக்கவும்",
   "dictionary.emptyTitle": "இதுவரை அகராதி சொற்கள் இல்லை",
   "dictionary.emptyHint": "சரியான பெயர்கள் மற்றும் பெயர்களை AI அங்கீகரிக்க உதவ சொற்களைச் சேர்க்கவும்.",
-
   "history.title": "வரலாறு",
   "history.privacyNote": "உங்கள் தரவு தனிப்பட்டதாக இருக்கிறது — அனைத்து வரலாறும் இந்த சாதனத்தில் மட்டுமே சேமிக்கப்படுகிறது.",
   "history.retention": "தரவு தக்கவைப்பு",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "அனைத்து வரலாற்று உள்ளீடுகள் மற்றும் ஆடியோ கோப்புகளை நிரந்தரமாக நீக்கவும்",
   "history.clearAllConfirm": "அனைத்து வரலாறு மற்றும் ஆடியோ கோப்புகளை நிரந்தரமாக நீக்க விரும்புகிறீர்களா? இந்த செயல்பாட்டை செய்ய முடியாது.",
   "history.loadMore": "மேலும் ஏற்றவும்",
-
   "about.title": "பற்றி",
   "about.version": "பதிப்பு {version}",
   "about.desc": "உங்கள் குரல், எழுத்தில். AI-இயக்கப்பட்ட பேச்சு-எழுத்தாக-உரை — பதிவு செய்ய, எழுத்துப்படி செய்ய மற்றும் உங்கள் கர்சரில் ஒட்டக குறுக்குவழி அழுத்தவும்.",
@@ -208,7 +195,6 @@
   "about.retry": "மீண்டும் சேயல்ல்",
   "about.download": "பதிவிறக்கம் மற்றும் நிறுவ",
   "about.gatekeeperNote": "மீண்டும் தொடங்கிய பிறகு, macOS உங்களை கணினி அமைப்புகள் › தனியுரிமை & பாதுகாப்பில் பயன்பாட்டை அனுமதிக்க கேட்டுக்கொள்ளலாம்.",
-
   "setup.permissionsTitle": "அனுமதிகள் தேவை",
   "setup.permissionsDesc": "ஆடியோ பதிவு செய்ய மற்றும் உங்கள் கர்சரில் உரையை ஒட்டக Sumi க்கு இந்த அனுமதிகள் தேவை.",
   "setup.permMicName": "மைக்ரோஃபோன்",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "{pasteShortcut} உடன் உங்கள் கர்சரில் உரையை ஒட்டவும்",
   "setup.permGrant": "அனுமதி தரவும்",
   "setup.permContinue": "முடிக்கவும்",
-
   "setup.initialTitle": "பேச்சு அங்கீகாரத்தை அமைக்கவும்",
   "setup.initialDesc": "Sumi க்கு முழுமையான ஆஃப்லைன் உச்சாடனத்திற்கான பேச்சு அங்கீகாரம் மாடல் (~1.5 GB) பதிவிறக்கம் செய்ய வேண்டும். இது ஒரு முறை மட்டுமே நிகழ்கிறது.",
   "setup.downloadBtn": "மாடல் பதிவிறக்கம் செய்யவும்",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "வேகமாக, ஆனால் உரை வெளிப்புற சர்வரக்கு அனுப்பப்படுகிறது. API கி தேவை.",
   "setup.polishCloudContinue": "முடிக்கவும்",
   "setup.polishSkip": "இப்போதைக்கு தவிர்க்கவும்",
-
   "setup.stepStt": "பேச்சு",
   "setup.stepPolish": "பொலிஷ்",
   "setup.stepTest": "சோதனை",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "மாடல் ID",
   "setup.testSkip": "சோதனை தவிர்க்கவும்",
   "setup.testDone": "முடிந்தது",
-
   "setup.llmDownloadingTitle": "AI மாடல் பதிவிறக்கம் செய்கிறது...",
   "setup.errorTitle": "பதிவிறக்கம் தவறிவிட்டது",
   "setup.errorDefault": "ஒரு எதிர்பாராத பிழை ஏற்பட்டது.",
   "setup.retryBtn": "பதிவிறக்கம் மீண்டும் முயற்சி செய்யவும்",
-
   "test.breadcrumb.mic": "மைக்ரோஃபோன்",
   "test.breadcrumb.hotkey": "குறுக்குவழி",
   "test.breadcrumb.general": "பொதுவான",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "மின்னஞ்சல் உடலைக் கிளிக் செய்யவும், {hotkey} அழுத்தி தொடங்கவும், பேசவும், பிறகு {hotkey} மீண்டும் அழுத்தி நிறுத்தவும்",
   "test.step4.sampleText": "சொல்ல முயற்சி செய்யவும்: \"ஹை Alice, நாம் நாளை மதிய உணவிற்கு திட்டமிடப்பட்டுள்ளோமா? Alan\"",
   "test.step4.done": "முடிந்தது",
-
   "test.breadcrumb.polishCheck": "பாலிஷிங்",
   "test.breadcrumb.editByVoice": "குரலால் திருத்தவும்",
   "test.step5.title": "குரலால் திருத்தவும்",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "வணக்கம் Alice, நாம் நாளை மதிய உணவுக்கு இன்னும் சென்றிருக்கிறோமா? நீங்கள் அது செயல்பட்டால் தயவுசெய்து எனக்கு அறிவிக்கவும். நன்றி, Alan",
   "test.step6.editorTitle": "திருத்த சோதனை",
   "test.step6.done": "முடிந்தது",
-
   "overlay.preparing": "தயாரிக்கிறது…",
   "overlay.recording": "பதிவு செய்கிறது",
   "overlay.transcribing": "எழுத்துப்படி செய்கிறது",
@@ -310,14 +290,7 @@
   "overlay.edited": "திருத்தப்பட்டது",
   "overlay.editRequiresPolish": "திருத்தற்கு AI பாலிஷிங் தேவை",
   "overlay.undo": "மாற்றி எழுதவும்",
-  "overlay.previewConfirm": "உறுதிப்படுத்தவும்",
-  "overlay.previewCancel": "ரத்துசெய்யவும்",
-  "overlay.previewEditHint": "திருத்த உரையைக் கிளிக் செய்யவும்",
-  "overlay.previewEditingHint": "⌘Enter உறுதிப்படுத்த · Esc ரத்துசெய்ய",
-
   "settings.behavior": "நடத்தை",
   "settings.behavior.autoPaste": "தானியக்க ஒட்ட",
-  "settings.behavior.autoPasteDesc": "கர்சர் நிலানத்தில் தானியக்கமாக நகலை ஒட்ட",
-  "settings.behavior.preview": "ஒட்டும் முன் முன்னோட்ட",
-  "settings.behavior.previewDesc": "ஒட்டும் முன் மதிப்பாய்வுக்கான நகலைக் காட்டவும்"
+  "settings.behavior.autoPasteDesc": "கர்சர் நிலানத்தில் தானியக்கமாக நகலை ஒட்ட"
 }

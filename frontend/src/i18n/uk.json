@@ -5,12 +5,10 @@
   "nav.history": "Історія",
   "nav.about": "Про програму",
   "nav.test": "Тест",
-
   "settings.title": "Налаштування",
   "settings.language": "Мова",
   "settings.language.label": "Мова інтерфейсу",
   "settings.language.desc": "Виберіть мову відображення додатка",
-
   "settings.shortcuts": "Клавіатурні скорочення",
   "settings.shortcuts.hotkey": "Диктування",
   "settings.shortcuts.hotkeyDesc": "Натисніть, щоб почати/зупинити запис та розпізнати мовлення",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Не встановлено",
   "settings.shortcuts.editRequiresPolish": "Вимагає включення покращення AI",
   "settings.shortcuts.clear": "Очистити",
-
   "settings.mic": "Мікрофон",
   "settings.mic.inputDevice": "Пристрій вводу",
   "settings.mic.noMic": "Мікрофон не виявлено",
   "settings.mic.noMicDesc": "Підключіть мікрофон або перевірте параметри системи",
   "settings.mic.devicesAvailable": "{n} пристрій{s} доступно",
   "settings.mic.auto": "Автоматично",
-
   "settings.stt": "Розпізнавання мовлення",
   "settings.stt.mode": "Режим",
   "settings.stt.modeDesc": "Виберіть локальний або хмарний рушій транскрипції",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Повторити",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Найвища багатомовна точність",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Найшвидша, мінімальний розмір",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Найкраще для традиційної китайської",
-
   "setup.sttModelChoiceTitle": "Виберіть модель розпізнавання мови",
   "setup.sttModelChoiceDesc": "Виберіть модель відповідно до ваших потреб. Ви можете змінити це пізніше в Параметрах.",
   "setup.recommended": "Рекомендується",
   "setup.sttModelDownloadBtn": "Завантажити та продовжити",
   "setup.sttModelSystemInfo": "Система: {ram} ОЗУ, {disk} вільного місця на диску",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Найкраще для традиційної китайської",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Багатомовна",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Новітня багатомовна, з розмірковуванням/без",
-
   "settings.polish": "AI польування",
   "settings.polish.toggle": "Відполіровувати транскрипцію AI",
   "settings.polish.toggleDesc": "Покращити граматику, тон і ясність",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Ці інструкції додаються до базового запиту при збігу цього правила.",
   "settings.polish.ruleSave": "Зберегти",
   "settings.polish.ruleCancel": "Скасувати",
-
   "promptRules.title": "Правила запиту",
   "promptRules.desc": "Правила порівнюються з активним додатком — інструкції першого відповідного правила додаються до базового запиту.",
   "promptRules.voiceTipMain": "Натисніть {hotkey}, щоб описати своє правило голосом.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Переапускити налаштування",
   "settings.danger.rerunSetupDesc": "Показати повторно першовідкривальне діалогове вікно налаштування",
   "settings.danger.rerunSetupBtn": "Запустити налаштування",
-
   "confirm.resetTitle": "Скинути на значення за замовчуванням",
   "confirm.resetMessage": "Це відновить всі налаштування до їхніх вихідних значень. Це не можна скасувати.",
   "confirm.cancel": "Скасувати",
   "confirm.reset": "Скинути",
-
   "dictionary.title": "Користувацький словник",
   "dictionary.desc": "Додайте власні назви, імена або спеціальні терміни. AI автоматично використовуватиме правильну форму при наявності аналогічних звуків.",
   "dictionary.toggle": "Увімкнути користувацький словник",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Вимкнути",
   "dictionary.emptyTitle": "Поки що немає словникових термінів",
   "dictionary.emptyHint": "Додайте терміни, щоб допомогти AI розпізнавати власні назви та імена.",
-
   "history.title": "Історія",
   "history.privacyNote": "Ваші дані залишаються приватними — вся історія зберігається локально тільки на цьому пристрої.",
   "history.retention": "Збереження даних",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Постійно видалити всі записи історії та звукові файли",
   "history.clearAllConfirm": "Ви впевнені, що хочете постійно видалити всю історію та звукові файли? Цю дію неможливо скасувати.",
   "history.loadMore": "Завантажити ще",
-
   "about.title": "Про програму",
   "about.version": "Версія {version}",
   "about.desc": "Ваш голос, письмово. Перетворення мовлення на текст на основі AI — натисніть гарячу клавішу, щоб записувати, розпізнавати та вставляти на місце курсора.",
@@ -208,7 +195,6 @@
   "about.retry": "Повторити спробу",
   "about.download": "Завантажити та встановити",
   "about.gatekeeperNote": "Після перезавантаження macOS може попросити вас дозволити додаток у Параметри системи › Приватність та безпека.",
-
   "setup.permissionsTitle": "Необхідні дозволи",
   "setup.permissionsDesc": "Sumi потребує цих дозволів для запису звуку та вставлення тексту на місце курсора.",
   "setup.permMicName": "Мікрофон",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Вставляйте текст на місце курсора за допомогою {pasteShortcut}",
   "setup.permGrant": "Надати дозвіл",
   "setup.permContinue": "Продовжити",
-
   "setup.initialTitle": "Налаштування розпізнавання мовлення",
   "setup.initialDesc": "Sumi потребує завантажити модель розпізнавання мовлення (~1,5 ГБ) для повністю автономної транскрипції. Це трапляється лише один раз.",
   "setup.downloadBtn": "Завантажити модель",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Швидше, але текст надсилається на зовнішній сервер. Потребує API Key.",
   "setup.polishCloudContinue": "Продовжити",
   "setup.polishSkip": "Пропустити поки",
-
   "setup.stepStt": "Мовлення",
   "setup.stepPolish": "Полірування",
   "setup.stepTest": "Тест",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID моделі",
   "setup.testSkip": "Пропустити тестування",
   "setup.testDone": "Готово",
-
   "setup.llmDownloadingTitle": "Завантаження моделі AI...",
   "setup.errorTitle": "Помилка завантаження",
   "setup.errorDefault": "Сталася непередбачена помилка.",
   "setup.retryBtn": "Повторити завантаження",
-
   "test.breadcrumb.mic": "Мікрофон",
   "test.breadcrumb.hotkey": "Гаряча клавіша",
   "test.breadcrumb.general": "Загальне",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Клацніть на тіло електронного листа, натисніть {hotkey} для запуску, говоріть, потім натисніть {hotkey} знову для зупинки",
   "test.step4.sampleText": "Спробуйте сказати: \"Привіт Alice, ми все ще зустрічаємося завтра на обід? Alan\"",
   "test.step4.done": "Готово",
-
   "test.breadcrumb.polishCheck": "Покращення",
   "test.breadcrumb.editByVoice": "Редагування голосом",
   "test.step5.title": "Редагування голосом",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Привіт Еліс, ми все ще плануємо обід завтра? Дай мені знати, якщо це тобі підходить. Дякую, Алан",
   "test.step6.editorTitle": "Тест редагування",
   "test.step6.done": "Готово",
-
   "overlay.preparing": "Підготовка…",
   "overlay.recording": "Запис",
   "overlay.transcribing": "Транскрибування",
@@ -310,14 +290,7 @@
   "overlay.edited": "Відредаговано",
   "overlay.editRequiresPolish": "Потрібне покращення AI для редагування",
   "overlay.undo": "Скасувати",
-  "overlay.previewConfirm": "Підтвердити",
-  "overlay.previewCancel": "Скасувати",
-  "overlay.previewEditHint": "Натисніть на текст для редагування",
-  "overlay.previewEditingHint": "⌘Enter для підтвердження · Esc для скасування",
-
   "settings.behavior": "Поведінка",
   "settings.behavior.autoPaste": "Автоматичне вставлення",
-  "settings.behavior.autoPasteDesc": "Автоматично вставляти транскрипцію в позицію курсора",
-  "settings.behavior.preview": "Попередній перегляд перед вставленням",
-  "settings.behavior.previewDesc": "Показати транскрипцію для перевірки перед вставленням"
+  "settings.behavior.autoPasteDesc": "Автоматично вставляти транскрипцію в позицію курсора"
 }

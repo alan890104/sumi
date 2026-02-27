@@ -5,12 +5,10 @@
   "nav.history": "Geskiedenis",
   "nav.about": "Aangaande",
   "nav.test": "Toets",
-
   "settings.title": "Instellings",
   "settings.language": "Taal",
   "settings.language.label": "Koppelvlak taal",
   "settings.language.desc": "Kies die vertoontaal vir die program",
-
   "settings.shortcuts": "Sleutelbordkortpaaie",
   "settings.shortcuts.hotkey": "Diktaat",
   "settings.shortcuts.hotkeyDesc": "Druk om opname te begin/stop en af te skryf",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Nie gestel nie",
   "settings.shortcuts.editRequiresPolish": "Vereis dat AI-verfyning geaktiveer is",
   "settings.shortcuts.clear": "Wis",
-
   "settings.mic": "Mikrofoon",
   "settings.mic.inputDevice": "Invoerapparaat",
   "settings.mic.noMic": "Geen mikrofoon opgespoor nie",
   "settings.mic.noMicDesc": "Koppel 'n mikrofoon of kontroleer stelselinstellings",
   "settings.mic.devicesAvailable": "{n} apparaat{s} beskikbaar",
   "settings.mic.auto": "Outomaties",
-
   "settings.stt": "Spraakherkenning",
   "settings.stt.mode": "Modus",
   "settings.stt.modeDesc": "Kies lokale of wolktranskripsie-enjin",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Probeer weer",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Hoogste meertalige akkuraatheid",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Vinnigste, kleinste voetafdruk",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Beste vir tradisionele Chinees",
-
   "setup.sttModelChoiceTitle": "Kies 'n spraakherkenningsmodel",
   "setup.sttModelChoiceDesc": "Kies 'n model gebaseer op jou behoeftes. Jy kan dit later in Instellings verander.",
   "setup.recommended": "Aanbeveel",
   "setup.sttModelDownloadBtn": "Laai af & Gaan voort",
   "setup.sttModelSystemInfo": "Stelsel: {ram} RAM, {disk} vrye skyfspasie",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Beste vir tradisionele Chinees",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Meertalig",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Nuutste meertalig, dink/nie-dink",
-
   "settings.polish": "AI Potering",
   "settings.polish.toggle": "Voer transkripsie met AI aan",
   "settings.polish.toggleDesc": "Verfyn grammatika, toon en duidelikheid",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Hierdie instruksies word by die basisaanwysing gevoeg wanneer hierdie reël pas.",
   "settings.polish.ruleSave": "Stoor",
   "settings.polish.ruleCancel": "Kanselleer",
-
   "promptRules.title": "Aanwysingsreëls",
   "promptRules.desc": "Reëls word ooreengekom deur die voorgrond program — die eerste ooreenstemmende reël se instruksies word by die basisaanwysing gevoeg.",
   "promptRules.voiceTipMain": "Druk {hotkey} om jou reël deur stem te beskryf.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Herloof Opstel",
   "settings.danger.rerunSetupDesc": "Wys die eerste-keerstelovaas weer",
   "settings.danger.rerunSetupBtn": "Voer Opstel uit",
-
   "confirm.resetTitle": "Stel na Verstekkings terug",
   "confirm.resetMessage": "Dit sal alle instellings na hul oorspronklike waardes herstel. Dit kan nie ongedaan gemaak word nie.",
   "confirm.cancel": "Kanselleer",
   "confirm.reset": "Stel terug",
-
   "dictionary.title": "Pasgemaakte Woordeboek",
   "dictionary.desc": "Voeg eienaamwoorde, name of domeinspesifieke terme by. Die AI sal outomaties die korrekte vorm gebruik wanneer dit soortgelykklinkende woorde teëkom.",
   "dictionary.toggle": "Aktiveer pasgemaakte woordeboek",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Deaktiveer",
   "dictionary.emptyTitle": "Nog geen woordeboektermé nie",
   "dictionary.emptyHint": "Voeg termé by om die AI te help eienaamwoorde en name herken.",
-
   "history.title": "Geskiedenis",
   "history.privacyNote": "Jou data bly privaat — alle geskiedenis word lokaal op hierdie toestel gestoor.",
   "history.retention": "Dataretensie",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Verwyder permanent alle geskiedenisonderdele en oudiolêers",
   "history.clearAllConfirm": "Is jy seker jy wil permanent alle geskiedenis en oudiolêers verwyder? Hierdie aksie kan nie ongedaan gemaak word nie.",
   "history.loadMore": "Laai meer",
-
   "about.title": "Aangaande",
   "about.version": "Weergawe {version}",
   "about.desc": "Jou stem, in teks. AI-aangedrewe spraak-na-teks — druk 'n kortpad om op te neem, af te skryf en by jou wyser te plak.",
@@ -208,7 +195,6 @@
   "about.retry": "Probeer weer",
   "about.download": "Laai af & Installeer",
   "about.gatekeeperNote": "Na herbegin, kan macOS jou vra om die program weer in Stelselinstellings › Privaatheid & Sekuriteit toe te laat.",
-
   "setup.permissionsTitle": "Toestemmings Vereist",
   "setup.permissionsDesc": "Sumi het hierdie toestemmings nodig om oudio op te neem en teks by jou wyser te plak.",
   "setup.permMicName": "Mikrofoon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Plak teks by jou wyser met {pasteShortcut}",
   "setup.permGrant": "Gee",
   "setup.permContinue": "Gaan voort",
-
   "setup.initialTitle": "Stel Spraakherkenning op",
   "setup.initialDesc": "Sumi moet 'n spraakherkenningsmodel (~1.5 GB) aflaai vir volledig offlinetranskripsie. Dit gebeur slegs een keer.",
   "setup.downloadBtn": "Laai Model af",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Vinniger, maar teks word na 'n eksterne bediener gestuur. Vereis 'n API sleutel.",
   "setup.polishCloudContinue": "Gaan voort",
   "setup.polishSkip": "Slaan voorlopig oor",
-
   "setup.stepStt": "Spraak",
   "setup.stepPolish": "Poering",
   "setup.stepTest": "Toets",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Model ID",
   "setup.testSkip": "Slaan toesingering oor",
   "setup.testDone": "Klaar",
-
   "setup.llmDownloadingTitle": "Laai AI Model af...",
   "setup.errorTitle": "Aflaai Misluk",
   "setup.errorDefault": "'n Onverwagte fout het plaasgevind.",
   "setup.retryBtn": "Probeer Aflaai weer",
-
   "test.breadcrumb.mic": "Mikrofoon",
   "test.breadcrumb.hotkey": "Kortpad",
   "test.breadcrumb.general": "Algemeen",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Klik die e-posliggaam, druk {hotkey} om te begin, spreek, en druk {hotkey} weer om te stop",
   "test.step4.sampleText": "Probeer sê: \"Hallo Alice, is ons steeds op vir middagete môre soos beplanning? Alan\"",
   "test.step4.done": "Klaar",
-
   "test.breadcrumb.polishCheck": "Verfyning",
   "test.breadcrumb.editByVoice": "Redigeer deur Stem",
   "test.step5.title": "Redigeer deur Stem",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hallo Alice, is ons steeds op vir middagete môre? Laat my weet of dit vir jou werk. Dankie, Alan",
   "test.step6.editorTitle": "Redigeertoets",
   "test.step6.done": "Gedaan",
-
   "overlay.preparing": "Voorbereiding…",
   "overlay.recording": "Opname",
   "overlay.transcribing": "Transkripsie",
@@ -310,14 +290,7 @@
   "overlay.edited": "Redigeer",
   "overlay.editRequiresPolish": "AI-verfyning vereis vir redigering",
   "overlay.undo": "Ontdoen",
-  "overlay.previewConfirm": "Bevestig",
-  "overlay.previewCancel": "Kanselleer",
-  "overlay.previewEditHint": "Klik op teks om te redigeer",
-  "overlay.previewEditingHint": "⌘Enter om te bevestig · Esc om te kanselleer",
-
   "settings.behavior": "Gedrag",
   "settings.behavior.autoPaste": "Outo-plak",
-  "settings.behavior.autoPasteDesc": "Plak transkripsie outomaties by kurstorposisie",
-  "settings.behavior.preview": "Voorskou voor plak",
-  "settings.behavior.previewDesc": "Vertoon transkripsie vir hersiening voor plak"
+  "settings.behavior.autoPasteDesc": "Plak transkripsie outomaties by kurstorposisie"
 }

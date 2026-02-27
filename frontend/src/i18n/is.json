@@ -5,12 +5,10 @@
   "nav.history": "Ferill",
   "nav.about": "Um",
   "nav.test": "Próf",
-
   "settings.title": "Stillingar",
   "settings.language": "Tungumál",
   "settings.language.label": "Tungumál notendaviðmóts",
   "settings.language.desc": "Veldu birtingarmál forritanna",
-
   "settings.shortcuts": "Flýtilyklar",
   "settings.shortcuts.hotkey": "Setning",
   "settings.shortcuts.hotkeyDesc": "Ýttu til að hefja/stöðva upptöku og umbreyta",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Ekki sett",
   "settings.shortcuts.editRequiresPolish": "Krefst þess að gervigreining sé virk",
   "settings.shortcuts.clear": "Hreinsa",
-
   "settings.mic": "Hljóðnemi",
   "settings.mic.inputDevice": "Innsetning tæki",
   "settings.mic.noMic": "Enginn hljóðnemi fannst",
   "settings.mic.noMicDesc": "Tengdu hljóðnema eða athugaðu kerfisstillingar",
   "settings.mic.devicesAvailable": "{n} tæki{s} tiltæk",
   "settings.mic.auto": "Sjálfvirkt",
-
   "settings.stt": "Talagreining",
   "settings.stt.mode": "Hamur",
   "settings.stt.modeDesc": "Veldu staðbundna eða skýjamiðaða talakenningu",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Reyna aftur",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Mest nákvæm margtungum þekking",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Hraðast, minnst pláss",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Best fyrir hefðbundna kínversku",
-
   "setup.sttModelChoiceTitle": "Veldu talgrekkunarlíkan",
   "setup.sttModelChoiceDesc": "Veldu líkan út frá þínum þörfum. Þú getur breytt þessu síðar í Stillingum.",
   "setup.recommended": "Mælt með",
   "setup.sttModelDownloadBtn": "Hlaða niður & Halda áfram",
   "setup.sttModelSystemInfo": "Kerfi: {ram} RAM, {disk} laust disk",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Best fyrir hefðbundna kínversku",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Margtungulegur",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Nýjastur margtungulegur, hugsun/engin hugsun",
-
   "settings.polish": "AI Fágæting",
   "settings.polish.toggle": "Fágæta transcription með AI",
   "settings.polish.toggleDesc": "Bættu málfræði, tón og skýrleika",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Þessar leiðbeiningar eru bætt við grunnboðið þegar þessi regla passar.",
   "settings.polish.ruleSave": "Vista",
   "settings.polish.ruleCancel": "Hætta við",
-
   "promptRules.title": "Reglur",
   "promptRules.desc": "Reglur samsvara fremstu forritinu — fyrri samsvörun reglu leiðbeiningar eru bætt við grunnboð.",
   "promptRules.voiceTipMain": "Ýttu á {hotkey} til að lýsa reglunni þinni með rödd.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Endurkeyra uppsetning",
   "settings.danger.rerunSetupDesc": "Sýna uppsetningargagn fyrstu ræsingar aftur",
   "settings.danger.rerunSetupBtn": "Keyrðu uppsetningu",
-
   "confirm.resetTitle": "Endurstilla sjálfgefnar",
   "confirm.resetMessage": "Þetta endurkemur allar stillingar í upphaflegu gildi. Þetta er ekki afturkallanlegt.",
   "confirm.cancel": "Hætta við",
   "confirm.reset": "Endurstilla",
-
   "dictionary.title": "Sérsniðin orðabók",
   "dictionary.desc": "Bættu eigir nöfn, nöfn eða lén-tiltekin hugtök. Gervigreindi notar sjálfkrafa rétta form þegar hún rekst á svipuð ljóðhljóð orð.",
   "dictionary.toggle": "Virkja sérsniðna orðabók",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Óvirka",
   "dictionary.emptyTitle": "Engar orðabókahugtök",
   "dictionary.emptyHint": "Bættu hugtökum til að hjálpa gervigreini að þekkja eigin nöfn og nöfn.",
-
   "history.title": "Ferill",
   "history.privacyNote": "Gögnin þín eru leynilegt — allur ferill er aðeins geymdur á þessu tæki.",
   "history.retention": "Gögn varðveisla",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Varanlega eyða öllum ferli færslum og hljóðskrám",
   "history.clearAllConfirm": "Ertu viss um að þú vilt varanlega eyða öllu ferli og hljóðskrám? Þessi aðgerð er ekki afturkallanlegt.",
   "history.loadMore": "Hlaða fleiri",
-
   "about.title": "Um",
   "about.version": "Útgáfa {version}",
   "about.desc": "Þín rödd, í riti. Gervigreint tale-til-texti — ýttu á flýtilykkla til að taka upp, umbreyta og líma á bendil þinn.",
@@ -208,7 +195,6 @@
   "about.retry": "Reyndu aftur",
   "about.download": "Hlaða niður og setja upp",
   "about.gatekeeperNote": "Eftir endurræsingu getur macOS beðið þig um leyfi fyrir forritinu aftur í Kerfisstillingar › Persónuvernd og öryggi.",
-
   "setup.permissionsTitle": "Nauðsynleg leyfi",
   "setup.permissionsDesc": "Sumi þarf þessi leyfi til að taka upp hljóð og líma texta á bendilinn þinn.",
   "setup.permMicName": "Hljóðnemi",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Límdu texta á bendilinn þinn með {pasteShortcut}",
   "setup.permGrant": "Veita",
   "setup.permContinue": "Halda áfram",
-
   "setup.initialTitle": "Settu upp talagreiningu",
   "setup.initialDesc": "Sumi þarf að hlaða niður talakenningu (~1,5 GB) fyrir fullkomlega offline transcription. Þetta gerist aðeins einu sinni.",
   "setup.downloadBtn": "Hlaða niður kerfi",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Hraðar, en texti er sendir til ytri þjóns. Þarfnast API lykils.",
   "setup.polishCloudContinue": "Halda áfram",
   "setup.polishSkip": "Fara framhjá fyrir nú",
-
   "setup.stepStt": "Tal",
   "setup.stepPolish": "Fágæting",
   "setup.stepTest": "Próf",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Kerfi ID",
   "setup.testSkip": "Sleppa prófun",
   "setup.testDone": "Lokið",
-
   "setup.llmDownloadingTitle": "Hlaðið niður AI kerfi...",
   "setup.errorTitle": "Niðurhal misheppuðist",
   "setup.errorDefault": "Óvænt villa átti sér stað.",
   "setup.retryBtn": "Reyndu niðurhal aftur",
-
   "test.breadcrumb.mic": "Hljóðnemi",
   "test.breadcrumb.hotkey": "Flýtilykkla",
   "test.breadcrumb.general": "Almennt",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Smelltu á tölvupóst líkama, ýttu á {hotkey} til að hefja, talaðu, ýttu síðan á {hotkey} aftur til að stöðva",
   "test.step4.sampleText": "Prófaðu að segja: \"Halló Alice, erum við enn á fyrir kvöldmál á morgun eins og gert var ráð fyrir? Alan\"",
   "test.step4.done": "Lokið",
-
   "test.breadcrumb.polishCheck": "Slögun",
   "test.breadcrumb.editByVoice": "Breyta með rödd",
   "test.step5.title": "Breyta með rödd",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Halló Alice, erum við enn á morgun fyrir hádegismat? Láttu mig vita ef það hentar þér. Takk, Alan",
   "test.step6.editorTitle": "Breytingapróf",
   "test.step6.done": "Lokið",
-
   "overlay.preparing": "Undirbúning…",
   "overlay.recording": "Inntöku",
   "overlay.transcribing": "Umbreyting",
@@ -310,14 +290,7 @@
   "overlay.edited": "Breytt",
   "overlay.editRequiresPolish": "Gervigreining nauðsynleg fyrir breytingar",
   "overlay.undo": "Afturkalla",
-  "overlay.previewConfirm": "Staðfesta",
-  "overlay.previewCancel": "Hætta við",
-  "overlay.previewEditHint": "Smelltu á texta til að breyta",
-  "overlay.previewEditingHint": "⌘Enter til að staðfesta · Esc til að hætta við",
-
   "settings.behavior": "Hegðun",
   "settings.behavior.autoPaste": "Sjálfvirkur líming",
-  "settings.behavior.autoPasteDesc": "Límdu sjálfkrafa úttöku á staðsetningu bendils",
-  "settings.behavior.preview": "Forskoðun fyrir límingu",
-  "settings.behavior.previewDesc": "Sýndu úttöku til yfirferðar fyrir límingu"
+  "settings.behavior.autoPasteDesc": "Límdu sjálfkrafa úttöku á staðsetningu bendils"
 }

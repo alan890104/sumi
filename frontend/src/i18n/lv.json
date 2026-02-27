@@ -5,12 +5,10 @@
   "nav.history": "Vēsture",
   "nav.about": "Par programmu",
   "nav.test": "Pārbaudīt",
-
   "settings.title": "Iestatījumi",
   "settings.language": "Valoda",
   "settings.language.label": "Saskarnes valoda",
   "settings.language.desc": "Izvēlieties programmas displeja valodu",
-
   "settings.shortcuts": "Klaviatūras īsinājumi",
   "settings.shortcuts.hotkey": "Diktāts",
   "settings.shortcuts.hotkeyDesc": "Nospiediet, lai sāktu/pārtrauktu ierakstīšanu un pārveidotu par tekstu",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Nav iestatīts",
   "settings.shortcuts.editRequiresPolish": "Nepieciešams iespējot AI uzlabošanu",
   "settings.shortcuts.clear": "Notīrīt",
-
   "settings.mic": "Mikrofons",
   "settings.mic.inputDevice": "Ieejas ierīce",
   "settings.mic.noMic": "Mikrofons nav atrasts",
   "settings.mic.noMicDesc": "Pievienojiet mikrofonu vai pārbaudiet sistēmas iestatījumus",
   "settings.mic.devicesAvailable": "{n} ierīce{s} pieejama",
   "settings.mic.auto": "Automātiski",
-
   "settings.stt": "Runas atpazīšana",
   "settings.stt.mode": "Režīms",
   "settings.stt.modeDesc": "Izvēlieties lokālu vai mākoņa pārtranskliptēšanas programmu",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Mēģināt vēlreiz",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Augstākā daudzvalodu precizitāte",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Ātrākais, mazākais izmērs",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Labākais tradicionālajai ķīniešu valodai",
-
   "setup.sttModelChoiceTitle": "Izvēlieties runas atpazīšanas modeli",
   "setup.sttModelChoiceDesc": "Izvēlieties modeli atbilstoši savām vajadzībām. Vēlāk varat to mainīt Iestatījumos.",
   "setup.recommended": "Ieteicams",
   "setup.sttModelDownloadBtn": "Lejupielādēt un turpināt",
   "setup.sttModelSystemInfo": "Sistēma: {ram} RAM, {disk} brīva diska vieta",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Labākais tradicionālajai ķīniešu valodai",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Daudzvalodu",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Jaunākais daudzvalodu, domāšana/nedomāšana",
-
   "settings.polish": "AI slīpēšana",
   "settings.polish.toggle": "Slīpēt pārtranskliptējumu ar AI",
   "settings.polish.toggleDesc": "Uzlabojiet gramatiku, toni un skaidrību",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Šīs instrukcijas tiek pievienotas pamata uzvednim, kad šis noteikums atbilst.",
   "settings.polish.ruleSave": "Saglabāt",
   "settings.polish.ruleCancel": "Atcelt",
-
   "promptRules.title": "Uzvednes noteikumi",
   "promptRules.desc": "Noteikumi tiek saskaņoti ar priekšplānā esošo programmu — pirmā atbilstošā noteikuma instrukcijas tiek pievienotas pamata uzvednim.",
   "promptRules.voiceTipMain": "Nospiediet {hotkey}, lai aprakstītu savu noteikumu ar balsi.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Atkārtot iestatīšanu",
   "settings.danger.rerunSetupDesc": "Rādīt pirmreizējās palaišanas iestatīšanas slāni vēlreiz",
   "settings.danger.rerunSetupBtn": "Izpildīt iestatīšanu",
-
   "confirm.resetTitle": "Atjaunot noklusējumus",
   "confirm.resetMessage": "Tiks atjaunoti visi iestatījumi to sākotnējās vērtībās. Šo nevar atsaukt.",
   "confirm.cancel": "Atcelt",
   "confirm.reset": "Atjaunot",
-
   "dictionary.title": "Pielāgota vārdnīca",
   "dictionary.desc": "Pievienojiet īpašvārdus, vārdus vai nozares specifiskus terminus. AI automātiski izmantos pareizu formu, kad saskarīsies ar līdzīgi skanošiem vārdiem.",
   "dictionary.toggle": "Iespējot pielāgotu vārdnīcu",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Atspējot",
   "dictionary.emptyTitle": "Vēl nav vārdnīcas terminu",
   "dictionary.emptyHint": "Pievienojiet terminus, lai palīdzētu AI atpazīt īpašvārdus un vārdus.",
-
   "history.title": "Vēsture",
   "history.privacyNote": "Jūsu dati paliek privāti — visa vēsture tiek glabāta lokāli tikai šajā ierīcē.",
   "history.retention": "Datu saglabāšana",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Neatgriezenski dzēst visus vēstures ierakstus un audio failus",
   "history.clearAllConfirm": "Vai tiešām vēlaties neatgriezeniski dzēst visu vēsturi un audio failus? Šo darbību nevar atsaukt.",
   "history.loadMore": "Ielādēt vairāk",
-
   "about.title": "Par programmu",
   "about.version": "Versija {version}",
   "about.desc": "Jūsu balss, rakstā. AI pielauts runas uz tekstu pārveidojums — nospiediet vienkāršo taustiņu, lai ierakstītu, pārtranskliptētu un ielīmētu kursora pozīcijā.",
@@ -208,7 +195,6 @@
   "about.retry": "Mēģināt vēlreiz",
   "about.download": "Lejupielādēt un instalēt",
   "about.gatekeeperNote": "Pēc restartēšanas macOS var jums lūgt atļaut programmu vēlreiz Sistēmas iestatījumos › Privātums un drošība.",
-
   "setup.permissionsTitle": "Nepieciešamas atļaujas",
   "setup.permissionsDesc": "Sumi nepieciešamas šīs atļaujas, lai ierakstītu audio un ielīmētu tekstu kursora pozīcijā.",
   "setup.permMicName": "Mikrofons",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Ielīmējiet tekstu kursora pozīcijā ar {pasteShortcut}",
   "setup.permGrant": "Piešķirt",
   "setup.permContinue": "Turpināt",
-
   "setup.initialTitle": "Iestatīt runas atpazīšanu",
   "setup.initialDesc": "Sumi jālejupielādē runas atpazīšanas modelis (~1,5 GB) pilnībā bezsaistes pārtranskliptēšanai. Tas notiek tikai vienu reizi.",
   "setup.downloadBtn": "Lejupielādēt modeli",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Ātrāk, bet teksts tiek nosūtīts uz ārējo serveri. Nepieciešama API atslēga.",
   "setup.polishCloudContinue": "Turpināt",
   "setup.polishSkip": "Izlaist pagaidām",
-
   "setup.stepStt": "Runa",
   "setup.stepPolish": "Slīpēšana",
   "setup.stepTest": "Pārbaudīt",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Modeļa ID",
   "setup.testSkip": "Izlaist testēšanu",
   "setup.testDone": "Pabeigts",
-
   "setup.llmDownloadingTitle": "AI modeļa lejupielāde...",
   "setup.errorTitle": "Lejupielāde neizdevās",
   "setup.errorDefault": "Notika neparedzēta kļūda.",
   "setup.retryBtn": "Atkārtot lejupielādi",
-
   "test.breadcrumb.mic": "Mikrofons",
   "test.breadcrumb.hotkey": "Vienkāršais taustiņš",
   "test.breadcrumb.general": "Vispārīgi",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Noklikšķiniet uz e-pasta pamatteksta, nospiediet {hotkey}, lai sāktu, runājiet, tad nospiediet {hotkey} vēlreiz, lai pārtrauktu",
   "test.step4.sampleText": "Mēģiniet teikt: “Sveiki Alice, vai mēs joprojām esam pieņemti vakariņām rīt, kā bija plānots? Alan”",
   "test.step4.done": "Pabeigts",
-
   "test.breadcrumb.polishCheck": "Uzlabošana",
   "test.breadcrumb.editByVoice": "Rediģēt ar balsi",
   "test.step5.title": "Rediģēt ar balsi",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Sveika Alice, vai mēs joprojām ejam pusdienās rīt? Dod man ziņu, ja tas tev der. Paldies, Alan",
   "test.step6.editorTitle": "Rediģēšanas tests",
   "test.step6.done": "Gatavs",
-
   "overlay.preparing": "Sagatavošana…",
   "overlay.recording": "Ierakstīšana",
   "overlay.transcribing": "Pārtranskliptējums",
@@ -310,14 +290,7 @@
   "overlay.edited": "Rediģēts",
   "overlay.editRequiresPolish": "AI uzlabošana nepieciešama rediģēšanai",
   "overlay.undo": "Atsaukt",
-  "overlay.previewConfirm": "Apstiprināt",
-  "overlay.previewCancel": "Atcelt",
-  "overlay.previewEditHint": "Noklikšķiniet uz teksta, lai rediģētu",
-  "overlay.previewEditingHint": "⌘Enter apstiprināšanai · Esc atcelšanai",
-
   "settings.behavior": "Uzvedība",
   "settings.behavior.autoPaste": "Automātiska ielīmēšana",
-  "settings.behavior.autoPasteDesc": "Automātiski ielīmēt atšifrējumu kursora pozīcijā",
-  "settings.behavior.preview": "Priekšskatījums pirms ielīmēšanas",
-  "settings.behavior.previewDesc": "Rādīt atšifrējumu pārskatīšanai pirms ielīmēšanas"
+  "settings.behavior.autoPasteDesc": "Automātiski ielīmēt atšifrējumu kursora pozīcijā"
 }

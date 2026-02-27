@@ -5,12 +5,10 @@
   "nav.history": "Kasaysayan",
   "nav.about": "Tungkol",
   "nav.test": "Pagsubok",
-
   "settings.title": "Mga Setting",
   "settings.language": "Wika",
   "settings.language.label": "Wika ng Interface",
   "settings.language.desc": "Piliin ang wika ng pagpapakita para sa app",
-
   "settings.shortcuts": "Mga Shortcut sa Keyboard",
   "settings.shortcuts.hotkey": "Diksyon",
   "settings.shortcuts.hotkeyDesc": "Pindutin upang magsimula/matigil ang paggawa at pagsusulat",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Hindi nakatakda",
   "settings.shortcuts.editRequiresPolish": "Kinakailangan na i-enable ang AI Polish para mag-edit",
   "settings.shortcuts.clear": "Burahin",
-
   "settings.mic": "Mikropono",
   "settings.mic.inputDevice": "Aparato ng Input",
   "settings.mic.noMic": "Mikropono ay hindi natukoy",
   "settings.mic.noMicDesc": "Ikonekta ang mikropono o suriin ang mga setting ng system",
   "settings.mic.devicesAvailable": "{n} aparato{s} ay available",
   "settings.mic.auto": "Awtomatiko",
-
   "settings.stt": "Pagkilala sa Tunog",
   "settings.stt.mode": "Paraan",
   "settings.stt.modeDesc": "Pumili ng lokal o cloud transcription engine",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Subukan Ulit",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Pinakamataas na multilingual na katumpakan",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Pinakamabilis, pinakamaliit na footprint",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Pinakamahusay para sa Tradisyonal na Tsino",
-
   "setup.sttModelChoiceTitle": "Pumili ng Speech Recognition Model",
   "setup.sttModelChoiceDesc": "Pumili ng modelo batay sa iyong pangangailangan. Maaari mong baguhin ito sa ibang pagkakataon sa Mga Setting.",
   "setup.recommended": "Inirekomenda",
   "setup.sttModelDownloadBtn": "I-download at Magpatuloy",
   "setup.sttModelSystemInfo": "Sistema: {ram} RAM, {disk} libreng disk",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Pinakamahusay para sa Tradisyonal na Tsino",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Multilingual",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Pinakabagong multilingual, thinking/non-thinking mode",
-
   "settings.polish": "AI Pag-uukit",
   "settings.polish.toggle": "Ukayin ang pagsusulat gamit ang AI",
   "settings.polish.toggleDesc": "Mapabuti ang gramatika, tono, at kalinisan",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Ang mga pagtuturo ay idinagdag sa base prompt kapag ang patakarang ito ay tumutugma.",
   "settings.polish.ruleSave": "I-save",
   "settings.polish.ruleCancel": "Kanselahin",
-
   "promptRules.title": "Mga Patakaran sa Prompt",
   "promptRules.desc": "Ang mga patakaran ay tumutugma sa aktibong app — ang mga tagubilin ng unang tumutugong patakaran ay idinagdag sa base prompt.",
   "promptRules.voiceTipMain": "Pindutin {hotkey} upang ilarawan ang iyong patakaran sa pamamagitan ng boses.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Muling Patakbuhin ang Setup",
   "settings.danger.rerunSetupDesc": "Ipakita ang unang launch setup overlay muli",
   "settings.danger.rerunSetupBtn": "Patakbuhin ang Setup",
-
   "confirm.resetTitle": "Ibalik sa Default",
   "confirm.resetMessage": "Ito ay magpaparestore ng lahat ng mga setting sa kanilang orihinal na halaga. Hindi ito maaaring bawiin.",
   "confirm.cancel": "Kanselahin",
   "confirm.reset": "Ibalik",
-
   "dictionary.title": "Custom Dictionary",
   "dictionary.desc": "Magdagdag ng mga proper noun, pangalan, o domain-specific na termino. Ang AI ay awtomatikong gagamit ng tamang form kapag nakarating sa mga katulad na tunog na salita.",
   "dictionary.toggle": "Paganahin ang custom dictionary",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Huwag Paganahin",
   "dictionary.emptyTitle": "Walang mga termino sa diksyunaryo pa",
   "dictionary.emptyHint": "Magdagdag ng mga termino upang tumulong sa AI na kililanin ang mga proper noun at pangalan.",
-
   "history.title": "Kasaysayan",
   "history.privacyNote": "Ang iyong data ay nananatiling pribado — ang lahat ng kasaysayan ay nakaimbak na lokal lamang sa device na ito.",
   "history.retention": "Retensiyon ng Data",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Permanenteng burahin ang lahat ng mga entry ng kasaysayan at audio files",
   "history.clearAllConfirm": "Sigurado ka ba na gustong burahin ang buong kasaysayan at mga audio files? Ang aksyon na ito ay hindi maaaring bawiin.",
   "history.loadMore": "Magload ng Higit Pa",
-
   "about.title": "Tungkol",
   "about.version": "Bersyon {version}",
   "about.desc": "Ang iyong boses, sa pagsusulat. AI-powered speech-to-text — pindutin ang hotkey upang mag-record, mag-transcribe, at magpaste sa iyong cursor.",
@@ -208,7 +195,6 @@
   "about.retry": "Subukan Muli",
   "about.download": "I-download at I-install",
   "about.gatekeeperNote": "Pagkatapos ng pag-restart, maaaring magtanong ang macOS upang muling pahintulutan ang app sa System Settings › Privacy & Security.",
-
   "setup.permissionsTitle": "Kailangan ng Pahintulot",
   "setup.permissionsDesc": "Kailangan ng Sumi ng mga pahintulotang ito upang mag-record ng tunog at magpaste ng teksto sa iyong cursor.",
   "setup.permMicName": "Mikropono",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Magpaste ng teksto sa iyong cursor gamit ang {pasteShortcut}",
   "setup.permGrant": "Bigyan",
   "setup.permContinue": "Magpatuloy",
-
   "setup.initialTitle": "I-setup ang Pagkilala sa Tunog",
   "setup.initialDesc": "Kailangan ng Sumi na mag-download ng speech recognition model (~1.5 GB) para sa ganap na offline transcription. Ito ay nangyayari lamang minsan.",
   "setup.downloadBtn": "I-download ang Modelo",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Mas mabilis, ngunit ang teksto ay ipinapadala sa external server. Nangangailangan ng API key.",
   "setup.polishCloudContinue": "Magpatuloy",
   "setup.polishSkip": "Laktawan sa ngayon",
-
   "setup.stepStt": "Tunog",
   "setup.stepPolish": "Pag-uukit",
   "setup.stepTest": "Pagsubok",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Model ID",
   "setup.testSkip": "Laktawan ang pagsubok",
   "setup.testDone": "Tapos na",
-
   "setup.llmDownloadingTitle": "Nagsasaad ng AI Model...",
   "setup.errorTitle": "Nabigo ang Download",
   "setup.errorDefault": "Nagkaroon ng hindi inaasahang error.",
   "setup.retryBtn": "Subukan Muling I-download",
-
   "test.breadcrumb.mic": "Mikropono",
   "test.breadcrumb.hotkey": "Hotkey",
   "test.breadcrumb.general": "Pangkalahatan",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Mag-click sa katawan ng email, pindutin {hotkey} upang magsimula, magsalita, pagkatapos pindutin {hotkey} muli upang huminto",
   "test.step4.sampleText": "Subukan sabihing: \"Hi Alice, tayo pa ba para sa tanghalian bukas tulad ng plano? Alan\"",
   "test.step4.done": "Tapos na",
-
   "test.breadcrumb.polishCheck": "Polish",
   "test.breadcrumb.editByVoice": "I-edit sa pamamagitan ng Boses",
   "test.step5.title": "I-edit sa pamamagitan ng Boses",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hi Alice, nandito pa ba kami para sa tanghalian bukas? Pakitauhan mo ako kung gumagana iyan para sa iyo. Salamat, Alan",
   "test.step6.editorTitle": "Edit Test",
   "test.step6.done": "Tapos Na",
-
   "overlay.preparing": "Nagsasagawa...",
   "overlay.recording": "Nag-aani",
   "overlay.transcribing": "Isinusulat",
@@ -310,14 +290,7 @@
   "overlay.edited": "Na-edit",
   "overlay.editRequiresPolish": "Ang pag-edit ay nangangailangan ng AI Polish",
   "overlay.undo": "Bawiin",
-  "overlay.previewConfirm": "Kumpirmahin",
-  "overlay.previewCancel": "Kanselahin",
-  "overlay.previewEditHint": "I-click ang text upang mag-edit",
-  "overlay.previewEditingHint": "⌘Enter upang kumpirmahin · Esc upang kanselahin",
-
   "settings.behavior": "Pag-uugali",
   "settings.behavior.autoPaste": "Auto-paste",
-  "settings.behavior.autoPasteDesc": "Awtomatikong i-paste ang transcription sa cursor position",
-  "settings.behavior.preview": "Preview bago i-paste",
-  "settings.behavior.previewDesc": "Ipakita ang transcription para sa review bago i-paste"
+  "settings.behavior.autoPasteDesc": "Awtomatikong i-paste ang transcription sa cursor position"
 }

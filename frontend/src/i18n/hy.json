@@ -5,12 +5,10 @@
   "nav.history": "Պատմություն",
   "nav.about": "Մասին",
   "nav.test": "Փորձ",
-
   "settings.title": "Կարգավորումներ",
   "settings.language": "Լեզու",
   "settings.language.label": "Ինտերֆեյսի լեզու",
   "settings.language.desc": "Ընտրեք հավելվածի ցուցադրման լեզուն",
-
   "settings.shortcuts": "Ստ键board Կոճակներ",
   "settings.shortcuts.hotkey": "Թելադրություն",
   "settings.shortcuts.hotkeyDesc": "Սեղմեք՝ հատակ գրառումն սկսելու/կանգնեցնելու և տեքստացնելու համար",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Չի սահմանված",
   "settings.shortcuts.editRequiresPolish": "Պահանջվում է AI մաքրում միացված լինել",
   "settings.shortcuts.clear": "Մաքրել",
-
   "settings.mic": "Միկրոֆոն",
   "settings.mic.inputDevice": "Մուտքային Սարք",
   "settings.mic.noMic": "Միկրոֆոն չի հայտնաբերվել",
   "settings.mic.noMicDesc": "Միացրեք միկրոֆոն կամ ստուգեք համակարգի կարգավորումները",
   "settings.mic.devicesAvailable": "{n} սարք{s} հասանելի",
   "settings.mic.auto": "Ինքնաբերար",
-
   "settings.stt": "Ձայնի Ճանաչում",
   "settings.stt.mode": "Ռեժիմ",
   "settings.stt.modeDesc": "Ընտրեք տեղական կամ ամպային տրամագրման շարժիչ",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Նորից փորձել",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Բազմալեզու ճանաչման ամենաբարձր ճշգրտությունը",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Ամենատեղի, ամենափոքր ծավալ",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Լավագույն ավանդական չինարենի համար",
-
   "setup.sttModelChoiceTitle": "Ընտրեք Խոսքի ճանաչման մոդել",
   "setup.sttModelChoiceDesc": "Ընտրեք մոդել ձեր կարիքների համաձայն: Կարող եք այն ավելի ուշ փոխել Կարգավորումներում:",
   "setup.recommended": "Առաջարկվում է",
   "setup.sttModelDownloadBtn": "Ներբեռնել և շարունակել",
   "setup.sttModelSystemInfo": "Համակարգ՝ {ram} RAM, {disk} հատկացված սկավառակի տարածք",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Լավագույն ավանդական չինարենի համար",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Բազմալեզու",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Վերջին բազմալեզու, մտածողության հետ/առանց",
-
   "settings.polish": "AI Կտրուկ",
   "settings.polish.toggle": "Կտրատել տրամագրումը AI-ով",
   "settings.polish.toggleDesc": "Բարելավել քերականություն, տոն և հստակություն",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Այս հրահանգները ավելացվում են հիմնական հուշմանը, երբ այս կանոնը համապատասխանում է։",
   "settings.polish.ruleSave": "Պահպանել",
   "settings.polish.ruleCancel": "Չեղարկել",
-
   "promptRules.title": "Հուշում Կանոններ",
   "promptRules.desc": "Կանոնները համապատասխանում են առջևի հավելվածին - առաջին համապատասխան կանոնի հրահանգները ավելացվում են հիմնական հուշմանը:",
   "promptRules.voiceTipMain": "Սեղմեք {hotkey}՝ ձայնով ձեր կանոնը նկարագրելու համար։",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Վերա կազմել Setup-ը",
   "settings.danger.rerunSetupDesc": "Ցուցադրել առաջին անգամ setup համակ վերևից",
   "settings.danger.rerunSetupBtn": "Կատարել Setup",
-
   "confirm.resetTitle": "Վերակայել Կանխադրված արժեքներին",
   "confirm.resetMessage": "Սա վերականգնելու է բոլոր կարգավորումները դրանց սկզբնական արժեքներին։ Սա չի կարելի հետ անել։",
   "confirm.cancel": "Չեղարկել",
   "confirm.reset": "Վերակայել",
-
   "dictionary.title": "Պատ Բառարան",
   "dictionary.desc": "Ավելացրեք սեփական անուններ, անուններ կամ տիրույթ հատուկ տերմիններ։ AI-ը ինքնաբերար կօգտագործի ճիշտ ձևը, երբ հանդիպել հանգ նման բառերի:",
   "dictionary.toggle": "Միացնել պատ բառարանը",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Անջատել",
   "dictionary.emptyTitle": "Դեռ չկա բառարանի տերմիններ",
   "dictionary.emptyHint": "Ավելացրեք տերմինները` AI-ին օգնելու համար ճանաչել սեփական անունները և անունները:",
-
   "history.title": "Պատմություն",
   "history.privacyNote": "Ձեր տվյալները մնում են մասնական - բոլոր պատմությունը պահվում է տեղայնորեն միայն այս սարքում:",
   "history.retention": "Տվյալների պահանջ",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Մշտապես ջնջել բոլոր պատմության մուտքերն ու ձայնային ֆայլերը",
   "history.clearAllConfirm": "Կուզե՞ք մշտապես ջնջել բոլոր պատմությունն ու ձայնային ֆայլերը: Այս գործողությունը չի կարելի հետ անել:",
   "history.loadMore": "Ավելի շատ բեռնել",
-
   "about.title": "Մասին",
   "about.version": "Տարբերակ {version}",
   "about.desc": "Ձեր ձայնը տեքստով: AI-ով աջակցվող ձայնից տեքստ` սեղմեք կոճակ` գրանցել, տրամագրել և մտցնել ձեր կուրսորի վրա:",
@@ -208,7 +195,6 @@
   "about.retry": "Կրկին փորձել",
   "about.download": "Ներբեռնել & Տեղադրել",
   "about.gatekeeperNote": "Վերամեկնարկելուց հետո, macOS-ը կարող է ձեզ խնդրել հավելվածին կրկին թույլ տալ Համակարգի Կարգավորումներ › Գաղտնիություն & Անվտանգություն:",
-
   "setup.permissionsTitle": "Թույլտվություններ Պահանջվում են",
   "setup.permissionsDesc": "Sumi-ն պետք է այս թույլտվությունները` ձայն գրանցելու և տեքստ մտցնելու ձեր կուրսորի վրա:",
   "setup.permMicName": "Միկրոֆոն",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Մտցե՛ք տեքստ ձեր կուրսորի վրա {pasteShortcut}-ով",
   "setup.permGrant": "Տալ",
   "setup.permContinue": "Շարունակել",
-
   "setup.initialTitle": "Ձայնի Ճանաչման Setup",
   "setup.initialDesc": "Sumi-ն պետք է ներբեռնի ձայնի ճանաչման մոդել (~1.5 GB) լիովին անցանց տրամագրման համար: Դա տեղի է ունենում միայն մեկ անգամ:",
   "setup.downloadBtn": "Ներբեռնել Մոդել",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Ավելի արագ, բայց տեքստն ուղարկվում է արտաքին սերվերին: Պահանջում է API բանալի:",
   "setup.polishCloudContinue": "Շարունակել",
   "setup.polishSkip": "Համար այս պահին անցկացնել",
-
   "setup.stepStt": "Ձայն",
   "setup.stepPolish": "Կտրատում",
   "setup.stepTest": "Փորձ",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Մոդելի ID",
   "setup.testSkip": "Փորձը անցկացնել",
   "setup.testDone": "Կատարված",
-
   "setup.llmDownloadingTitle": "AI Մոդել ներբեռնում...",
   "setup.errorTitle": "Ներբեռնել Ձախողվեց",
   "setup.errorDefault": "Անսպասելի սխալ տեղի ունեցավ:",
   "setup.retryBtn": "Կրկին փորձել Ներբեռնել",
-
   "test.breadcrumb.mic": "Միկրոֆոն",
   "test.breadcrumb.hotkey": "Կոճակ",
   "test.breadcrumb.general": "Ընդհանուր",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Սեղմեք էլ. հաղորդի մարմինը, սեղմեք {hotkey} սկսելու համար, խոսեք, ապա սեղմեք {hotkey} կրկին կանգնեցնելու համար",
   "test.step4.sampleText": "Փորձե՛ք ասել. \"Բարեւ Ալիս, մենք դեռ ընդամենը վրա ընթրիք վաղ ինչպես պլան? Ալան\"",
   "test.step4.done": "Կատարված",
-
   "test.breadcrumb.polishCheck": "Մաքրում",
   "test.breadcrumb.editByVoice": "Խմբագրել Ձայնով",
   "test.step5.title": "Խմբագրել Ձայնով",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hi Alice, are we still on for lunch tomorrow? Let me know if that works for you. Thanks, Alan",
   "test.step6.editorTitle": "Թեստային խմբագրում",
   "test.step6.done": "Պատրաստ",
-
   "overlay.preparing": "Պատրաստում...",
   "overlay.recording": "Գրանցում",
   "overlay.transcribing": "Տրամագրում",
@@ -310,14 +290,7 @@
   "overlay.edited": "Խմբագրված",
   "overlay.editRequiresPolish": "AI մաքրում պահանջվում է խմբագրման համար",
   "overlay.undo": "Հետ Պետք Անել",
-  "overlay.previewConfirm": "Հաստատել",
-  "overlay.previewCancel": "Չեղարկել",
-  "overlay.previewEditHint": "Սեղմեք տեքստը խմբագրելու համար",
-  "overlay.previewEditingHint": "⌘Enter հաստատման համար · Esc չեղարկման համար",
-
   "settings.behavior": "Վարქածք",
   "settings.behavior.autoPaste": "Ինքնաբերում",
-  "settings.behavior.autoPasteDesc": "Ինքնաբերում տեքստի տրանսկրիպցիայի կուրսորի դիրքում",
-  "settings.behavior.preview": "Նախադիտում մեկ կպած",
-  "settings.behavior.previewDesc": "Ցուցադրել տրանսկրիպցիան ստուգման համար մեկ կպածից առաջ"
+  "settings.behavior.autoPasteDesc": "Ինքնաբերում տեքստի տրանսկրիպցիայի կուրսորի դիրքում"
 }

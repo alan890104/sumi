@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '$lib/stores/i18n.svelte';
-  import { getSettings, setAutoPaste, setPreviewBeforePaste, save } from '$lib/stores/settings.svelte';
+  import { getSettings, setAutoPaste, save } from '$lib/stores/settings.svelte';
   import SettingRow from '$lib/components/SettingRow.svelte';
   import SectionHeader from '$lib/components/SectionHeader.svelte';
   import Toggle from '$lib/components/Toggle.svelte';
@@ -9,11 +9,6 @@
 
   function onToggleAutoPaste(checked: boolean) {
     setAutoPaste(checked);
-    save();
-  }
-
-  function onTogglePreview(checked: boolean) {
-    setPreviewBeforePaste(checked);
     save();
   }
 </script>
@@ -31,10 +26,6 @@
 
   <SettingRow name={t('settings.behavior.autoPaste')} desc={t('settings.behavior.autoPasteDesc')}>
     <Toggle checked={settings.auto_paste} onchange={onToggleAutoPaste} />
-  </SettingRow>
-
-  <SettingRow name={t('settings.behavior.preview')} desc={t('settings.behavior.previewDesc')}>
-    <Toggle checked={settings.preview_before_paste} onchange={onTogglePreview} />
   </SettingRow>
 </div>
 

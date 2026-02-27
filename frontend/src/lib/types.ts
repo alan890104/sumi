@@ -122,7 +122,6 @@ export interface Settings {
   language: string | null;
   stt: SttConfig;
   edit_hotkey: string | null;
-  preview_before_paste: boolean;
 }
 
 // ── History ──
@@ -215,5 +214,4 @@ export type OverlayStatus =
   | 'copied'
   | 'error'
   | 'edited'
-  | 'edit_requires_polish'
-  | 'preview';
+  | 'edit_requires_polish';

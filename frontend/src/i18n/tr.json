@@ -5,12 +5,10 @@
   "nav.history": "Geçmiş",
   "nav.about": "Hakkında",
   "nav.test": "Test",
-
   "settings.title": "Ayarlar",
   "settings.language": "Dil",
   "settings.language.label": "Arayüz dili",
   "settings.language.desc": "Uygulama için görüntü dilini seçin",
-
   "settings.shortcuts": "Klavye Kısayolları",
   "settings.shortcuts.hotkey": "Dikte",
   "settings.shortcuts.hotkeyDesc": "Kaydı başlatmak/durdurmak ve yazıya dönüştürmek için basın",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Ayarlanmadı",
   "settings.shortcuts.editRequiresPolish": "AI iyileştirmenin etkinleştirilmesi gerekir",
   "settings.shortcuts.clear": "Temizle",
-
   "settings.mic": "Mikrofon",
   "settings.mic.inputDevice": "Giriş Aygıtı",
   "settings.mic.noMic": "Mikrofon algılanmadı",
   "settings.mic.noMicDesc": "Bir mikrofon bağlayın veya sistem ayarlarını kontrol edin",
   "settings.mic.devicesAvailable": "{n} aygıt{s} mevcut",
   "settings.mic.auto": "Otomatik",
-
   "settings.stt": "Konuşma Tanıma",
   "settings.stt.mode": "Mod",
   "settings.stt.modeDesc": "Yerel veya bulut transkripsiyon motorunu seçin",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Yeniden Dene",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "En yüksek çok dilli doğruluk",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "En hızlı, en küçük boyut",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Geleneksel Çince için en iyi",
-
   "setup.sttModelChoiceTitle": "Bir Konuşma Tanıma Modeli Seçin",
   "setup.sttModelChoiceDesc": "İhtiyaçlarınıza göre bir model seçin. Bunu daha sonra Ayarlar'da değiştirebilirsiniz.",
   "setup.recommended": "Önerilen",
   "setup.sttModelDownloadBtn": "İndir ve Devam Et",
   "setup.sttModelSystemInfo": "Sistem: {ram} RAM, {disk} boş disk",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Geleneksel Çince için en iyi",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Çok dilli",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "En yeni çok dilli, düşünme/düşünmeme",
-
   "settings.polish": "AI Polishing",
   "settings.polish.toggle": "Transkripti AI ile düzelt",
   "settings.polish.toggleDesc": "Gramer, ton ve netliği iyileştir",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Bu talimatlar, bu kural eşleştiğinde temel isteme eklenir.",
   "settings.polish.ruleSave": "Kaydet",
   "settings.polish.ruleCancel": "İptal",
-
   "promptRules.title": "İstem Kuralları",
   "promptRules.desc": "Kurallar en ön plandaki uygulamaya göre eşleştirilir — ilk eşleşen kuralın talimatları temel isteme eklenir.",
   "promptRules.voiceTipMain": "Kuralınızı sesle açıklamak için {hotkey} tuşuna basın.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Kurulumu Yeniden Çalıştır",
   "settings.danger.rerunSetupDesc": "İlk başlatma kurulum kaplamasını tekrar göster",
   "settings.danger.rerunSetupBtn": "Kurulumu Çalıştır",
-
   "confirm.resetTitle": "Varsayılana Sıfırla",
   "confirm.resetMessage": "Bu, tüm ayarları orijinal değerlerine geri yükleyecektir. Bu geri alınamaz.",
   "confirm.cancel": "İptal",
   "confirm.reset": "Sıfırla",
-
   "dictionary.title": "Özel Sözlük",
   "dictionary.desc": "Özel isimleri, adları veya alana özel terimleri ekleyin. AI, benzer seslere sahip kelimelerle karşılaştığında otomatik olarak doğru formu kullanacaktır.",
   "dictionary.toggle": "Özel sözlüğü etkinleştir",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Devre Dışı Bırak",
   "dictionary.emptyTitle": "Henüz sözlük terimi yok",
   "dictionary.emptyHint": "AI'nın özel adları ve isimleri tanımasına yardımcı olmak için terimler ekleyin.",
-
   "history.title": "Geçmiş",
   "history.privacyNote": "Verileriniz özel kalır — tüm geçmiş yalnızca bu cihazda yerel olarak depolanır.",
   "history.retention": "Veri saklama",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Tüm geçmiş girişlerini ve ses dosyalarını kalıcı olarak sil",
   "history.clearAllConfirm": "Tüm geçmişi ve ses dosyalarını kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
   "history.loadMore": "Daha fazla yükle",
-
   "about.title": "Hakkında",
   "about.version": "Sürüm {version}",
   "about.desc": "Sesiniz, yazı olarak. AI tarafından desteklenen konuşma-yazı-metin — imla etmek, yazıya dönüştürmek ve imlecin konumuna yapıştırmak için bir kısayola basın.",
@@ -208,7 +195,6 @@
   "about.retry": "Tekrar Dene",
   "about.download": "İndir ve Yükle",
   "about.gatekeeperNote": "Yeniden başlattıktan sonra, macOS sizi System Settings › Privacy & Security' de uygulamaya izin vermeyi yeniden isteyebilir.",
-
   "setup.permissionsTitle": "İzinler Gerekli",
   "setup.permissionsDesc": "Sumi, sesi kaydetmek ve metni imlecin konumuna yapıştırmak için bu izinlere ihtiyaç duyar.",
   "setup.permMicName": "Mikrofon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "{pasteShortcut} ile metni imlecin konumuna yapıştırın",
   "setup.permGrant": "İzin Ver",
   "setup.permContinue": "Devam Et",
-
   "setup.initialTitle": "Konuşma Tanıma Kurulumu",
   "setup.initialDesc": "Sumi, tamamen çevrimdışı transkripsiyon için konuşma tanıma modeli (~1.5 GB) indirmesi gerekir. Bu sadece bir kez olur.",
   "setup.downloadBtn": "Modeli İndir",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Daha hızlı, ancak metin harici bir sunucuya gönderilir. API Key gerektirir.",
   "setup.polishCloudContinue": "Devam Et",
   "setup.polishSkip": "Şimdilik Atla",
-
   "setup.stepStt": "Konuşma",
   "setup.stepPolish": "Polishing",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Model ID",
   "setup.testSkip": "Testi Atla",
   "setup.testDone": "Bitti",
-
   "setup.llmDownloadingTitle": "AI Modeli İndiriliyor...",
   "setup.errorTitle": "İndirme Başarısız",
   "setup.errorDefault": "Beklenmeyen bir hata oluştu.",
   "setup.retryBtn": "İndirmeyi Yeniden Dene",
-
   "test.breadcrumb.mic": "Mikrofon",
   "test.breadcrumb.hotkey": "Kısayol",
   "test.breadcrumb.general": "Genel",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "E-posta gövdesine tıklayın, başlamak için {hotkey} tuşuna basın, konuşun, durdurmak için {hotkey} tuşuna tekrar basın",
   "test.step4.sampleText": "Söylemeyi deneyin: \"Merhaba Alice, yarın öğle yemeğine hala gelmek üzere miyiz? Alan\"",
   "test.step4.done": "Bitti",
-
   "test.breadcrumb.polishCheck": "İyileştirme",
   "test.breadcrumb.editByVoice": "Sesle Düzenle",
   "test.step5.title": "Sesle Düzenle",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Merhaba Alice, yarın öğle yemeği için hâlâ buluşuyor muyuz? Sana uygun olup olmadığını bana bildir. Teşekkürler, Alan",
   "test.step6.editorTitle": "Düzenleme Testi",
   "test.step6.done": "Bitti",
-
   "overlay.preparing": "Hazırlanıyor…",
   "overlay.recording": "Kaydediliyor",
   "overlay.transcribing": "Yazıya Dönüştürülüyor",
@@ -310,14 +290,7 @@
   "overlay.edited": "Düzeltildi",
   "overlay.editRequiresPolish": "Düzenleme için AI iyileştirme gereklidir",
   "overlay.undo": "Geri Al",
-  "overlay.previewConfirm": "Onayla",
-  "overlay.previewCancel": "İptal",
-  "overlay.previewEditHint": "Düzenlemek için metne tıklayın",
-  "overlay.previewEditingHint": "⌘Enter onaylamak için · Esc iptal için",
-
   "settings.behavior": "Davranış",
   "settings.behavior.autoPaste": "Otomatik yapıştır",
-  "settings.behavior.autoPasteDesc": "Dökümü otomatik olarak imleç konumuna yapıştır",
-  "settings.behavior.preview": "Yapıştırmadan önce önizle",
-  "settings.behavior.previewDesc": "Yapıştırmadan önce dökümü inceleme için göster"
+  "settings.behavior.autoPasteDesc": "Dökümü otomatik olarak imleç konumuna yapıştır"
 }

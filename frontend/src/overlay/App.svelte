@@ -1,18 +1,13 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { t, initLocale } from '$lib/stores/i18n.svelte';
   import {
     onRecordingStatus,
     onRecordingMaxDuration,
     onAudioLevels,
-    onPreviewText,
     triggerUndo,
-    confirmPreview,
-    cancelPreview,
   } from '$lib/api';
-  import { formatHotkeyDisplay, hotkeyToParts } from '$lib/constants';
-  import { getCurrentWindow, currentMonitor } from '@tauri-apps/api/window';
-  import { LogicalSize, LogicalPosition } from '@tauri-apps/api/dpi';
+  import { getCurrentWindow } from '@tauri-apps/api/window';
   import type { UnlistenFn } from '@tauri-apps/api/event';
   import type { OverlayStatus } from '$lib/types';
 
@@ -25,9 +20,6 @@
   const UNDO_DURATION = 5000;
   const TIMER_INTERVAL = 200;
   const INTERPOLATION_FACTOR = 0.25;
-  const PREVIEW_WIDTH = 420;
-  const CAPSULE_WIDTH = 300;
-  const CAPSULE_HEIGHT = 52;
 
   // ── State ──
   type Phase =
@@ -41,22 +33,13 @@
     | 'error'
     | 'edited'
     | 'edit_requires_polish'
-    | 'undo'
-    | 'preview';
+    | 'undo';
 
   let phase: Phase = $state('preparing');
   let timerText: string = $state('0:00');
   let recProgress: number = $state(0);
   let maxDuration: number = $state(30);
   let undoAnimating: boolean = $state(false);
-
-  // ── Preview state ──
-  let previewText: string = $state('');
-  let previewHotkey: string = $state('');
-  let hotkeyParts: string[] = $derived(previewHotkey ? hotkeyToParts(previewHotkey) : []);
-  let isEditing: boolean = $state(false);
-  let editText: string = $state('');
-  let textareaEl: HTMLTextAreaElement | undefined = $state();
 
   // ── Canvas & waveform ──
   let canvasEl: HTMLCanvasElement | undefined = $state();
@@ -99,8 +82,6 @@
         return 'capsule result error-state';
       case 'undo':
         return 'capsule undo-state';
-      case 'preview':
-        return 'capsule preview-state';
       default:
         return 'capsule';
     }
@@ -130,8 +111,6 @@
         return t('overlay.edited');
       case 'undo':
         return t('overlay.undo');
-      case 'preview':
-        return '';
       default:
         return '';
     }
@@ -153,8 +132,6 @@
   let isCheckIcon: boolean = $derived.by(() => is('pasted', 'copied', 'edited'));
   let isErrorIcon: boolean = $derived.by(() => is('error', 'edit_requires_polish'));
   let isPolishSpinner: boolean = $derived.by(() => is('polishing'));
-  let showPreview: boolean = $derived.by(() => is('preview'));
-  let showCapsuleContent: boolean = $derived.by(() => !is('preview'));
 
   // ── Waveform animation ──
   function animateWaveform() {
@@ -233,14 +210,11 @@
 
   function setPreparing() {
     clearCommon();
-    isEditing = false;
-    previewText = '';
     phase = 'preparing';
   }
 
   function setRecording() {
     clearCommon();
-    isEditing = false;
     phase = 'recording';
     startTimer();
     startWaveform();
@@ -308,80 +282,6 @@
     }, UNDO_DURATION);
   }
 
-  async function setPreview(text: string, hotkey: string) {
-    clearCommon();
-    previewText = text;
-    previewHotkey = hotkey;
-    editText = text;
-    isEditing = false;
-    phase = 'preview';
-    await resizeForPreview(text);
-  }
-
-  // ── Preview helpers ──
-  async function resizeForPreview(text: string) {
-    const win = getCurrentWindow();
-    const charsPerLine = 38;
-    const lines = Math.max(Math.ceil(text.length / charsPerLine), text.split('\n').length, 2);
-    const textH = Math.min(lines * 22 + 16, 220);
-    // text area + action bar (44px) + padding (28px top/bottom)
-    const totalH = textH + 44 + 28;
-    const clampedH = Math.min(Math.max(totalH, 130), 340);
-
-    await win.setSize(new LogicalSize(PREVIEW_WIDTH, clampedH));
-    const monitor = await currentMonitor();
-    if (monitor) {
-      const sw = monitor.size.width / monitor.scaleFactor;
-      const sh = monitor.size.height / monitor.scaleFactor;
-      await win.setPosition(new LogicalPosition(
-        (sw - PREVIEW_WIDTH) / 2,
-        sh - clampedH - 80
-      ));
-    }
-  }
-
-  async function resetOverlaySize() {
-    const win = getCurrentWindow();
-    await win.setSize(new LogicalSize(CAPSULE_WIDTH, CAPSULE_HEIGHT));
-  }
-
-  async function handlePreviewConfirm() {
-    const text = isEditing ? editText : undefined;
-    await resetOverlaySize();
-    try {
-      await confirmPreview(text);
-    } catch (e) {
-      console.error('Preview confirm failed:', e);
-    }
-  }
-
-  async function handlePreviewCancel() {
-    await resetOverlaySize();
-    try {
-      await cancelPreview();
-    } catch (e) {
-      console.error('Preview cancel failed:', e);
-    }
-  }
-
-  async function handlePreviewEdit() {
-    isEditing = true;
-    editText = previewText;
-    await tick();
-    textareaEl?.focus();
-  }
-
-  function handlePreviewKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && e.metaKey) {
-      e.preventDefault();
-      handlePreviewConfirm();
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      handlePreviewCancel();
-    }
-  }
-
   // ── Undo ──
   async function handleUndoClick() {
     if (phase !== 'undo') return;
@@ -435,9 +335,6 @@
       case 'edit_requires_polish':
         setEditRequiresPolish();
         break;
-      case 'preview':
-        // Text will arrive via preview-text event
-        break;
     }
   }
 
@@ -465,12 +362,8 @@
   // When the backend hides the overlay (e.g. after "no speech detected"),
   // no status event is emitted. Reset state so the capsule doesn't show
   // stale text (like "transcribing") when next shown.
-  async function handleVisibility() {
+  function handleVisibility() {
     if (document.hidden) {
-      if (phase === 'preview') {
-        await resetOverlaySize();
-        try { await cancelPreview(); } catch {}
-      }
       setPreparing();
     }
   }
@@ -494,10 +387,7 @@
     const u3 = await onAudioLevels((levels) => {
       targetLevels = levels;
     });
-    const u4 = await onPreviewText(({ text, hotkey }) => {
-      setPreview(text, hotkey);
-    });
-    unlisteners = [u1, u2, u3, u4];
+    unlisteners = [u1, u2, u3];
   });
 
   onDestroy(() => {
@@ -512,107 +402,65 @@
   });
 </script>
 
-{#if showPreview}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="preview-container" onkeydown={handlePreviewKeydown}>
-    {#if isEditing}
-      <textarea
-        class="preview-textarea"
-        bind:value={editText}
-        bind:this={textareaEl}
-        onkeydown={handlePreviewKeydown}
-      ></textarea>
-    {:else}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="preview-text" onclick={handlePreviewEdit}>
-        {previewText}
-      </div>
-    {/if}
-    <div class="preview-actions">
-      {#if isEditing}
-        <span class="preview-hint editing-hint">{t('overlay.previewEditingHint')}</span>
-      {:else}
-        <span class="preview-hint">{t('overlay.previewEditHint')}</span>
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class={capsuleClass}
+  style:--rec-progress={recProgress}
+  onclick={handleCapsuleClick}
+>
+  <!-- Recording dot (only visible in default/idle states via CSS) -->
+  {#if showDot}
+    <div class="dot"></div>
+  {/if}
+
+  <!-- Spinner -->
+  {#if showSpinner}
+    <div class="spinner" class:polish-spinner={isPolishSpinner}></div>
+  {/if}
+
+  <!-- Waveform canvas -->
+  {#if showWaveform}
+    <canvas
+      class="waveform"
+      bind:this={canvasEl}
+      width={CW}
+      height={CH}
+    ></canvas>
+  {/if}
+
+  <!-- Result icons -->
+  {#if showIconResult}
+    <div class="icon-result">
+      {#if isCheckIcon}
+        <div class="icon-check"></div>
+      {:else if isErrorIcon}
+        <div class="icon-error"></div>
       {/if}
-      <div class="preview-btns">
-        <button class="preview-btn cancel-btn" onclick={handlePreviewCancel}>
-          {t('overlay.previewCancel')}
-        </button>
-        <button class="preview-btn confirm-btn" onclick={handlePreviewConfirm}>
-          {#if hotkeyParts.length > 0}
-            <span class="keycap-group">
-              {#each hotkeyParts as part}
-                <kbd class="keycap">{part}</kbd>
-              {/each}
-            </span>
-          {/if}
-          <span>{t('overlay.previewConfirm')}</span>
-        </button>
-      </div>
     </div>
-  </div>
-{:else}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class={capsuleClass}
-    style:--rec-progress={recProgress}
-    onclick={handleCapsuleClick}
-  >
-    <!-- Recording dot (only visible in default/idle states via CSS) -->
-    {#if showDot}
-      <div class="dot"></div>
-    {/if}
+  {/if}
 
-    <!-- Spinner -->
-    {#if showSpinner}
-      <div class="spinner" class:polish-spinner={isPolishSpinner}></div>
-    {/if}
+  <!-- Undo icon -->
+  {#if showUndoIcon}
+    <svg class="icon-undo" viewBox="0 0 24 24" fill="none" stroke="rgba(255, 149, 0, 0.9)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="1 4 1 10 7 10"></polyline>
+      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+    </svg>
+  {/if}
 
-    <!-- Waveform canvas -->
-    {#if showWaveform}
-      <canvas
-        class="waveform"
-        bind:this={canvasEl}
-        width={CW}
-        height={CH}
-      ></canvas>
-    {/if}
+  <!-- Label -->
+  <span class="label">{labelText}</span>
 
-    <!-- Result icons -->
-    {#if showIconResult}
-      <div class="icon-result">
-        {#if isCheckIcon}
-          <div class="icon-check"></div>
-        {:else if isErrorIcon}
-          <div class="icon-error"></div>
-        {/if}
-      </div>
-    {/if}
+  <!-- Timer -->
+  {#if showTimer}
+    <span class="timer">{timerText}</span>
+  {/if}
 
-    <!-- Undo icon -->
-    {#if showUndoIcon}
-      <svg class="icon-undo" viewBox="0 0 24 24" fill="none" stroke="rgba(255, 149, 0, 0.9)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="1 4 1 10 7 10"></polyline>
-        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-      </svg>
-    {/if}
-
-    <!-- Label -->
-    <span class="label">{labelText}</span>
-
-    <!-- Timer -->
-    {#if showTimer}
-      <span class="timer">{timerText}</span>
-    {/if}
-
-    <!-- Undo countdown bar -->
-    {#if showUndoBar}
-      <div class="undo-bar" bind:this={undoBarEl}></div>
-    {/if}
-  </div>
-{/if}
+  <!-- Undo countdown bar -->
+  {#if showUndoBar}
+    <div class="undo-bar" bind:this={undoBarEl}></div>
+  {/if}
+</div>
 
 <style>
   :global(*),
@@ -904,156 +752,5 @@
 
   .capsule.undo-state:active {
     transform: scale(0.97);
-  }
-
-  /* ── Preview container ── */
-  .preview-container {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    padding: 14px 16px;
-    background: rgba(12, 12, 16, 0.92);
-    backdrop-filter: blur(40px) saturate(1.6);
-    -webkit-backdrop-filter: blur(40px) saturate(1.6);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 16px;
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.45),
-      0 0 0 0.5px rgba(255, 255, 255, 0.06),
-      inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.92);
-    animation: fadeIn 0.25s ease-out;
-  }
-
-  .preview-text {
-    flex: 1;
-    font-size: 13.5px;
-    line-height: 1.65;
-    color: rgba(255, 255, 255, 0.88);
-    overflow-y: auto;
-    cursor: text;
-    word-break: break-word;
-    padding: 2px 0;
-    border-radius: 6px;
-    transition: background 0.15s ease;
-  }
-
-  .preview-text:hover {
-    color: rgba(255, 255, 255, 1);
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .preview-textarea {
-    flex: 1;
-    font-size: 13.5px;
-    line-height: 1.65;
-    color: rgba(255, 255, 255, 0.92);
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    padding: 8px;
-    resize: none;
-    outline: none;
-    font-family: inherit;
-    -webkit-user-select: text;
-    user-select: text;
-  }
-
-  .preview-textarea:focus {
-    border-color: rgba(167, 139, 250, 0.5);
-  }
-
-  .preview-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 10px;
-    flex-shrink: 0;
-  }
-
-  .preview-hint {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.4);
-    letter-spacing: 0.02em;
-  }
-
-  .preview-hint.editing-hint {
-    color: rgba(167, 139, 250, 0.7);
-  }
-
-  .preview-btns {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .preview-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    height: 28px;
-    padding: 0 12px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    font-size: 12px;
-    font-weight: 500;
-    font-family: inherit;
-    line-height: 1;
-  }
-
-  .preview-btn.cancel-btn {
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .preview-btn.cancel-btn:hover {
-    background: rgba(255, 59, 48, 0.2);
-    border-color: rgba(255, 59, 48, 0.3);
-    color: rgba(255, 255, 255, 0.85);
-  }
-
-  .preview-btn.confirm-btn {
-    background: rgba(52, 199, 89, 0.2);
-    color: rgba(52, 199, 89, 0.95);
-    border: 1px solid rgba(52, 199, 89, 0.3);
-  }
-
-  .preview-btn.confirm-btn:hover {
-    background: rgba(52, 199, 89, 0.3);
-    border-color: rgba(52, 199, 89, 0.45);
-    color: #fff;
-  }
-
-  .preview-btn:active {
-    transform: scale(0.96);
-  }
-
-  /* ── Keycap styling ── */
-  .keycap-group {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .keycap {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    font-size: 10px;
-    font-weight: 600;
-    font-family: inherit;
-    line-height: 1;
-    color: inherit;
   }
 </style>

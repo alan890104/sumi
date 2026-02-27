@@ -5,12 +5,10 @@
   "nav.history": "履歴",
   "nav.about": "について",
   "nav.test": "テスト",
-
   "settings.title": "設定",
   "settings.language": "言語",
   "settings.language.label": "インターフェース言語",
   "settings.language.desc": "アプリの表示言語を選択します",
-
   "settings.shortcuts": "キーボードショートカット",
   "settings.shortcuts.hotkey": "音声入力",
   "settings.shortcuts.hotkeyDesc": "押して録音を開始/停止し、文字起こしします",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "未設定",
   "settings.shortcuts.editRequiresPolish": "AIポリッシュを有効にする必要があります",
   "settings.shortcuts.clear": "クリア",
-
   "settings.mic": "マイク",
   "settings.mic.inputDevice": "入力デバイス",
   "settings.mic.noMic": "マイクが検出されません",
   "settings.mic.noMicDesc": "マイクを接続するか、システム設定を確認してください",
   "settings.mic.devicesAvailable": "{n}個のデバイス{s}が利用可能です",
   "settings.mic.auto": "自動",
-
   "settings.stt": "音声認識",
   "settings.stt.mode": "モード",
   "settings.stt.modeDesc": "ローカルまたはクラウドAPI転記エンジンを選択します",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "音声アクティビティ検出",
   "settings.stt.vadDesc": "文字起こし前に背景ノイズを除去",
   "settings.stt.retry": "再試行",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "多言語で最高精度",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "最速、最小サイズ",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo 繁体字中国語",
   "sttModel.largeV3TurboZhTw.desc": "繁体字中国語に最適",
-
   "setup.sttModelChoiceTitle": "音声認識モデルを選択",
   "setup.sttModelChoiceDesc": "ニーズに合わせてモデルを選択してください。後で設定から変更できます。",
   "setup.recommended": "おすすめ",
   "setup.sttModelDownloadBtn": "ダウンロードして続行",
   "setup.sttModelSystemInfo": "システム: {ram} RAM, {disk} 空きディスク",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "繁体字中国語に最適",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "多言語対応",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "最新の多言語対応、思考/非思考モード",
-
   "settings.polish": "AI ポーリッシング",
   "settings.polish.toggle": "AIで文字起こしを磨く",
   "settings.polish.toggleDesc": "文法、トーン、明確性を改善します",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "これらの指示は、このルールが一致したときにベースプロンプトに追加されます。",
   "settings.polish.ruleSave": "保存",
   "settings.polish.ruleCancel": "キャンセル",
-
   "promptRules.title": "プロンプトルール",
   "promptRules.desc": "ルールは最前面のアプリによってマッチされます — 最初にマッチしたルールの指示がベースプロンプトに追加されます。",
   "promptRules.voiceTipMain": "{hotkey}を押して、ルールを音声で説明します。",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "セットアップを再実行",
   "settings.danger.rerunSetupDesc": "最初の起動セットアップオーバーレイを再度表示します",
   "settings.danger.rerunSetupBtn": "セットアップを実行",
-
   "confirm.resetTitle": "デフォルトにリセット",
   "confirm.resetMessage": "これにより、すべての設定が元の値に復元されます。この操作は取り消せません。",
   "confirm.cancel": "キャンセル",
   "confirm.reset": "リセット",
-
   "dictionary.title": "カスタム辞書",
   "dictionary.desc": "固有名詞、名前、またはドメイン固有の用語を追加します。AIは、似たような音の単語に遭遇したときに、自動的に正しい形式を使用します。",
   "dictionary.toggle": "カスタム辞書を有効にする",
@@ -157,7 +146,6 @@
   "dictionary.disable": "無効にする",
   "dictionary.emptyTitle": "辞書用語がありません",
   "dictionary.emptyHint": "AIが固有名詞と名前を認識するのを支援するために用語を追加します。",
-
   "history.title": "履歴",
   "history.privacyNote": "データはプライベートです — すべての履歴はこのデバイスにのみ保存されます。",
   "history.retention": "データ保持",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "すべての履歴エントリとオーディオファイルを完全に削除します",
   "history.clearAllConfirm": "すべての履歴とオーディオファイルを完全に削除してもよろしいですか。この操作は取り消せません。",
   "history.loadMore": "もっと読み込む",
-
   "about.title": "について",
   "about.version": "バージョン {version}",
   "about.desc": "あなたの声、書き言葉で。AI搭載の音声テキスト変換 — ホットキーを押して録音し、文字起こししてカーソルに貼り付けます。",
@@ -208,7 +195,6 @@
   "about.retry": "再試行",
   "about.download": "ダウンロードしてインストール",
   "about.gatekeeperNote": "再起動後、macOSは[システム設定] › [プライバシーとセキュリティ]でアプリを再度許可するよう求める場合があります。",
-
   "setup.permissionsTitle": "必要なアクセス許可",
   "setup.permissionsDesc": "Sumiはオーディオを録音し、カーソルにテキストを貼り付けるために、これらのアクセス許可が必要です。",
   "setup.permMicName": "マイク",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "{pasteShortcut}でカーソルにテキストを貼り付けます",
   "setup.permGrant": "許可",
   "setup.permContinue": "続行",
-
   "setup.initialTitle": "音声認識をセットアップ",
   "setup.initialDesc": "Sumiは完全なオフライン文字起こしのために音声認識モデル (~1.5 GB) をダウンロードする必要があります。これは1回だけ発生します。",
   "setup.downloadBtn": "モデルをダウンロード",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "高速ですが、テキストは外部サーバーに送信されます。APIキーが必要です。",
   "setup.polishCloudContinue": "続行",
   "setup.polishSkip": "今はスキップ",
-
   "setup.stepStt": "音声",
   "setup.stepPolish": "ポーリッシング",
   "setup.stepTest": "テスト",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "モデルID",
   "setup.testSkip": "テストをスキップ",
   "setup.testDone": "完了",
-
   "setup.llmDownloadingTitle": "AIモデルをダウンロード中...",
   "setup.errorTitle": "ダウンロード失敗",
   "setup.errorDefault": "予期しないエラーが発生しました。",
   "setup.retryBtn": "ダウンロードを再試行",
-
   "test.breadcrumb.mic": "マイク",
   "test.breadcrumb.hotkey": "ホットキー",
   "test.breadcrumb.general": "一般",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "メールの本文をクリックし、{hotkey}を押して開始し、話し、{hotkey}を再度押して停止します",
   "test.step4.sampleText": "試しに言ってみてください: \"こんにちはアリス、明日のランチはまだ予定通りですか? アラン\"",
   "test.step4.done": "完了",
-
   "test.breadcrumb.polishCheck": "ポリッシュ",
   "test.breadcrumb.editByVoice": "音声で編集",
   "test.step5.title": "AIポリッシュ",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "こんにちはアリス、明日のランチはまだ予定通りですか? あなたに都合がつくと教えてください。ありがとう、アラン",
   "test.step6.editorTitle": "編集テスト",
   "test.step6.done": "完了",
-
   "overlay.preparing": "準備中…",
   "overlay.recording": "録音中",
   "overlay.transcribing": "文字起こし中",
@@ -310,14 +290,7 @@
   "overlay.edited": "編集しました",
   "overlay.editRequiresPolish": "編集にはAIポリッシュが必要です",
   "overlay.undo": "戻す",
-  "overlay.previewConfirm": "確認",
-  "overlay.previewCancel": "取消",
-  "overlay.previewEditHint": "クリックで編集",
-  "overlay.previewEditingHint": "⌘Enter で確認 · Esc で取消",
-
   "settings.behavior": "動作",
   "settings.behavior.autoPaste": "自動貼り付け",
-  "settings.behavior.autoPasteDesc": "カーソル位置に文字起こしを自動で貼り付ける",
-  "settings.behavior.preview": "貼り付け前にプレビュー",
-  "settings.behavior.previewDesc": "貼り付ける前に文字起こしを確認する"
+  "settings.behavior.autoPasteDesc": "カーソル位置に文字起こしを自動で貼り付ける"
 }

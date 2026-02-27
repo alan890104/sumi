@@ -5,12 +5,10 @@
   "nav.history": "السجل",
   "nav.about": "حول",
   "nav.test": "اختبار",
-
   "settings.title": "الإعدادات",
   "settings.language": "اللغة",
   "settings.language.label": "لغة الواجهة",
   "settings.language.desc": "اختر لغة العرض للتطبيق",
-
   "settings.shortcuts": "اختصارات لوحة المفاتيح",
   "settings.shortcuts.hotkey": "الإملاء",
   "settings.shortcuts.hotkeyDesc": "اضغط لبدء/إيقاف التسجيل والنسخ",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "غير محدد",
   "settings.shortcuts.editRequiresPolish": "يتطلب تفعيل تحسين AI",
   "settings.shortcuts.clear": "مسح",
-
   "settings.mic": "الميكروفون",
   "settings.mic.inputDevice": "جهاز الإدخال",
   "settings.mic.noMic": "لم يتم العثور على ميكروفون",
   "settings.mic.noMicDesc": "قم بتوصيل ميكروفون أو تحقق من إعدادات النظام",
   "settings.mic.devicesAvailable": "{n} جهاز{s} متاح",
   "settings.mic.auto": "تلقائي",
-
   "settings.stt": "التعرف على الكلام",
   "settings.stt.mode": "الوضع",
   "settings.stt.modeDesc": "اختر محرك النسخ المحلي أو السحابي",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "إعادة المحاولة",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "أعلى دقة متعددة اللغات",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "الأسرع، أصغر حجم",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "الأفضل للصينية التقليدية",
-
   "setup.sttModelChoiceTitle": "اختر نموذج التعرف على الكلام",
   "setup.sttModelChoiceDesc": "حدد نموذجًا بناءً على احتياجاتك. يمكنك تغييره لاحقًا في الإعدادات.",
   "setup.recommended": "موصى به",
   "setup.sttModelDownloadBtn": "تحميل والمتابعة",
   "setup.sttModelSystemInfo": "النظام: {ram} RAM، {disk} مساحة خالية",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "الأفضل للصينية التقليدية",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "متعدد اللغات",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "الأحدث متعدد اللغات، مع/بدون تفكير",
-
   "settings.polish": "تحسين الذكاء الاصطناعي",
   "settings.polish.toggle": "تحسين النسخ بالذكاء الاصطناعي",
   "settings.polish.toggleDesc": "تحسين القواعد والنبرة والوضوح",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "تُضاف هذه التعليمات إلى الموجه الأساسي عندما تطابق هذه القاعدة.",
   "settings.polish.ruleSave": "حفظ",
   "settings.polish.ruleCancel": "إلغاء",
-
   "promptRules.title": "قواعد الموجه",
   "promptRules.desc": "يتم مطابقة القواعد من خلال التطبيق الأمامي — تُضاف تعليمات القاعدة المطابقة الأولى إلى الموجه الأساسي.",
   "promptRules.voiceTipMain": "اضغط {hotkey} لوصف قاعدتك بالصوت.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "إعادة تشغيل الإعداد",
   "settings.danger.rerunSetupDesc": "عرض غلاف الإعداد الأول مرة أخرى",
   "settings.danger.rerunSetupBtn": "تشغيل الإعداد",
-
   "confirm.resetTitle": "إعادة تعيين إلى الافتراضيات",
   "confirm.resetMessage": "سيؤدي هذا إلى استعادة جميع الإعدادات إلى قيمها الأصلية. لا يمكن التراجع عن هذا.",
   "confirm.cancel": "إلغاء",
   "confirm.reset": "إعادة تعيين",
-
   "dictionary.title": "قاموس مخصص",
   "dictionary.desc": "أضف أسماء علم أو أسماء أو مصطلحات خاصة بالمجال. سيستخدم الذكاء الاصطناعي تلقائياً الصيغة الصحيحة عند مواجهة كلمات ذات نطق مشابه.",
   "dictionary.toggle": "تفعيل القاموس المخصص",
@@ -157,7 +146,6 @@
   "dictionary.disable": "تعطيل",
   "dictionary.emptyTitle": "لا توجد مصطلحات قاموس حتى الآن",
   "dictionary.emptyHint": "أضف المصطلحات لمساعدة الذكاء الاصطناعي على التعرف على أسماء علم والأسماء.",
-
   "history.title": "السجل",
   "history.privacyNote": "بيانات آمنة — يتم تخزين جميع السجلات محلياً على هذا الجهاز فقط.",
   "history.retention": "الاحتفاظ بالبيانات",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "حذف جميع إدخالات السجل وملفات الصوت نهائياً",
   "history.clearAllConfirm": "هل تريد بالفعل حذف جميع السجلات وملفات الصوت نهائياً؟ لا يمكن التراجع عن هذا الإجراء.",
   "history.loadMore": "تحميل المزيد",
-
   "about.title": "حول",
   "about.version": "الإصدار {version}",
   "about.desc": "صوتك في الكتابة. تحويل الكلام إلى نص يعتمد على الذكاء الاصطناعي — اضغط على اختصار لتسجيل ونسخ والصق عند المؤشر.",
@@ -208,7 +195,6 @@
   "about.retry": "إعادة محاولة",
   "about.download": "تحميل وتثبيت",
   "about.gatekeeperNote": "بعد إعادة التشغيل، قد يطلب منك macOS السماح للتطبيق مرة أخرى في إعدادات النظام › الخصوصية والأمان.",
-
   "setup.permissionsTitle": "الأذونات المطلوبة",
   "setup.permissionsDesc": "يحتاج Sumi إلى هذه الأذونات لتسجيل الصوت والصق النص عند المؤشر.",
   "setup.permMicName": "الميكروفون",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "الصق النص عند المؤشر باستخدام {pasteShortcut}",
   "setup.permGrant": "منح",
   "setup.permContinue": "متابعة",
-
   "setup.initialTitle": "إعداد التعرف على الكلام",
   "setup.initialDesc": "يحتاج Sumi إلى تحميل نموذج التعرف على الكلام (~1.5 جيجابايت) للنسخ الكامل دون اتصال. يحدث هذا مرة واحدة فقط.",
   "setup.downloadBtn": "تحميل النموذج",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "أسرع، لكن يتم إرسال النص إلى خادم خارجي. يتطلب مفتاح API.",
   "setup.polishCloudContinue": "متابعة",
   "setup.polishSkip": "تخطي في الوقت الحالي",
-
   "setup.stepStt": "الكلام",
   "setup.stepPolish": "التحسين",
   "setup.stepTest": "الاختبار",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "معرف النموذج",
   "setup.testSkip": "تخطي الاختبار",
   "setup.testDone": "تم",
-
   "setup.llmDownloadingTitle": "جاري تحميل نموذج الذكاء الاصطناعي...",
   "setup.errorTitle": "فشل التحميل",
   "setup.errorDefault": "حدث خطأ غير متوقع.",
   "setup.retryBtn": "إعادة محاولة التحميل",
-
   "test.breadcrumb.mic": "الميكروفون",
   "test.breadcrumb.hotkey": "الاختصار",
   "test.breadcrumb.general": "عام",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "انقر على نص البريد الإلكتروني، اضغط {hotkey} للبدء، تحدث، ثم اضغط {hotkey} مرة أخرى للإيقاف",
   "test.step4.sampleText": "حاول أن تقول: \"مرحباً أليس، هل لا نزال متفقون على الغداء غداً كما هو مخطط؟ آلان\"",
   "test.step4.done": "تم",
-
   "test.breadcrumb.polishCheck": "تحسين",
   "test.breadcrumb.editByVoice": "التحرير عن طريق الصوت",
   "test.step5.title": "التحرير عن طريق الصوت",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "مرحبا أليس، هل لا تزال متحمسة للغداء غدا؟ أخبريني إن كان هذا يناسبك. شكرا، ألان",
   "test.step6.editorTitle": "اختبار التحرير",
   "test.step6.done": "تم",
-
   "overlay.preparing": "جاري التحضير…",
   "overlay.recording": "تسجيل",
   "overlay.transcribing": "نسخ",
@@ -310,14 +290,7 @@
   "overlay.edited": "تم التحرير",
   "overlay.editRequiresPolish": "تحسين AI مطلوب للتحرير",
   "overlay.undo": "تراجع",
-  "overlay.previewConfirm": "تأكيد",
-  "overlay.previewCancel": "إلغاء",
-  "overlay.previewEditHint": "انقر على النص للتحرير",
-  "overlay.previewEditingHint": "⌘Enter للتأكيد · Esc للإلغاء",
-
   "settings.behavior": "السلوك",
   "settings.behavior.autoPaste": "لصق تلقائي",
-  "settings.behavior.autoPasteDesc": "لصق تلقائي للنصوص المنسوخة في موضع المؤشر",
-  "settings.behavior.preview": "معاينة قبل اللصق",
-  "settings.behavior.previewDesc": "عرض النص المنسوخ للمراجعة قبل اللصق"
+  "settings.behavior.autoPasteDesc": "لصق تلقائي للنصوص المنسوخة في موضع المؤشر"
 }

@@ -5,12 +5,10 @@
   "nav.history": "Historia",
   "nav.about": "Tietoa",
   "nav.test": "Testi",
-
   "settings.title": "Asetukset",
   "settings.language": "Kieli",
   "settings.language.label": "Käyttöliittymän kieli",
   "settings.language.desc": "Valitse sovelluksen näyttökieli",
-
   "settings.shortcuts": "Näppäimistön pikakuvakkeet",
   "settings.shortcuts.hotkey": "Sanelutoiminto",
   "settings.shortcuts.hotkeyDesc": "Paina aloittaaksesi/lopettaaksesi nauhoitusta ja kääntääksesi",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Ei asetettu",
   "settings.shortcuts.editRequiresPolish": "Vaatii AI-viimeistelyn olevan käytössä",
   "settings.shortcuts.clear": "Tyhjennä",
-
   "settings.mic": "Mikrofoni",
   "settings.mic.inputDevice": "Tulolaite",
   "settings.mic.noMic": "Mikrofonia ei havaittu",
   "settings.mic.noMicDesc": "Liitä mikrofoni tai tarkista järjestelmäasetukset",
   "settings.mic.devicesAvailable": "{n} laite{s} saatavilla",
   "settings.mic.auto": "Automaattinen",
-
   "settings.stt": "Puheentunnistus",
   "settings.stt.mode": "Tila",
   "settings.stt.modeDesc": "Valitse paikallinen tai pilvi-äänentranskribointi",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Yritä uudelleen",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Korkein monikielinen tarkkuus",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Nopein, pienin jalanjälki",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Paras perinteiselle kiinalle",
-
   "setup.sttModelChoiceTitle": "Valitse puheentunnistusmalli",
   "setup.sttModelChoiceDesc": "Valitse malli tarpeidesi mukaan. Voit muuttaa tätä myöhemmin Asetuksissa.",
   "setup.recommended": "Suositeltu",
   "setup.sttModelDownloadBtn": "Lataa ja jatka",
   "setup.sttModelSystemInfo": "Järjestelmä: {ram} RAM, {disk} vapaata levytilaa",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Paras perinteiselle kiinalle",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Monikielinen",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Uusin monikielinen, ajattelu/ei-ajattelu",
-
   "settings.polish": "AI-kunnostus",
   "settings.polish.toggle": "Kunnostaa transkriptio tekoälyllä",
   "settings.polish.toggleDesc": "Paranna kielioppia, sävyä ja selkeyttä",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Nämä ohjeet lisätään peruskehotteeseen, kun tämä sääntö täsmää.",
   "settings.polish.ruleSave": "Tallenna",
   "settings.polish.ruleCancel": "Peruuta",
-
   "promptRules.title": "Kehotteiden säännöt",
   "promptRules.desc": "Säännöt vastaavat aktiiviseen sovellukseen — ensimmäisen vastaavan säännön ohjeet lisätään peruskehotteeseen.",
   "promptRules.voiceTipMain": "Paina {hotkey} kuvaillaksesi sääntöäsi äänellä.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Suorita asennus uudelleen",
   "settings.danger.rerunSetupDesc": "Näytä ensimmäisen käynnistyksen asennusvalikko uudelleen",
   "settings.danger.rerunSetupBtn": "Suorita asennus",
-
   "confirm.resetTitle": "Palauta oletuksiin",
   "confirm.resetMessage": "Tämä palauttaa kaikki asetukset alkuperäisiin arvoihin. Tätä ei voi kumota.",
   "confirm.cancel": "Peruuta",
   "confirm.reset": "Palauta",
-
   "dictionary.title": "Oma sanakirja",
   "dictionary.desc": "Lisää oikeat nimet, nimet tai alan termit. Tekoäly käyttää automaattisesti oikeaa muotoa, kun se kohtaa samankaltaisia sanoja.",
   "dictionary.toggle": "Ota oma sanakirja käyttöön",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Poista käytöstä",
   "dictionary.emptyTitle": "Ei vielä sanakirjatermejä",
   "dictionary.emptyHint": "Lisää termejä auttaaksesi tekoälyä tunnistamaan oikeat nimet ja nimet.",
-
   "history.title": "Historia",
   "history.privacyNote": "Tietosi pysyy yksityisinä — kaikki historia tallennetaan paikallisesti vain tähän laitteeseen.",
   "history.retention": "Tietojen säilytys",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Poista pysyvästi kaikki historia-merkinnät ja äänitiedostot",
   "history.clearAllConfirm": "Oletko varma, että haluat poistaa pysyvästi kaikki historia ja äänitiedostot? Tätä toimintoa ei voi kumota.",
   "history.loadMore": "Lataa lisää",
-
   "about.title": "Tietoa",
   "about.version": "Versio {version}",
   "about.desc": "Sinun äänesi kirjoituksena. Tekoälytoimintoinen puheesta tekstiksi — paina pikakuvaketta nauhoittaaksesi, litteroitaksesi ja liitä kursoriisi.",
@@ -208,7 +195,6 @@
   "about.retry": "Yritä uudelleen",
   "about.download": "Lataa ja asenna",
   "about.gatekeeperNote": "Uudelleenkäynnistyksen jälkeen macOS voi pyytää sinua sallimaan sovelluksen uudelleen kohdassa Järjestelmäasetukset › Yksityisyys ja turvallisuus.",
-
   "setup.permissionsTitle": "Vaadittavat käyttöoikeudet",
   "setup.permissionsDesc": "Sumi tarvitsee nämä käyttöoikeudet nauhoittaakseen ääntä ja liittääkseen tekstiä kursoriisi.",
   "setup.permMicName": "Mikrofoni",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Liitä teksti kursoriisi {pasteShortcut}",
   "setup.permGrant": "Myönnä",
   "setup.permContinue": "Jatka",
-
   "setup.initialTitle": "Aseta puheentunnistus",
   "setup.initialDesc": "Sumille on ladattava puheentunnistus malli (~1,5 GB) täysin offline-litteroitavaksi. Tämä tapahtuu vain kerran.",
   "setup.downloadBtn": "Lataa malli",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Nopeampi, mutta teksti lähetetään ulkoiselle palvelimelle. Vaatii API-avaimen.",
   "setup.polishCloudContinue": "Jatka",
   "setup.polishSkip": "Ohita toistaiseksi",
-
   "setup.stepStt": "Puhe",
   "setup.stepPolish": "Kunnostus",
   "setup.stepTest": "Testi",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Mallin tunnus",
   "setup.testSkip": "Ohita testaus",
   "setup.testDone": "Valmis",
-
   "setup.llmDownloadingTitle": "Ladataan AI-mallia...",
   "setup.errorTitle": "Lataus epäonnistui",
   "setup.errorDefault": "Odottamaton virhe tapahtui.",
   "setup.retryBtn": "Yritä latausta uudelleen",
-
   "test.breadcrumb.mic": "Mikrofoni",
   "test.breadcrumb.hotkey": "Pikakuvake",
   "test.breadcrumb.general": "Yleinen",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Napsauta sähköpostiviestin runkoa, paina {hotkey} aloittaaksesi, puhu, paina sitten {hotkey} lopettaaksesi",
   "test.step4.sampleText": "Kokeile sanoa: \"Hei Alice, olemme edelleen siinä lounaalla huomenna suunnitellusti? Alan\"",
   "test.step4.done": "Valmis",
-
   "test.breadcrumb.polishCheck": "Viimeistely",
   "test.breadcrumb.editByVoice": "Muokkaus äänellä",
   "test.step5.title": "Muokkaus äänellä",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Hei Alice, olemmeko edelleen lounaalla huomenna? Kerro jos se sopii sinulle. Kiitos, Alan",
   "test.step6.editorTitle": "Muokkaustesti",
   "test.step6.done": "Valmis",
-
   "overlay.preparing": "Valmistetaan...",
   "overlay.recording": "Nauhoitetaan",
   "overlay.transcribing": "Litterointi",
@@ -310,14 +290,7 @@
   "overlay.edited": "Muokattu",
   "overlay.editRequiresPolish": "AI-viimeistely vaaditaan muokkaukseen",
   "overlay.undo": "Kumoa",
-  "overlay.previewConfirm": "Vahvista",
-  "overlay.previewCancel": "Peruuta",
-  "overlay.previewEditHint": "Klikkaa tekstiä muokataksesi",
-  "overlay.previewEditingHint": "⌘Enter vahvistaaksesi · Esc peruuttaaksesi",
-
   "settings.behavior": "Käyttäytyminen",
   "settings.behavior.autoPaste": "Automaattinen liittäminen",
-  "settings.behavior.autoPasteDesc": "Liitä litterointi automaattisesti kohdistimen kohtaan",
-  "settings.behavior.preview": "Esikatselu ennen liittämistä",
-  "settings.behavior.previewDesc": "Näytä litterointi tarkistettavaksi ennen liittämistä"
+  "settings.behavior.autoPasteDesc": "Liitä litterointi automaattisesti kohdistimen kohtaan"
 }

@@ -5,12 +5,10 @@
   "nav.history": "Istorija",
   "nav.about": "Apie",
   "nav.test": "Testas",
-
   "settings.title": "Nustatymai",
   "settings.language": "Kalba",
   "settings.language.label": "Sąsajos kalba",
   "settings.language.desc": "Pasirinkite programos rodymo kalbą",
-
   "settings.shortcuts": "Klaviatūros nuorodai",
   "settings.shortcuts.hotkey": "Diktavimas",
   "settings.shortcuts.hotkeyDesc": "Spustelėkite, kad pradėtumėte/sustabdytumėte įrašymą ir konvertuotumėte į tekstą",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Nenustatyta",
   "settings.shortcuts.editRequiresPolish": "Reikalingas AI tobulinimo įjungimas",
   "settings.shortcuts.clear": "Išvalyti",
-
   "settings.mic": "Mikrofonas",
   "settings.mic.inputDevice": "Įvesties įrenginys",
   "settings.mic.noMic": "Mikrofonas nesurastas",
   "settings.mic.noMicDesc": "Prijunkite mikrofoną arba patikrinkite sistemos nustatymus",
   "settings.mic.devicesAvailable": "{n} įrenginys{s} prieinamas",
   "settings.mic.auto": "Automatinis",
-
   "settings.stt": "Kalbos atpažinimas",
   "settings.stt.mode": "Režimas",
   "settings.stt.modeDesc": "Pasirinkite lokalų arba debesies transkripcijos variklį",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Bandyti iš naujo",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Didžiausias daugiakalbis tikslumas",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Greičiausias, mažiausias dydis",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Geriausia tradicinei kinų kalbai",
-
   "setup.sttModelChoiceTitle": "Pasirinkite kalbos atpažinimo modelį",
   "setup.sttModelChoiceDesc": "Pasirinkite modelį pagal savo poreikius. Vėliau galite tai pakeisti Nustatymuose.",
   "setup.recommended": "Rekomenduojamas",
   "setup.sttModelDownloadBtn": "Atsisiųsti ir tęsti",
   "setup.sttModelSystemInfo": "Sistema: {ram} RAM, {disk} laisvos disko vietos",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Geriausia tradicinei kinų kalbai",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Daugiakalbis",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Naujausias daugiakalbis, mąstymo/nemąstymo",
-
   "settings.polish": "AI poliravimas",
   "settings.polish.toggle": "Poliruoti transkripciją su AI",
   "settings.polish.toggleDesc": "Patobulinkite gramatiką, toną ir aiškumą",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Šios instrukcijos pridedamos prie pagrindinio raginio, kai šis taisyklė atitinka.",
   "settings.polish.ruleSave": "Išsaugoti",
   "settings.polish.ruleCancel": "Atšaukti",
-
   "promptRules.title": "Raginimo taisyklės",
   "promptRules.desc": "Taisyklės atitinka priekinėje padėtyje esančią programą — pirmosios sutampančios taisyklės instrukcijos pridedamos prie pagrindinio raginio.",
   "promptRules.voiceTipMain": "Spustelėkite {hotkey}, kad apibūdintumėte savo taisyklę balsu.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Paleisti nustatymą iš naujo",
   "settings.danger.rerunSetupDesc": "Rodyti pirmojo paleidimo nustatymo sluoksnį dar kartą",
   "settings.danger.rerunSetupBtn": "Paleisti nustatymą",
-
   "confirm.resetTitle": "Atstatyti numatytuosius nustatymus",
   "confirm.resetMessage": "Tai atkurs visus nustatymus į jų pradines vertes. Tai negali būti atšaukta.",
   "confirm.cancel": "Atšaukti",
   "confirm.reset": "Atstatyti",
-
   "dictionary.title": "Pasirinktinis žodynas",
   "dictionary.desc": "Pridėkite savus vardus, vardus arba domenai specifinių terminų. AI automatiškai naudos teisingą formą, kai susidurs su panašiai skambančiais žodžiais.",
   "dictionary.toggle": "Įgalinti pasirinktinį žodyną",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Išjungti",
   "dictionary.emptyTitle": "Dar nėra žodyno terminų",
   "dictionary.emptyHint": "Pridėkite terminus, kad padėtumėte AI atpažinti savus vardus ir vardus.",
-
   "history.title": "Istorija",
   "history.privacyNote": "Jūsų duomenys lieka privatūs — visa istorija saugoma lokaliai tik šiame įrenginyje.",
   "history.retention": "Duomenų saugojimas",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Netenainamai ištrinti visus istorijos įrašus ir audio failus",
   "history.clearAllConfirm": "Ar tiesiog norite netenainamai ištrinti visą istoriją ir audio failus? Šio veiksmo negalima atšaukti.",
   "history.loadMore": "Įkelti daugiau",
-
   "about.title": "Apie",
   "about.version": "Versija {version}",
   "about.desc": "Jūsų balsas, rašyte. AI pagrindintas kalbos į tekstą keitimas — spustelėkite sparčiąją klavišą, kad įrašytumėte, transkribortumėte ir sumetytumėte ties žymekliu.",
@@ -208,7 +195,6 @@
   "about.retry": "Bandyti iš naujo",
   "about.download": "Atsisiųsti ir suinstalointi",
   "about.gatekeeperNote": "Iš naujo paleisus, macOS gali paprašyti jums leisti programą dar kartą Sistemos nustatymuose › Privatumas ir saugumas.",
-
   "setup.permissionsTitle": "Būtini leidimai",
   "setup.permissionsDesc": "Sumi reikalingi šie leidimai, kad įrašytų audio ir sumetytų tekstą ties žymekliu.",
   "setup.permMicName": "Mikrofonas",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Sumetykite tekstą ties žymekliu su {pasteShortcut}",
   "setup.permGrant": "Suteikti",
   "setup.permContinue": "Tęsti",
-
   "setup.initialTitle": "Nustatyti kalbos atpažinimą",
   "setup.initialDesc": "Sumi turi atsisiųsti kalbos atpažinimo modelį (~1,5 GB) visiškai neprisijungus prie interneto transkripcijai. Tai vyksta tik vieną kartą.",
   "setup.downloadBtn": "Atsisiųsti modelį",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Greičiau, bet tekstas siunčiamas į išorinį serverį. Reikalingas API raktas.",
   "setup.polishCloudContinue": "Tęsti",
   "setup.polishSkip": "Praleisti dabar",
-
   "setup.stepStt": "Kalba",
   "setup.stepPolish": "Poliravimas",
   "setup.stepTest": "Testas",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "Modelio ID",
   "setup.testSkip": "Praleisti testą",
   "setup.testDone": "Baigta",
-
   "setup.llmDownloadingTitle": "AI modelio atsisiunčiama...",
   "setup.errorTitle": "Atsisiunčiama nepavyko",
   "setup.errorDefault": "Įvyko netikėta klaida.",
   "setup.retryBtn": "Bandyti atsisiųsti iš naujo",
-
   "test.breadcrumb.mic": "Mikrofonas",
   "test.breadcrumb.hotkey": "Sparčioji klaviša",
   "test.breadcrumb.general": "Bendra",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Spustelėkite el. pašto tekstą, spustelėkite {hotkey}, kad pradėtumėte, pasakykite, tada spustelėkite {hotkey} vėl, kad sustabdytumėte",
   "test.step4.sampleText": "Spustelėkite: “Sveiki Alice, ar mes vis dar numato pietums rytoj, kaip buvo planuota? Alan”",
   "test.step4.done": "Baigta",
-
   "test.breadcrumb.polishCheck": "Tobulinimas",
   "test.breadcrumb.editByVoice": "Redaguoti balsu",
   "test.step5.title": "Redaguoti balsu",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Sveika Alice, ar vis dar einame pietų rytoj? Pranešk, jei tau tinka. Ačiū, Alan",
   "test.step6.editorTitle": "Redagavimo testas",
   "test.step6.done": "Atlikta",
-
   "overlay.preparing": "Ruošimas…",
   "overlay.recording": "Įrašymas",
   "overlay.transcribing": "Transkripcija",
@@ -310,14 +290,7 @@
   "overlay.edited": "Redaguota",
   "overlay.editRequiresPolish": "AI tobulinimas reikalingas redagavimui",
   "overlay.undo": "Atšaukti",
-  "overlay.previewConfirm": "Patvirtinti",
-  "overlay.previewCancel": "Atšaukti",
-  "overlay.previewEditHint": "Spustelėkite tekstą redaguoti",
-  "overlay.previewEditingHint": "⌘Enter patvirtinti · Esc atšaukti",
-
   "settings.behavior": "Elgsena",
   "settings.behavior.autoPaste": "Automatinis įklijavimas",
-  "settings.behavior.autoPasteDesc": "Automatiškai įklijuoti perrašą žymeklio vietoje",
-  "settings.behavior.preview": "Peržiūra prieš įklijavimą",
-  "settings.behavior.previewDesc": "Rodyti perrašą peržiūrai prieš įklijavimą"
+  "settings.behavior.autoPasteDesc": "Automatiškai įklijuoti perrašą žymeklio vietoje"
 }

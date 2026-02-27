@@ -153,17 +153,6 @@ export const onVoiceRuleLevels = (cb: (levels: number[]) => void): Promise<Unlis
 export const onVoiceRuleTranscript = (cb: (text: string) => void): Promise<UnlistenFn> =>
   listen<string>('voice-rule-transcript', (e) => cb(e.payload));
 
-// ── Preview ──
-
-export const confirmPreview = (editedText?: string) =>
-  invoke<void>('confirm_preview', { editedText: editedText ?? null });
-
-export const cancelPreview = () =>
-  invoke<void>('cancel_preview');
-
-export const onPreviewText = (cb: (payload: { text: string; hotkey: string }) => void): Promise<UnlistenFn> =>
-  listen<{ text: string; hotkey: string }>('preview-text', (e) => cb(e.payload));
-
 // ── Whisper Models ──
 
 export const listWhisperModels = () =>

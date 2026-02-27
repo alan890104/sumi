@@ -24,9 +24,6 @@ pub struct Settings {
     /// Whether the onboarding wizard has been completed. `false` triggers the setup overlay.
     #[serde(default)]
     pub onboarding_completed: bool,
-    /// When true, show a preview overlay after transcription instead of pasting immediately.
-    #[serde(default)]
-    pub preview_before_paste: bool,
 }
 
 impl Default for Settings {
@@ -40,7 +37,6 @@ impl Default for Settings {
             stt: SttConfig::default(),
             edit_hotkey: Some("Control+Alt+KeyZ".to_string()),
             onboarding_completed: false,
-            preview_before_paste: false,
         }
     }
 }

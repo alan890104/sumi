@@ -5,12 +5,10 @@
   "nav.history": "Povijest",
   "nav.about": "O aplikaciji",
   "nav.test": "Test",
-
   "settings.title": "Postavke",
   "settings.language": "Jezik",
   "settings.language.label": "Jezik sučelja",
   "settings.language.desc": "Odaberite jezik prikaza aplikacije",
-
   "settings.shortcuts": "Tipkovnički Prečaci",
   "settings.shortcuts.hotkey": "Diktat",
   "settings.shortcuts.hotkeyDesc": "Pritisnite za početak/zaustavljanje snimanja i transkripcije",
@@ -23,14 +21,12 @@
   "settings.shortcuts.notSet": "Nije postavljeno",
   "settings.shortcuts.editRequiresPolish": "Zahtijeva omogućeno AI usavršavanje",
   "settings.shortcuts.clear": "Očisti",
-
   "settings.mic": "Mikrofon",
   "settings.mic.inputDevice": "Ulazni Uređaj",
   "settings.mic.noMic": "Mikrofon nije pronađen",
   "settings.mic.noMicDesc": "Priključite mikrofon ili provjerite sistemske postavke",
   "settings.mic.devicesAvailable": "{n} uređaj{s} dostupan{s}",
   "settings.mic.auto": "Automatski",
-
   "settings.stt": "Prepoznavanje Govora",
   "settings.stt.mode": "Način",
   "settings.stt.modeDesc": "Odaberite lokalnog ili oblačnog motora transkripcije",
@@ -51,7 +47,6 @@
   "settings.stt.vad": "Voice Activity Detection",
   "settings.stt.vadDesc": "Filter out background noise before transcription",
   "settings.stt.retry": "Pokušaj ponovno",
-
   "sttModel.largeV3Turbo.name": "Whisper Turbo",
   "sttModel.largeV3Turbo.desc": "Najviša višejezična točnost",
   "sttModel.largeV3TurboQ5.name": "Whisper Turbo Lite",
@@ -62,20 +57,17 @@
   "sttModel.base.desc": "Najbrži, najmanja veličina",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Najbolje za tradicionalni kineski",
-
   "setup.sttModelChoiceTitle": "Odaberite model za prepoznavanje govora",
   "setup.sttModelChoiceDesc": "Odaberite model na osnovu svojih potreba. Kasnije to možete promijeniti u Postavkama.",
   "setup.recommended": "Preporučeno",
   "setup.sttModelDownloadBtn": "Preuzmi i nastavi",
   "setup.sttModelSystemInfo": "Sustav: {ram} RAM, {disk} slobodnog prostora",
-
   "polishModel.llamaTaiwan.name": "Llama 3 Taiwan 8B",
   "polishModel.llamaTaiwan.desc": "Najbolje za tradicionalni kineski",
   "polishModel.qwen25.name": "Qwen 2.5 7B",
   "polishModel.qwen25.desc": "Višejezično",
   "polishModel.qwen3.name": "Qwen 3 8B",
   "polishModel.qwen3.desc": "Najnovije višejezično, razmišljanje/bez razmišljanja",
-
   "settings.polish": "AI Poliranje",
   "settings.polish.toggle": "Poliranje transkripcije sa AI",
   "settings.polish.toggleDesc": "Poboljšajte gramatiku, ton i jasnoću",
@@ -118,7 +110,6 @@
   "settings.polish.rulePromptHint": "Ove upute se dodaju osnovnom upitu kada se ovo pravilo podudara.",
   "settings.polish.ruleSave": "Spremi",
   "settings.polish.ruleCancel": "Odustani",
-
   "promptRules.title": "Pravila Upita",
   "promptRules.desc": "Pravila se usklađuju prema aplikaciji u prednjem planu — upute prvog odgovarajućeg pravila se dodaju osnovnom upitu.",
   "promptRules.voiceTipMain": "Pritisnite {hotkey} da biste opisali svoje pravilo glasom.",
@@ -136,12 +127,10 @@
   "settings.danger.rerunSetup": "Ponovi Postavljanje",
   "settings.danger.rerunSetupDesc": "Prikaži overlay postavljanja pri prvom pokretanju ponovno",
   "settings.danger.rerunSetupBtn": "Pokreni Postavljanje",
-
   "confirm.resetTitle": "Vrati na Zadane Vrijednosti",
   "confirm.resetMessage": "Ovo će vratiti sve postavke na njihove izvorne vrijednosti. Ovo se ne može poništiti.",
   "confirm.cancel": "Odustani",
   "confirm.reset": "Vrati",
-
   "dictionary.title": "Prilagođeni Rječnik",
   "dictionary.desc": "Dodajte vlastita imena, imena ili specijalizirane termine. AI će automatski koristiti ispravan oblik kada naiđe na slično zvučeće riječi.",
   "dictionary.toggle": "Omogući prilagođeni rječnik",
@@ -157,7 +146,6 @@
   "dictionary.disable": "Onemogući",
   "dictionary.emptyTitle": "Nema termina iz rječnika",
   "dictionary.emptyHint": "Dodajte termine kako biste pomogli AI-u da prepozna vlastita imena i imena.",
-
   "history.title": "Povijest",
   "history.privacyNote": "Vaši podaci ostaju privatni — sva povijest se čuva lokalno samo na ovoj uređaju.",
   "history.retention": "Zadržavanje podataka",
@@ -193,7 +181,6 @@
   "history.clearAllDesc": "Trajno obriši sve stavke povijesti i audio datoteke",
   "history.clearAllConfirm": "Sigurno želite trajno obrisati svu povijest i audio datoteke? Ova radnja se ne može poništiti.",
   "history.loadMore": "Učitaj više",
-
   "about.title": "O Aplikaciji",
   "about.version": "Verzija {version}",
   "about.desc": "Vaš glas, u pisanom obliku. AI-utemeljeni govor-u-tekst — pritisnite prečac za snimanje, transkripciju i lijepljenje na vaš kursor.",
@@ -208,7 +195,6 @@
   "about.retry": "Pokušaj Ponovno",
   "about.download": "Preuzmi i Instaliraj",
   "about.gatekeeperNote": "Nakon ponovnog pokretanja, macOS vas može upozoriti da ponovno dozvoli aplikaciju u Sistemskim postavkama › Privatnost i sigurnost.",
-
   "setup.permissionsTitle": "Dozvole Potrebne",
   "setup.permissionsDesc": "Sumi trebaju ove dozvole za snimanje zvuka i lijepljenje teksta na vaš kursor.",
   "setup.permMicName": "Mikrofon",
@@ -217,7 +203,6 @@
   "setup.permAccDesc": "Lijepite tekst na vaš kursor s {pasteShortcut}",
   "setup.permGrant": "Odobri",
   "setup.permContinue": "Nastavi",
-
   "setup.initialTitle": "Postavi Prepoznavanje Govora",
   "setup.initialDesc": "Sumi trebaju preuzeti model prepoznavanja govora (~1,5 GB) za potpuno offline transkripciju. To se dogodi samo jednom.",
   "setup.downloadBtn": "Preuzmi Model",
@@ -236,7 +221,6 @@
   "setup.polishCloudDesc": "Brže, ali se tekst šalje vanjskom serveru. Zahtijeva API ključ.",
   "setup.polishCloudContinue": "Nastavi",
   "setup.polishSkip": "Preskoči za sada",
-
   "setup.stepStt": "Glas",
   "setup.stepPolish": "Poliranje",
   "setup.stepTest": "Test",
@@ -254,12 +238,10 @@
   "setup.polishCloudModelId": "ID Modela",
   "setup.testSkip": "Preskoči testiranje",
   "setup.testDone": "Gotovo",
-
   "setup.llmDownloadingTitle": "Preuzimanje AI Modela...",
   "setup.errorTitle": "Preuzimanje Neuspješno",
   "setup.errorDefault": "Došlo je do neočekivane greške.",
   "setup.retryBtn": "Pokušaj Ponovno Preuzeti",
-
   "test.breadcrumb.mic": "Mikrofon",
   "test.breadcrumb.hotkey": "Prečac",
   "test.breadcrumb.general": "Opće",
@@ -285,7 +267,6 @@
   "test.step4.instruction": "Kliknite na tijelo e-pošte, pritisnite {hotkey} za početak, govorite, zatim ponovno pritisnite {hotkey} za zaustavljanje",
   "test.step4.sampleText": "Pokušajte reći: \"Hej Alice, jeste li i dalje na ručku sutra kako je planirano? Alan\"",
   "test.step4.done": "Gotovo",
-
   "test.breadcrumb.polishCheck": "Usavršavanje",
   "test.breadcrumb.editByVoice": "Uređivanje Glasa",
   "test.step5.title": "Uređivanje Glasa",
@@ -299,7 +280,6 @@
   "test.step6.prefill": "Zdravo Alice, jesmo li i dalje dogovoreni za ručak sutra? Daj mi znati ako ti to odgovara. Hvala, Alan",
   "test.step6.editorTitle": "Test uređivanja",
   "test.step6.done": "Gotovo",
-
   "overlay.preparing": "Priprema…",
   "overlay.recording": "Snimanje",
   "overlay.transcribing": "Transkripcija",
@@ -310,14 +290,7 @@
   "overlay.edited": "Uređeno",
   "overlay.editRequiresPolish": "AI usavršavanje obavezno za uređivanje",
   "overlay.undo": "Poništi",
-  "overlay.previewConfirm": "Potvrdi",
-  "overlay.previewCancel": "Otkaži",
-  "overlay.previewEditHint": "Kliknite na tekst za uređivanje",
-  "overlay.previewEditingHint": "⌘Enter za potvrdu · Esc za otkazivanje",
-
   "settings.behavior": "Ponašanje",
   "settings.behavior.autoPaste": "Automatsko lijepljenje",
-  "settings.behavior.autoPasteDesc": "Automatski zalijepite transkripciju na poziciju pokazivača",
-  "settings.behavior.preview": "Pregled prije lijepljenja",
-  "settings.behavior.previewDesc": "Prikažite transkripciju za pregled prije lijepljenja"
+  "settings.behavior.autoPasteDesc": "Automatski zalijepite transkripciju na poziciju pokazivača"
 }
