@@ -14,10 +14,11 @@ mod inner {
     #[link(name = "AVFoundation", kind = "framework")]
     extern "C" {}
 
-    // ApplicationServices — AXIsProcessTrusted()
+    // ApplicationServices — AXIsProcessTrusted / AXIsProcessTrustedWithOptions
     #[link(name = "ApplicationServices", kind = "framework")]
     extern "C" {
         fn AXIsProcessTrusted() -> bool;
+        fn AXIsProcessTrustedWithOptions(options: *const c_void) -> bool;
     }
 
     extern "C" {
@@ -111,6 +112,45 @@ mod inner {
     pub fn accessibility_trusted() -> bool {
         unsafe { AXIsProcessTrusted() }
     }
+
+    /// Prompt the user to grant accessibility via the system dialog.
+    /// Uses AXIsProcessTrustedWithOptions with kAXTrustedCheckOptionPrompt,
+    /// which ensures macOS correctly identifies this process in TCC.
+    pub fn prompt_accessibility() -> bool {
+        unsafe {
+            // Build { kAXTrustedCheckOptionPrompt: true } dictionary
+            let key_str = objc_getClass(b"NSString\0".as_ptr());
+            let sel_str = sel_registerName(b"stringWithUTF8String:\0".as_ptr());
+            let make_str: unsafe extern "C" fn(*mut c_void, *mut c_void, *const u8) -> *mut c_void =
+                std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+            let key = make_str(
+                key_str,
+                sel_str,
+                b"AXTrustedCheckOptionPrompt\0".as_ptr(),
+            );
+
+            // NSNumber numberWithBool:YES
+            let ns_number = objc_getClass(b"NSNumber\0".as_ptr());
+            let sel_bool = sel_registerName(b"numberWithBool:\0".as_ptr());
+            let make_bool: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> *mut c_void =
+                std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+            let val = make_bool(ns_number, sel_bool, true);
+
+            // NSDictionary dictionaryWithObject:forKey:
+            let ns_dict = objc_getClass(b"NSDictionary\0".as_ptr());
+            let sel_dict = sel_registerName(b"dictionaryWithObject:forKey:\0".as_ptr());
+            let make_dict: unsafe extern "C" fn(
+                *mut c_void,
+                *mut c_void,
+                *mut c_void,
+                *mut c_void,
+            ) -> *mut c_void =
+                std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+            let opts = make_dict(ns_dict, sel_dict, val, key);
+
+            AXIsProcessTrustedWithOptions(opts)
+        }
+    }
 }
 
 #[tauri::command]
@@ -152,6 +192,10 @@ pub fn open_permission_settings(permission_type: String) -> Result<(), String> {
                 "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
             }
             "accessibility" => {
+                // Use AXIsProcessTrustedWithOptions(prompt: true) so macOS
+                // correctly registers THIS process in TCC, then also open
+                // System Settings as a fallback/visual guide.
+                inner::prompt_accessibility();
                 "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
             }
             _ => return Err(format!("Unknown permission type: {}", permission_type)),

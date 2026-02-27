@@ -872,6 +872,9 @@ fn run_llm_inference(
         ));
     }
 
+    // Validate the GGUF file before loading to prevent SIGSEGV on corrupted files
+    validate_gguf_file(&model_path, &config.model)?;
+
     // Ensure model is loaded (lazy init)
     {
         let mut cache = llm_cache.lock().map_err(|e| e.to_string())?;
@@ -1098,44 +1101,47 @@ pub fn edit_text_by_instruction(
     Ok(cleaned)
 }
 
-/// Ensure the LLM model is loaded into the cache (for pre-warming at startup).
-pub fn ensure_model_loaded(
-    llm_cache: &Mutex<Option<LlmModelCache>>,
-    model_dir: &std::path::Path,
-    config: &PolishConfig,
-) {
-    let model_path = model_dir.join(config.model.filename());
-    if !model_path.exists() {
-        return;
+/// Validate a GGUF model file by checking magic bytes, version, and file size.
+/// Returns `Ok(())` if the file appears valid, or an error describing the problem.
+pub fn validate_gguf_file(path: &std::path::Path, expected_model: &PolishModel) -> Result<(), String> {
+    use std::io::Read;
+
+    let mut f = std::fs::File::open(path).map_err(|e| format!("Cannot open model file: {}", e))?;
+
+    // Check GGUF magic bytes
+    let mut magic = [0u8; 4];
+    f.read_exact(&mut magic)
+        .map_err(|e| format!("Cannot read GGUF header: {}", e))?;
+    if &magic != b"GGUF" {
+        return Err(format!(
+            "Invalid GGUF magic: expected 'GGUF', got {:?}",
+            magic
+        ));
     }
-    let mut cache = match llm_cache.lock() {
-        Ok(c) => c,
-        Err(_) => return,
-    };
-    let needs_reload = match cache.as_ref() {
-        Some(c) => c.loaded_path != model_path,
-        None => true,
-    };
-    if needs_reload {
-        let mut backend = match LlamaBackend::init() {
-            Ok(b) => b,
-            Err(_) => return,
-        };
-        backend.void_logs();
-        let model_params = LlamaModelParams::default().with_n_gpu_layers(99);
-        match LlamaModel::load_from_file(&backend, &model_path, &model_params) {
-            Ok(model) => {
-                *cache = Some(LlmModelCache {
-                    backend,
-                    model,
-                    loaded_path: model_path,
-                });
-            }
-            Err(e) => {
-                eprintln!("[Sumi] LLM pre-warm load error: {}", e);
-            }
-        }
+
+    // Check GGUF version (2 or 3 are valid)
+    let mut version_bytes = [0u8; 4];
+    f.read_exact(&mut version_bytes)
+        .map_err(|e| format!("Cannot read GGUF version: {}", e))?;
+    let version = u32::from_le_bytes(version_bytes);
+    if version < 2 || version > 3 {
+        return Err(format!("Unsupported GGUF version: {}", version));
     }
+
+    // Check file size is at least 90% of the expected size (catch truncated downloads)
+    let file_size = std::fs::metadata(path)
+        .map_err(|e| format!("Cannot stat model file: {}", e))?
+        .len();
+    let expected_size = expected_model.size_bytes();
+    let min_size = expected_size * 9 / 10;
+    if file_size < min_size {
+        return Err(format!(
+            "Model file too small: {} bytes (expected ~{} bytes, min {}). File may be corrupted or incomplete.",
+            file_size, expected_size, min_size
+        ));
+    }
+
+    Ok(())
 }
 
 /// Check if polishing is ready to run (either local model exists or cloud API key is set).
@@ -1144,11 +1150,6 @@ pub fn is_polish_ready(model_dir: &std::path::Path, config: &PolishConfig) -> bo
         PolishMode::Cloud => !config.cloud.api_key.is_empty(),
         PolishMode::Local => model_dir.join(config.model.filename()).exists(),
     }
-}
-
-/// Check if a model file exists in the given directory.
-pub fn model_file_exists(model_dir: &std::path::Path, model: &PolishModel) -> bool {
-    model_dir.join(model.filename()).exists()
 }
 
 /// Check existence and size in a single metadata call.

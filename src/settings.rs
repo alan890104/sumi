@@ -41,12 +41,17 @@ impl Default for Settings {
     }
 }
 
-// ── Consolidated data directory: ~/.sumi ─────────────────────────────────────
+// ── Consolidated data directory: ~/.sumi (release) or ~/.sumi-dev (debug) ────
+
+pub const fn is_debug() -> bool {
+    cfg!(debug_assertions)
+}
 
 pub fn base_dir() -> PathBuf {
+    let dir_name = if is_debug() { ".sumi-dev" } else { ".sumi" };
     dirs::home_dir()
         .expect("no home dir")
-        .join(".sumi")
+        .join(dir_name)
 }
 
 pub fn config_dir() -> PathBuf {

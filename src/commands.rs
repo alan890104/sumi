@@ -1614,3 +1614,8 @@ pub fn copy_image_to_clipboard(png_bytes: Vec<u8>) -> Result<(), String> {
         .map_err(|e| format!("Failed to set clipboard image: {}", e))?;
     Ok(())
 }
+
+#[tauri::command]
+pub fn is_dev_mode() -> bool {
+    crate::settings::is_debug()
+}

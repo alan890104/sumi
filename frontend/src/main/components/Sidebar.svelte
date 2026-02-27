@@ -1,9 +1,12 @@
 <script lang="ts">
   import { t } from '$lib/stores/i18n.svelte';
   import { getCurrentPage, setCurrentPage } from '$lib/stores/ui.svelte';
+  import { isDevMode } from '$lib/api';
   import type { Page } from '$lib/types';
 
   let { version = '' }: { version?: string } = $props();
+  let devMode = $state(false);
+  isDevMode().then((v) => (devMode = v));
 
   const navItems: { id: Page; labelKey: string; icon: string }[] = [
     {
@@ -45,6 +48,9 @@
     <div class="sidebar-brand">
       <img src="/icon.png" alt="Sumi" class="sidebar-logo" />
       <span class="sidebar-app-name">Sumi</span>
+      {#if devMode}
+        <span class="dev-badge">Dev</span>
+      {/if}
     </div>
   </div>
   <nav class="sidebar-nav">
@@ -107,6 +113,18 @@
     font-weight: 700;
     color: var(--text-primary);
     letter-spacing: -0.01em;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .dev-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    background: #f59e0b;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
     -webkit-app-region: no-drag;
     app-region: no-drag;
   }

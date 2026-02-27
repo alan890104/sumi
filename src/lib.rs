@@ -603,6 +603,7 @@ pub fn run() {
             commands::check_vad_model_status,
             commands::download_vad_model,
             commands::copy_image_to_clipboard,
+            commands::is_dev_mode,
         ])
         .setup(|app| {
             // Hide Dock icon (macOS) / equivalent
@@ -725,18 +726,9 @@ pub fn run() {
                         }
                     }
 
-                    let polish_config = state.settings.lock()
-                        .map(|s| s.polish.clone())
-                        .unwrap_or_default();
-                    if polish_config.enabled && polish_config.mode == polisher::PolishMode::Local {
-                        let model_dir = models_dir();
-                        if polisher::model_file_exists(&model_dir, &polish_config.model) {
-                            let llm_start = Instant::now();
-                            println!("[Sumi] Pre-warming LLM ({})...", polish_config.model.display_name());
-                            polisher::ensure_model_loaded(&state.llm_model, &model_dir, &polish_config);
-                            println!("[Sumi] LLM pre-warmed ({:.0?})", llm_start.elapsed());
-                        }
-                    }
+                    // NOTE: LLM pre-warming is intentionally skipped at startup.
+                    // The model is loaded lazily on first polish request. This avoids
+                    // a startup crash (SIGSEGV) if the model file is corrupted.
 
                     println!("[Sumi] All models pre-warmed ({:.0?} total)", warmup_start.elapsed());
                 });
@@ -745,8 +737,9 @@ pub fn run() {
             // System Tray
             let settings_i =
                 MenuItem::with_id(app, "settings", "Settings...", true, None::<&str>)?;
+            let quit_label = if settings::is_debug() { "Quit Sumi (Dev)" } else { "Quit Sumi" };
             let quit_i =
-                MenuItem::with_id(app, "quit", "Quit Sumi", true, None::<&str>)?;
+                MenuItem::with_id(app, "quit", quit_label, true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&settings_i, &quit_i])?;
 
             let tooltip_label = hotkey_display_label(&hotkey_str);
@@ -754,7 +747,11 @@ pub fn run() {
                 .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png")).unwrap())
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .tooltip(format!("Sumi – {} to record", tooltip_label))
+                .tooltip(if settings::is_debug() {
+                    format!("Sumi [Dev] – {} to record", tooltip_label)
+                } else {
+                    format!("Sumi – {} to record", tooltip_label)
+                })
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "settings" => {
                         show_settings_window(app);

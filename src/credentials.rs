@@ -4,7 +4,7 @@
 ///        access without triggering extra permission dialogs.
 /// Other: uses the `keyring` crate (Windows Credential Manager, etc.).
 
-const SERVICE: &str = "sumi";
+const SERVICE: &str = if cfg!(debug_assertions) { "sumi-dev" } else { "sumi" };
 
 fn keychain_service(provider: &str) -> String {
     format!("{}-api-key-{}", SERVICE, provider)

@@ -211,3 +211,7 @@ export const onVadModelDownloadProgress = (
 
 export const copyImageToClipboard = (pngBytes: number[]) =>
   invoke<void>('copy_image_to_clipboard', { pngBytes });
+
+// ── Dev Mode ──
+
+export const isDevMode = () => invoke<boolean>('is_dev_mode');
