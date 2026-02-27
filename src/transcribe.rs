@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Instant;
-use whisper_rs::{WhisperContext, WhisperContextParameters};
+use whisper_rs::{WhisperContext, WhisperContextParameters, WhisperVadContext, WhisperVadContextParams, WhisperVadParams};
 
 use crate::settings::models_dir;
 use crate::whisper_models::WhisperModel;
@@ -16,6 +16,95 @@ pub struct WhisperContextCache {
 
 // WhisperContext is Send but not Sync by default; we guard it with a Mutex.
 unsafe impl Send for WhisperContextCache {}
+
+/// Cached Silero VAD context, lazily initialised on first use.
+pub struct VadContextCache {
+    pub ctx: WhisperVadContext,
+    pub model_path: PathBuf,
+}
+
+// WhisperVadContext is !Send (raw pointer); safe because we guard with Mutex
+// and is_processing AtomicBool ensures single-threaded access.
+unsafe impl Send for VadContextCache {}
+
+/// Return the expected path for the Silero VAD model.
+pub fn vad_model_path() -> PathBuf {
+    models_dir().join("ggml-silero-v6.2.0.bin")
+}
+
+/// Filter audio samples through Silero VAD, returning only speech segments.
+/// The VAD context is lazily loaded on first call.
+pub fn filter_with_vad(
+    vad_cache: &Mutex<Option<VadContextCache>>,
+    samples_16k: &[f32],
+) -> Result<Vec<f32>, String> {
+    let model_path = vad_model_path();
+    if !model_path.exists() {
+        return Err("VAD model not downloaded".to_string());
+    }
+
+    let mut cache_guard = vad_cache
+        .lock()
+        .map_err(|e| format!("Failed to lock VAD context: {}", e))?;
+
+    // Lazy-init or reload if model path changed
+    let needs_reload = match cache_guard.as_ref() {
+        Some(c) => c.model_path != model_path,
+        None => true,
+    };
+
+    if needs_reload {
+        let load_start = Instant::now();
+        println!("[Sumi] Loading Silero VAD model...");
+        let mut ctx_params = WhisperVadContextParams::new();
+        ctx_params.set_use_gpu(true);
+        ctx_params.set_n_threads(num_cpus() as _);
+        let ctx = WhisperVadContext::new(
+            model_path.to_str().ok_or("Invalid VAD model path")?,
+            ctx_params,
+        )
+        .map_err(|e| format!("Failed to load VAD model: {:?}", e))?;
+
+        *cache_guard = Some(VadContextCache {
+            ctx,
+            model_path: model_path.clone(),
+        });
+        println!(
+            "[Sumi] Silero VAD model loaded (took {:.0?})",
+            load_start.elapsed()
+        );
+    }
+
+    let cache = cache_guard.as_mut().unwrap();
+
+    let vad_start = Instant::now();
+    let params = WhisperVadParams::default();
+    let segments = cache
+        .ctx
+        .segments_from_samples(params, samples_16k)
+        .map_err(|e| format!("VAD segmentation failed: {:?}", e))?;
+
+    let n = segments.num_segments();
+    println!("[Sumi] VAD found {} speech segment(s) (took {:.0?})", n, vad_start.elapsed());
+
+    let mut speech_samples = Vec::new();
+    for seg in segments {
+        // Timestamps are in centiseconds (1cs = 10ms)
+        let start_sample = ((seg.start / 100.0) * 16000.0) as usize;
+        let end_sample = (((seg.end / 100.0) * 16000.0) as usize).min(samples_16k.len());
+        if start_sample < end_sample {
+            println!(
+                "[Sumi]   segment: {:.2}s – {:.2}s ({} samples)",
+                seg.start / 100.0,
+                seg.end / 100.0,
+                end_sample - start_sample,
+            );
+            speech_samples.extend_from_slice(&samples_16k[start_sample..end_sample]);
+        }
+    }
+
+    Ok(speech_samples)
+}
 
 /// Resolve the path to a whisper GGML model file.
 /// Returns an error if the model hasn't been downloaded yet.
@@ -38,6 +127,9 @@ pub fn transcribe_with_cached_whisper(
     whisper_cache: &Mutex<Option<WhisperContextCache>>,
     samples_16k: &[f32],
     model: &WhisperModel,
+    language: &str,
+    app_name: &str,
+    dictionary_terms: &[String],
 ) -> Result<String, String> {
     use whisper_rs::{FullParams, SamplingStrategy};
 
@@ -101,7 +193,93 @@ pub fn transcribe_with_cached_whisper(
     );
 
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-    params.set_language(None);
+
+    // Set language hint from STT config (BCP-47 → ISO 639-1 base code)
+    // "auto" or empty means let Whisper auto-detect.
+    let lang_hint = if language.is_empty() || language == "auto" {
+        None
+    } else {
+        Some(language.split('-').next().unwrap_or(language))
+    };
+    params.set_language(lang_hint);
+
+    // Build initial prompt for context — use the target language so Whisper
+    // is biased toward the correct script/variant.
+    // When language is "auto", skip prompt to let Whisper decide freely.
+    let mut prompt_parts: Vec<String> = vec!["Sumi".to_string()];
+    match language {
+        "zh-TW" | "zh" => {
+            if !app_name.is_empty() {
+                prompt_parts.push(format!("用戶正在使用{}。", app_name));
+            }
+            prompt_parts.push("以下是繁體中文的語音轉錄。".to_string());
+        }
+        "zh-CN" => {
+            if !app_name.is_empty() {
+                prompt_parts.push(format!("用户正在使用{}。", app_name));
+            }
+            prompt_parts.push("以下是简体中文的语音转录。".to_string());
+        }
+        "ja" => {
+            if !app_name.is_empty() {
+                prompt_parts.push(format!("ユーザーは{}を使用中。", app_name));
+            }
+            prompt_parts.push("以下は日本語の音声書き起こしです。".to_string());
+        }
+        "ko" => {
+            if !app_name.is_empty() {
+                prompt_parts.push(format!("사용자가 {}을(를) 사용 중.", app_name));
+            }
+            prompt_parts.push("다음은 한국어 음성 전사입니다.".to_string());
+        }
+        _ => {
+            if !app_name.is_empty() {
+                prompt_parts.push(format!("User is using {}.", app_name));
+            }
+        }
+    }
+    // Append dictionary terms at the end of prompt (tail tokens have strongest bias).
+    // Budget: ~350 chars total for prompt; reserve what's already used.
+    if !dictionary_terms.is_empty() {
+        let sep = match language {
+            "zh-TW" | "zh" | "zh-CN" | "ja" => "、",
+            "ko" => ", ",
+            _ => ", ",
+        };
+        let sep_bytes = sep.len();
+        let used_chars: usize = prompt_parts.iter().map(|p| p.len()).sum();
+        let budget = 350usize.saturating_sub(used_chars);
+        let terms_str = dictionary_terms.join(sep);
+        if terms_str.len() <= budget {
+            prompt_parts.push(terms_str);
+        } else {
+            // Greedily pick terms that fit
+            let mut remaining = budget;
+            let mut picked: Vec<&str> = Vec::new();
+            for term in dictionary_terms {
+                let cost = term.len() + if picked.is_empty() { 0 } else { sep_bytes };
+                if cost > remaining {
+                    break;
+                }
+                picked.push(term);
+                remaining -= cost;
+            }
+            if !picked.is_empty() {
+                prompt_parts.push(picked.join(sep));
+            }
+        }
+    }
+
+    let prompt = prompt_parts.join(" ");
+    if !prompt.is_empty() {
+        params.set_initial_prompt(&prompt);
+    }
+
+    println!(
+        "[Sumi] [whisper] language={:?} (config: {:?}), app={:?}, prompt={:?}",
+        lang_hint, language, app_name, prompt
+    );
+
     params.set_print_special(false);
     params.set_print_realtime(false);
     params.set_print_progress(false);
@@ -125,6 +303,14 @@ pub fn transcribe_with_cached_whisper(
     let mut text = String::new();
     for i in 0..num_segments {
         if let Some(seg) = wh_state.get_segment(i) {
+            let no_speech_prob = seg.no_speech_probability();
+            if no_speech_prob > 0.6 {
+                println!(
+                    "[Sumi] Skipping segment {} (no_speech_prob={:.3})",
+                    i, no_speech_prob
+                );
+                continue;
+            }
             if let Ok(s) = seg.to_str_lossy() {
                 text.push_str(&s);
             }

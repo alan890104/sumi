@@ -233,18 +233,28 @@ export const STT_MODELS: SttModelMeta[] = [
 ];
 
 export function recommendSttModel(systemInfo: SystemInfo, locale: string): WhisperModelId {
-  const ramGb = systemInfo.total_ram_bytes / 1_073_741_824;
   const diskGb = systemInfo.available_disk_bytes / 1_073_741_824;
   const lower = locale.toLowerCase();
   const prefersZhTw = lower.startsWith('zh-tw') || lower.startsWith('zh_tw') || lower === 'zh-hant';
   const prefersZh = lower.startsWith('zh');
 
-  if (ramGb >= 8 && diskGb >= 3) {
+  // Determine effective memory for model recommendation:
+  // - Apple Silicon: use system RAM (unified memory)
+  // - CUDA + discrete GPU (>= 2 GB VRAM): use GPU VRAM
+  // - Otherwise: use system RAM
+  const vramGb = systemInfo.gpu_vram_bytes / 1_073_741_824;
+  const ramGb = systemInfo.total_ram_bytes / 1_073_741_824;
+  const effectiveGb =
+    systemInfo.is_apple_silicon ? ramGb :
+    systemInfo.has_cuda && vramGb >= 2 ? vramGb :
+    ramGb;
+
+  if (effectiveGb >= 8 && diskGb >= 3) {
     if (prefersZhTw) return 'large_v3_turbo_zh_tw';
     if (prefersZh) return 'belle_zh';
     return 'large_v3_turbo';
   }
-  if (ramGb >= 4 && diskGb >= 1) return 'large_v3_turbo_q5';
+  if (effectiveGb >= 4 && diskGb >= 1) return 'large_v3_turbo_q5';
   return 'base';
 }
 
@@ -253,7 +263,8 @@ export function recommendSttModel(systemInfo: SystemInfo, locale: string): Whisp
 export const STT_LANGUAGES = [
   // ── Common ──
   { value: 'auto', label: 'Auto' },
-  { value: 'zh', label: '中文 (Chinese)' },
+  { value: 'zh-TW', label: '繁體中文 (Traditional Chinese)' },
+  { value: 'zh-CN', label: '简体中文 (Simplified Chinese)' },
   { value: 'en', label: 'English' },
   { value: 'ja', label: '日本語 (Japanese)' },
   { value: 'ko', label: '한국어 (Korean)' },

@@ -36,6 +36,8 @@ export interface SystemInfo {
   total_ram_bytes: number;
   available_disk_bytes: number;
   is_apple_silicon: boolean;
+  gpu_vram_bytes: number;
+  has_cuda: boolean;
   os: string;
   arch: string;
 }
@@ -44,6 +46,8 @@ export interface SttConfig {
   mode: SttMode;
   cloud: SttCloudConfig;
   whisper_model: WhisperModelId;
+  language: string;
+  vad_enabled: boolean;
 }
 
 // ── Polish ──
@@ -118,6 +122,7 @@ export interface Settings {
   language: string | null;
   stt: SttConfig;
   edit_hotkey: string | null;
+  preview_before_paste: boolean;
 }
 
 // ── History ──
@@ -137,6 +142,12 @@ export interface HistoryEntry {
   total_elapsed_ms: number;
   app_name: string;
   bundle_id: string;
+  chars_per_sec: number;
+}
+
+export interface HistoryPage {
+  entries: HistoryEntry[];
+  has_more: boolean;
 }
 
 // ── API responses ──
@@ -203,4 +214,6 @@ export type OverlayStatus =
   | 'pasted'
   | 'copied'
   | 'error'
-  | 'edited';
+  | 'edited'
+  | 'edit_requires_polish'
+  | 'preview';

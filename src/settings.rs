@@ -24,6 +24,9 @@ pub struct Settings {
     /// Whether the onboarding wizard has been completed. `false` triggers the setup overlay.
     #[serde(default)]
     pub onboarding_completed: bool,
+    /// When true, show a preview overlay after transcription instead of pasting immediately.
+    #[serde(default)]
+    pub preview_before_paste: bool,
 }
 
 impl Default for Settings {
@@ -37,6 +40,7 @@ impl Default for Settings {
             stt: SttConfig::default(),
             edit_hotkey: Some("Control+Alt+KeyZ".to_string()),
             onboarding_completed: false,
+            preview_before_paste: false,
         }
     }
 }
@@ -71,14 +75,16 @@ pub fn settings_path() -> PathBuf {
 
 pub fn load_settings() -> Settings {
     let path = settings_path();
-    if path.exists() {
+    let mut settings = if path.exists() {
         match std::fs::read_to_string(&path) {
             Ok(contents) => serde_json::from_str(&contents).unwrap_or_default(),
             Err(_) => Settings::default(),
         }
     } else {
         Settings::default()
-    }
+    };
+    settings.stt.migrate_language();
+    settings
 }
 
 pub fn save_settings_to_disk(settings: &Settings) {

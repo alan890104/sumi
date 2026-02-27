@@ -34,10 +34,13 @@ let settings = $state<Settings>({
   language: null,
   stt: {
     mode: 'local',
-    cloud: { provider: 'deepgram', api_key: '', endpoint: '', model_id: 'whisper', language: 'zh-TW' },
+    cloud: { provider: 'deepgram', api_key: '', endpoint: '', model_id: 'whisper', language: 'auto' },
     whisper_model: 'large_v3_turbo',
+    language: 'auto',
+    vad_enabled: true,
   },
   edit_hotkey: null,
+  preview_before_paste: false,
 });
 
 let onboardingCompleted = $state(true);
@@ -181,12 +184,22 @@ export function setSttCloudModelId(modelId: string) {
   settings.stt.cloud.model_id = modelId;
 }
 
+export function setSttLanguage(lang: string) {
+  settings.stt.language = lang;
+  settings.stt.cloud.language = lang;
+}
+
 export function setSttCloudLanguage(lang: string) {
   settings.stt.cloud.language = lang;
+  settings.stt.language = lang;
 }
 
 export function setSttWhisperModel(model: WhisperModelId) {
   settings.stt.whisper_model = model;
+}
+
+export function setVadEnabled(v: boolean) {
+  settings.stt.vad_enabled = v;
 }
 
 export function setHistoryRetention(days: number) {
@@ -195,6 +208,14 @@ export function setHistoryRetention(days: number) {
 
 export function setAutoPaste(v: boolean) {
   settings.auto_paste = v;
+}
+
+export function getPreviewBeforePaste(): boolean {
+  return settings.preview_before_paste;
+}
+
+export function setPreviewBeforePaste(v: boolean) {
+  settings.preview_before_paste = v;
 }
 
 // ── Prompt rules ──

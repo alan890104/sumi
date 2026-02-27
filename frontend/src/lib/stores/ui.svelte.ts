@@ -69,3 +69,15 @@ export function setExpandedRuleIndex(index: number) {
 export function toggleRuleExpand(index: number) {
   expandedRuleIndex = expandedRuleIndex === index ? -1 : index;
 }
+
+// ── Highlight section ──
+
+let highlightSection = $state<string | null>(null);
+
+export function getHighlightSection(): string | null {
+  return highlightSection;
+}
+
+export function setHighlightSection(section: string | null) {
+  highlightSection = section;
+}

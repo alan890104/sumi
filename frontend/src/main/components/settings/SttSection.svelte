@@ -5,28 +5,37 @@
     getSttConfig,
     setSttMode,
     setSttWhisperModel,
+    setSttLanguage,
     setSttCloudProvider,
     setSttCloudApiKey,
     setSttCloudEndpoint,
     setSttCloudModelId,
     setSttCloudLanguage,
+    setVadEnabled,
     saveStt,
   } from '$lib/stores/settings.svelte';
+  import { STT_LANGUAGES } from '$lib/constants';
   import {
     listWhisperModels,
     switchWhisperModel,
     downloadWhisperModel,
     onWhisperModelDownloadProgress,
     getWhisperModelRecommendation,
+    checkVadModelStatus,
+    downloadVadModel,
+    onVadModelDownloadProgress,
     saveApiKey,
     getApiKey,
   } from '$lib/api';
   import type { SttMode, WhisperModelId, WhisperModelInfo, DownloadProgress } from '$lib/types';
   import type { UnlistenFn } from '@tauri-apps/api/event';
   import SettingRow from '$lib/components/SettingRow.svelte';
+  import Toggle from '$lib/components/Toggle.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import CloudConfigPanel from '$lib/components/CloudConfigPanel.svelte';
+  import { formatSize, camelCase } from '$lib/utils';
+  import SectionHeader from '$lib/components/SectionHeader.svelte';
 
   // ── Model list from backend ──
 
@@ -39,6 +48,50 @@
   let downloadError = $state(false);
   let unlisten: UnlistenFn | null = null;
 
+  let vadDownloading = $state(false);
+  let vadUnlisten: UnlistenFn | null = null;
+
+  async function onVadToggle(checked: boolean) {
+    if (checked) {
+      // Check if VAD model exists; download if not
+      try {
+        const status = await checkVadModelStatus();
+        if (!status.downloaded) {
+          vadDownloading = true;
+
+          if (vadUnlisten) { vadUnlisten(); vadUnlisten = null; }
+          vadUnlisten = await onVadModelDownloadProgress((d) => {
+            if (d.status === 'complete') {
+              vadDownloading = false;
+              if (vadUnlisten) { vadUnlisten(); vadUnlisten = null; }
+            } else if (d.status === 'error') {
+              vadDownloading = false;
+              console.error('VAD model download error:', d.message);
+              // Revert toggle on failure
+              setVadEnabled(false);
+              saveStt();
+              if (vadUnlisten) { vadUnlisten(); vadUnlisten = null; }
+            }
+          });
+
+          try {
+            await downloadVadModel();
+          } catch (e) {
+            vadDownloading = false;
+            setVadEnabled(false);
+            saveStt();
+            console.error('Failed to start VAD model download:', e);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to check VAD model status:', e);
+      }
+    }
+    setVadEnabled(checked);
+    saveStt();
+  }
+
   let sttModeOptions = $derived([
     { value: 'local', label: t('settings.stt.modeLocal') },
     { value: 'cloud', label: t('settings.stt.modeCloud') },
@@ -46,10 +99,6 @@
 
   let sttConfig = $derived(getSttConfig());
 
-  function formatSize(bytes: number): string {
-    if (bytes >= 1_073_741_824) return (bytes / 1_073_741_824).toFixed(1) + ' GB';
-    return (bytes / 1_048_576).toFixed(0) + ' MB';
-  }
 
   async function loadModels() {
     try {
@@ -139,7 +188,7 @@
   let cloudApiKey = $state(getSttConfig().cloud.api_key);
   let cloudEndpoint = $state(getSttConfig().cloud.endpoint);
   let cloudModelId = $state(getSttConfig().cloud.model_id);
-  let cloudLanguage = $state(getSttConfig().cloud.language);
+  let cloudLanguage = $state(getSttConfig().language);
 
   $effect(() => {
     const cfg = getSttConfig();
@@ -147,7 +196,7 @@
     cloudApiKey = cfg.cloud.api_key;
     cloudEndpoint = cfg.cloud.endpoint;
     cloudModelId = cfg.cloud.model_id;
-    cloudLanguage = cfg.cloud.language;
+    cloudLanguage = cfg.language;
   });
 
   onMount(() => {
@@ -156,20 +205,20 @@
 
   onDestroy(() => {
     if (unlisten) { unlisten(); unlisten = null; }
+    if (vadUnlisten) { vadUnlisten(); vadUnlisten = null; }
   });
 </script>
 
 <div class="section">
-  <div class="section-header">
-    <span class="section-icon">
+  <SectionHeader title={t('settings.stt')}>
+    {#snippet icon()}
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
         <line x1="12" x2="12" y1="19" y2="22"/>
       </svg>
-    </span>
-    <span class="section-title">{t('settings.stt')}</span>
-  </div>
+    {/snippet}
+  </SectionHeader>
 
   <!-- Mode selector -->
   <SettingRow name={t('settings.stt.mode')} desc={t('settings.stt.modeDesc')}>
@@ -183,6 +232,32 @@
   <!-- Local panel: multi-model selector -->
   {#if sttConfig.mode === 'local'}
     <div class="sub-settings">
+      <!-- Language selector (shared) -->
+      <SettingRow name={t('settings.stt.language')} desc={t('settings.stt.languageDesc')}>
+        <select
+          class="language-select"
+          value={sttConfig.language}
+          onchange={(e) => {
+            const val = (e.target as HTMLSelectElement).value;
+            setSttLanguage(val);
+            saveStt();
+          }}
+        >
+          {#each STT_LANGUAGES as lang}
+            <option value={lang.value}>{lang.label}</option>
+          {/each}
+        </select>
+      </SettingRow>
+
+      <!-- VAD toggle -->
+      <SettingRow name={t('settings.stt.vad')} desc={t('settings.stt.vadDesc')}>
+        {#if vadDownloading}
+          <span class="vad-downloading">{t('settings.stt.downloading')}</span>
+        {:else}
+          <Toggle checked={sttConfig.vad_enabled} onchange={onVadToggle} />
+        {/if}
+      </SettingRow>
+
       <div class="model-list-label">{t('settings.stt.localModel')}</div>
       <div class="model-list">
         {#each models as model (model.id)}
@@ -278,45 +353,12 @@
   {/if}
 </div>
 
-<script lang="ts" module>
-  /** Convert snake_case model ID to camelCase for i18n key lookup */
-  function camelCase(id: string): string {
-    return id.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
-  }
-</script>
 
 <style>
   .section {
     margin-bottom: 28px;
   }
 
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 16px;
-  }
-
-  .section-icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    color: var(--text-secondary);
-  }
-
-  .section-icon :global(svg) {
-    width: 18px;
-    height: 18px;
-    display: block;
-  }
-
-  .section-title {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--text-secondary);
-  }
 
   .sub-settings {
     display: flex;
@@ -478,5 +520,47 @@
 
   .model-progress-wrap {
     padding: 0 12px 8px;
+  }
+
+  .vad-downloading {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    animation: vad-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes vad-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .language-select {
+    padding: 7px 28px 7px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236e6e73' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    min-width: 160px;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .language-select:hover {
+    border-color: rgba(0, 0, 0, 0.15);
+    background-color: var(--bg-sidebar);
+  }
+
+  .language-select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
   }
 </style>

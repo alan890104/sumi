@@ -4,7 +4,7 @@
   import { showConfirm } from '$lib/stores/ui.svelte';
   import * as settingsStore from '$lib/stores/settings.svelte';
   import {
-    getHistory,
+    getHistoryPage,
     getHistoryStoragePath,
     clearAllHistory,
     exportHistoryAudio,
@@ -18,6 +18,8 @@
 
   let entries = $state<HistoryEntry[]>([]);
   let loading = $state(true);
+  let loadingMore = $state(false);
+  let hasMore = $state(false);
   let error = $state<string | null>(null);
   let storagePath = $state('-');
 
@@ -132,12 +134,31 @@
     loading = true;
     error = null;
     try {
-      entries = await getHistory();
+      const page = await getHistoryPage();
+      entries = page.entries;
+      hasMore = page.has_more;
     } catch (e) {
       console.error('Failed to load history:', e);
       error = String(e);
     } finally {
       loading = false;
+    }
+  }
+
+  async function loadMore() {
+    if (loadingMore || !hasMore || entries.length === 0) return;
+    loadingMore = true;
+    try {
+      const cursor = entries[entries.length - 1].timestamp;
+      const page = await getHistoryPage(cursor);
+      const existingIds = new Set(entries.map((e) => e.id));
+      const newEntries = page.entries.filter((e) => !existingIds.has(e.id));
+      entries = [...entries, ...newEntries];
+      hasMore = page.has_more;
+    } catch (e) {
+      console.error('Failed to load more history:', e);
+    } finally {
+      loadingMore = false;
     }
   }
 
@@ -173,7 +194,8 @@
     showConfirm(t('history.clearAll'), t('history.clearAllConfirm'), t('history.clearAll'), async () => {
       try {
         await clearAllHistory();
-        await loadHistory();
+        entries = [];
+        hasMore = false;
       } catch (e) {
         console.error('Failed to clear history:', e);
       }
@@ -190,9 +212,8 @@
     detailEntry = null;
   }
 
-  function handleDetailDelete(_id: string) {
-    // Reload history after deletion
-    loadHistory();
+  function handleDetailDelete(id: string) {
+    entries = entries.filter((e) => e.id !== id);
   }
 
   function formatTime(timestamp: number): string {
@@ -232,7 +253,7 @@
     openMenuId = null;
     try {
       await deleteHistoryEntry(id);
-      await loadHistory();
+      entries = entries.filter((e) => e.id !== id);
     } catch (e) {
       console.error('Failed to delete history entry:', e);
     }
@@ -320,7 +341,7 @@
       <div class="history-empty-hint">{t('history.emptyHint')}</div>
     </div>
   {:else}
-    {#each groups as group}
+    {#each groups as group (group.label)}
       <div class="history-date-group">
         <div class="history-date-header">{group.label}</div>
         {#each group.entries as item (item.id)}
@@ -377,6 +398,16 @@
         {/each}
       </div>
     {/each}
+    {#if hasMore}
+      <div class="history-load-more">
+        <button class="load-more-btn" onclick={loadMore} disabled={loadingMore}>
+          {#if loadingMore}
+            <span class="load-more-spinner"></span>
+          {/if}
+          {t('history.loadMore')}
+        </button>
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -679,5 +710,52 @@
 
   .history-empty-hint {
     font-size: 12px;
+  }
+
+  /* ── Load more ── */
+  .history-load-more {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0 8px;
+  }
+
+  .load-more-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border: 1px solid var(--border-divider);
+    border-radius: var(--radius-sm);
+    background: var(--bg-sidebar);
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .load-more-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: var(--border-subtle);
+    color: var(--text-primary);
+  }
+
+  .load-more-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .load-more-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border-divider);
+    border-top-color: var(--text-secondary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 </style>

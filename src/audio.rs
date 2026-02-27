@@ -6,7 +6,7 @@ use std::sync::{
 use std::time::Instant;
 
 use crate::stt::{SttConfig, SttMode};
-use crate::transcribe::{transcribe_with_cached_whisper, WhisperContextCache};
+use crate::transcribe::{transcribe_with_cached_whisper, WhisperContextCache, VadContextCache};
 
 /// Spawn a persistent audio thread that builds and immediately starts the cpal
 /// input stream.  The stream runs for the entire app lifetime — the callback
@@ -182,6 +182,11 @@ pub fn do_stop_recording(
     whisper_ctx: &Mutex<Option<WhisperContextCache>>,
     http_client: &reqwest::blocking::Client,
     stt_config: &SttConfig,
+    language: &str,
+    app_name: &str,
+    dictionary_terms: &[String],
+    vad_ctx: &Mutex<Option<VadContextCache>>,
+    vad_enabled: bool,
 ) -> Result<(String, Vec<f32>), String> {
     let sample_rate = sample_rate_mutex
         .lock()
@@ -220,7 +225,58 @@ pub fn do_stop_recording(
         samples
     };
 
-    // Strip leading silence
+    // ── VAD or RMS trimming ─────────────────────────────────────────────
+    let vad_model_exists = crate::transcribe::vad_model_path().exists();
+    if vad_enabled && vad_model_exists {
+        // Use Silero VAD to extract speech segments
+        match crate::transcribe::filter_with_vad(vad_ctx, &samples_16k) {
+            Ok(speech) if speech.is_empty() => {
+                println!("[Sumi] VAD: no speech segments found");
+                return Err("no_speech".to_string());
+            }
+            Ok(speech) => {
+                println!(
+                    "[Sumi] VAD filtered: {:.2}s → {:.2}s",
+                    samples_16k.len() as f64 / 16000.0,
+                    speech.len() as f64 / 16000.0,
+                );
+                samples_16k = speech;
+            }
+            Err(e) => {
+                println!("[Sumi] VAD failed ({}), falling back to RMS trimming", e);
+                rms_trim_silence(&mut samples_16k)?;
+            }
+        }
+    } else {
+        if vad_enabled && !vad_model_exists {
+            println!("[Sumi] VAD enabled but model not downloaded, using RMS trimming");
+        }
+        rms_trim_silence(&mut samples_16k)?;
+    }
+
+    let stt_start = Instant::now();
+    let text = match stt_config.mode {
+        SttMode::Local => {
+            let result = transcribe_with_cached_whisper(whisper_ctx, &samples_16k, &stt_config.whisper_model, language, app_name, dictionary_terms)?;
+            println!("[Sumi] [timing] STT (local whisper): {:.0?}", stt_start.elapsed());
+            result
+        }
+        SttMode::Cloud => {
+            let result = crate::stt::run_cloud_stt(&stt_config.cloud, &samples_16k, http_client)?;
+            println!("[Sumi] [timing] STT (cloud {}): {:.0?}", stt_config.cloud.provider.as_key(), stt_start.elapsed());
+            result
+        }
+    };
+
+    if text.is_empty() {
+        Err("no_speech".to_string())
+    } else {
+        Ok((text, samples_16k))
+    }
+}
+
+/// Strip leading/trailing silence using RMS, and reject near-silent audio.
+fn rms_trim_silence(samples_16k: &mut Vec<f32>) -> Result<(), String> {
     const SILENCE_RMS_THRESHOLD: f32 = 0.01;
     const WINDOW: usize = 160;
     const LOOKBACK: usize = 1600;
@@ -240,10 +296,9 @@ pub fn do_stop_recording(
             trim_start as f64 / 16.0,
             speech_onset as f64 / 16.0
         );
-        samples_16k = samples_16k[trim_start..].to_vec();
+        *samples_16k = samples_16k[trim_start..].to_vec();
     }
 
-    // Strip trailing silence
     if samples_16k.len() > WINDOW {
         let total = samples_16k.len();
         let last_speech = samples_16k
@@ -265,25 +320,15 @@ pub fn do_stop_recording(
         }
     }
 
-    let stt_start = Instant::now();
-    let text = match stt_config.mode {
-        SttMode::Local => {
-            let result = transcribe_with_cached_whisper(whisper_ctx, &samples_16k, &stt_config.whisper_model)?;
-            println!("[Sumi] [timing] STT (local whisper): {:.0?}", stt_start.elapsed());
-            result
-        }
-        SttMode::Cloud => {
-            let result = crate::stt::run_cloud_stt(&stt_config.cloud, &samples_16k, http_client)?;
-            println!("[Sumi] [timing] STT (cloud {}): {:.0?}", stt_config.cloud.provider.as_key(), stt_start.elapsed());
-            result
-        }
-    };
-
-    if text.is_empty() {
-        Err("no_speech".to_string())
-    } else {
-        Ok((text, samples_16k))
+    // Pre-check: if the entire audio is near-silent, skip Whisper entirely
+    let rms = (samples_16k.iter().map(|&s| s * s).sum::<f32>() / samples_16k.len() as f32).sqrt();
+    if rms < 0.005 {
+        println!("[Sumi] Audio RMS {:.5} below threshold — no speech detected", rms);
+        return Err("no_speech".to_string());
     }
+    println!("[Sumi] Audio RMS: {:.5}", rms);
+
+    Ok(())
 }
 
 /// Simple linear interpolation resampler.

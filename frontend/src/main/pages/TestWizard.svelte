@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { t } from '$lib/stores/i18n.svelte';
-  import { setCurrentPage } from '$lib/stores/ui.svelte';
-  import { getHotkey, getEditHotkey } from '$lib/stores/settings.svelte';
+  import { setCurrentPage, setHighlightSection } from '$lib/stores/ui.svelte';
+  import { getHotkey, getEditHotkey, getPolishConfig } from '$lib/stores/settings.svelte';
   import { hotkeyToParts, MODIFIER_SYMBOLS } from '$lib/constants';
   import {
     setTestMode,
@@ -10,6 +10,7 @@
     setEditTextOverride,
     onTranscriptionResult,
     onHotkeyActivated,
+    checkLlmModelStatus,
   } from '$lib/api';
   import Keycaps from '$lib/components/Keycaps.svelte';
   import InstructionCard from '$lib/components/InstructionCard.svelte';
@@ -18,13 +19,14 @@
   // ── Shared state ──
 
   let step = $state(1);
-  const TOTAL_STEPS = 5;
+  const TOTAL_STEPS = 6;
 
   const breadcrumbs = [
     'test.breadcrumb.mic',
     'test.breadcrumb.hotkey',
     'test.breadcrumb.general',
     'test.breadcrumb.gmail',
+    'test.breadcrumb.polishCheck',
     'test.breadcrumb.editByVoice',
   ];
 
@@ -374,7 +376,39 @@
     setContextOverride('', '', '').catch(() => {});
   }
 
-  // ── Step 5: Edit by Voice ──
+  // ── Step 5: Polish Readiness Check ──
+
+  let polishReady = $state(false);
+
+  async function checkPolishReady() {
+    const pc = getPolishConfig();
+    if (!pc.enabled) {
+      polishReady = false;
+      return;
+    }
+    if (pc.mode === 'cloud') {
+      polishReady = pc.cloud.api_key.length > 0;
+    } else {
+      try {
+        const status = await checkLlmModelStatus();
+        polishReady = status.model_exists;
+      } catch {
+        polishReady = false;
+      }
+    }
+  }
+
+  async function setupPolishCheck() {
+    await checkPolishReady();
+  }
+
+  function navigateToPolishSettings() {
+    cleanupAllSteps();
+    setHighlightSection('polish');
+    setCurrentPage('settings');
+  }
+
+  // ── Step 6: Edit by Voice ──
 
   let editUnlisten: UnlistenFn | null = null;
   let editBody = $state<HTMLElement | null>(null);
@@ -398,7 +432,7 @@
       console.warn('set_context_override failed:', e);
     }
 
-    if (editBody) editBody.innerText = t('test.step5.prefill');
+    if (editBody) editBody.innerText = t('test.step6.prefill');
 
     document.addEventListener('selectionchange', handleEditSelection);
 
@@ -431,7 +465,8 @@
       else if (n === 2) setupHotkeyTest();
       else if (n === 3) setupGeneral();
       else if (n === 4) setupGmail();
-      else if (n === 5) setupEditTest();
+      else if (n === 5) setupPolishCheck();
+      else if (n === 6) setupEditTest();
     });
   }
 
@@ -476,7 +511,7 @@
   let generalInstruction = $derived(t('test.step3.instruction', { hotkey: hotkeyKeycapsHtml(hotkey) }));
   let gmailInstruction = $derived(t('test.step4.instruction', { hotkey: hotkeyKeycapsHtml(hotkey) }));
   let editInstruction = $derived(
-    t('test.step5.instruction', { hotkey: hotkeyKeycapsHtml(editHotkey || hotkey) }),
+    t('test.step6.instruction', { hotkey: hotkeyKeycapsHtml(editHotkey || hotkey) }),
   );
   let hotkeySubtitle = $derived(t('test.step2.subtitle', { hotkey: hotkeyToParts(hotkey).join(' + ') }));
 </script>
@@ -690,7 +725,7 @@
     </div>
   {/if}
 
-  <!-- Step 5: Edit by Voice -->
+  <!-- Step 5: Polish Readiness Check -->
   {#if step === 5}
     <div class="test-step active">
       <div class="test-layout">
@@ -700,13 +735,61 @@
           </button>
           <div class="test-left-spacer"></div>
           <div class="test-title">{t('test.step5.title')}</div>
+          <div class="test-subtitle">{t('test.step5.subtitle')}</div>
+          {#if polishReady}
+            <div class="test-polish-status test-polish-ready">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#28c840" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>{t('test.step5.polishReady')}</span>
+            </div>
+            <div class="test-left-spacer"></div>
+            <div class="test-actions">
+              <button class="test-btn-filled" onclick={() => goToStep(6)}>
+                {t('test.step3.next')}
+              </button>
+            </div>
+          {:else}
+            <div class="test-polish-status test-polish-not-ready">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff9500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>{t('test.step5.polishNotReady')}</span>
+            </div>
+            <div class="test-left-spacer"></div>
+            <div class="test-actions">
+              <button class="test-btn-filled" onclick={navigateToPolishSettings}>
+                {t('test.step5.goToSettings')}
+              </button>
+            </div>
+          {/if}
+        </div>
+        <div class="test-right">
+          <div class="test-keycap-lg">
+            {#each (editHotkey || hotkey).split('+') as part}
+              {@const sym = MODIFIER_SYMBOLS[part]}
+              {@const label = sym ?? part.replace(/^Key/, '').replace(/^Digit/, '')}
+              <kbd class:accent={!sym}>{label}</kbd>
+            {/each}
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Step 6: Edit by Voice -->
+  {#if step === 6}
+    <div class="test-step active">
+      <div class="test-layout">
+        <div class="test-left">
+          <button class="test-back" onclick={() => goBack(6)}>
+            {t('test.back')}
+          </button>
+          <div class="test-left-spacer"></div>
+          <div class="test-title">{t('test.step6.title')}</div>
           <InstructionCard
             icon='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
           >
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html editInstruction}
           </InstructionCard>
-          <div class="test-sample-text">{t('test.step5.sampleText')}</div>
+          <div class="test-sample-text">{t('test.step6.sampleText')}</div>
           {#if editHotkey}
             <div class="test-edit-keycaps">
               <Keycaps hotkey={editHotkey} size="normal" />
@@ -715,7 +798,7 @@
           <div class="test-left-spacer"></div>
           <div class="test-actions">
             <button class="test-btn-filled" onclick={finishWizard}>
-              {t('test.step5.done')}
+              {t('test.step6.done')}
             </button>
           </div>
         </div>
@@ -724,7 +807,7 @@
             <div class="test-plain-editor">
               <div class="test-plain-titlebar">
                 <div class="test-plain-dots"><span></span><span></span><span></span></div>
-                <span class="test-plain-title">{t('test.step5.editorTitle')}</span>
+                <span class="test-plain-title">{t('test.step6.editorTitle')}</span>
                 <span style="width:38px"></span>
               </div>
               <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1213,4 +1296,36 @@
     color: var(--accent-blue);
     font-weight: 700;
   }
+
+  /* ── Polish status ── */
+  .test-polish-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+  }
+
+  .test-polish-status svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .test-polish-status span {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
+  .test-polish-ready {
+    background: rgba(40, 200, 64, 0.08);
+    border: 1px solid rgba(40, 200, 64, 0.25);
+  }
+
+  .test-polish-not-ready {
+    background: rgba(255, 149, 0, 0.08);
+    border: 1px solid rgba(255, 149, 0, 0.25);
+  }
+
 </style>

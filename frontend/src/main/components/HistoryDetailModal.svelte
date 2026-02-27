@@ -132,6 +132,12 @@
           </span>
         </div>
       {/if}
+      {#if entry.chars_per_sec > 0}
+        <div class="hd-meta-row">
+          <span class="hd-meta-label">{t('history.metaCharsPerSec')}</span>
+          <span class="hd-meta-value">{entry.chars_per_sec.toFixed(1)} chars/s</span>
+        </div>
+      {/if}
     </div>
 
     <!-- Actions -->

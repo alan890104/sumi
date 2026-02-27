@@ -22,6 +22,8 @@ pub struct HistoryEntry {
     pub app_name: String,
     #[serde(default)]
     pub bundle_id: String,
+    #[serde(default)]
+    pub chars_per_sec: f64,
 }
 
 fn db_path(history_dir: &Path) -> PathBuf {
@@ -68,10 +70,20 @@ fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
             polish_elapsed_ms INTEGER,
             total_elapsed_ms INTEGER NOT NULL DEFAULT 0,
             app_name         TEXT NOT NULL DEFAULT '',
-            bundle_id        TEXT NOT NULL DEFAULT ''
+            bundle_id        TEXT NOT NULL DEFAULT '',
+            chars_per_sec    REAL NOT NULL DEFAULT 0.0
         );
         CREATE INDEX IF NOT EXISTS idx_history_timestamp ON history(timestamp DESC);",
     )?;
+    // Migrate: add chars_per_sec column if missing (non-destructive)
+    let has_cps: bool = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('history') WHERE name = 'chars_per_sec'",
+        [],
+        |row| row.get::<_, i64>(0),
+    )? > 0;
+    if !has_cps {
+        conn.execute_batch("ALTER TABLE history ADD COLUMN chars_per_sec REAL NOT NULL DEFAULT 0.0;")?;
+    }
     Ok(conn)
 }
 
@@ -88,6 +100,88 @@ pub fn migrate_from_json(history_dir: &Path, audio_dir: &Path) {
     }
 }
 
+pub fn load_history_page(
+    history_dir: &Path,
+    before_timestamp: Option<i64>,
+    limit: u32,
+) -> (Vec<HistoryEntry>, bool) {
+    let conn = match open_db(history_dir) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("[Sumi] Failed to open history DB: {}", e);
+            return (Vec::new(), false);
+        }
+    };
+    let fetch_limit = limit as i64 + 1;
+    let row_mapper = |row: &rusqlite::Row| -> Result<HistoryEntry, rusqlite::Error> {
+        Ok(HistoryEntry {
+            id: row.get(0)?,
+            timestamp: row.get(1)?,
+            text: row.get(2)?,
+            raw_text: row.get(3)?,
+            reasoning: row.get(4)?,
+            stt_model: row.get(5)?,
+            polish_model: row.get(6)?,
+            duration_secs: row.get(7)?,
+            has_audio: row.get::<_, i32>(8)? != 0,
+            stt_elapsed_ms: row.get::<_, i64>(9).unwrap_or(0) as u64,
+            polish_elapsed_ms: row.get::<_, Option<i64>>(10).ok().flatten().map(|v| v as u64),
+            total_elapsed_ms: row.get::<_, i64>(11).unwrap_or(0) as u64,
+            app_name: row.get::<_, String>(12).unwrap_or_default(),
+            bundle_id: row.get::<_, String>(13).unwrap_or_default(),
+            chars_per_sec: row.get::<_, f64>(14).unwrap_or(0.0),
+        })
+    };
+    let mut entries: Vec<HistoryEntry> = if let Some(ts) = before_timestamp {
+        let mut stmt = match conn.prepare(
+            "SELECT id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
+                    duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
+                    app_name, bundle_id, chars_per_sec
+             FROM history WHERE timestamp < ?1 ORDER BY timestamp DESC LIMIT ?2",
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("[Sumi] Failed to prepare history page query: {}", e);
+                return (Vec::new(), false);
+            }
+        };
+        let result = stmt.query_map(params![ts, fetch_limit], row_mapper);
+        match result {
+            Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
+            Err(e) => {
+                eprintln!("[Sumi] Failed to query history page: {}", e);
+                return (Vec::new(), false);
+            }
+        }
+    } else {
+        let mut stmt = match conn.prepare(
+            "SELECT id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
+                    duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
+                    app_name, bundle_id, chars_per_sec
+             FROM history ORDER BY timestamp DESC LIMIT ?1",
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("[Sumi] Failed to prepare history page query: {}", e);
+                return (Vec::new(), false);
+            }
+        };
+        let result = stmt.query_map(params![fetch_limit], row_mapper);
+        match result {
+            Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
+            Err(e) => {
+                eprintln!("[Sumi] Failed to query history page: {}", e);
+                return (Vec::new(), false);
+            }
+        }
+    };
+    let has_more = entries.len() > limit as usize;
+    if has_more {
+        entries.truncate(limit as usize);
+    }
+    (entries, has_more)
+}
+
 pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
     let conn = match open_db(history_dir) {
         Ok(c) => c,
@@ -99,7 +193,7 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
     let mut stmt = match conn.prepare(
         "SELECT id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
                 duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
-                app_name, bundle_id
+                app_name, bundle_id, chars_per_sec
          FROM history ORDER BY timestamp DESC LIMIT 200",
     ) {
         Ok(s) => s,
@@ -124,6 +218,7 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
             total_elapsed_ms: row.get::<_, i64>(11).unwrap_or(0) as u64,
             app_name: row.get::<_, String>(12).unwrap_or_default(),
             bundle_id: row.get::<_, String>(13).unwrap_or_default(),
+            chars_per_sec: row.get::<_, f64>(14).unwrap_or(0.0),
         })
     });
     match rows {
@@ -149,8 +244,8 @@ pub fn add_entry(history_dir: &Path, audio_dir: &Path, entry: HistoryEntry, rete
         "INSERT OR REPLACE INTO history
             (id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
              duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
-             app_name, bundle_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+             app_name, bundle_id, chars_per_sec)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
         params![
             entry.id,
             entry.timestamp,
@@ -166,6 +261,7 @@ pub fn add_entry(history_dir: &Path, audio_dir: &Path, entry: HistoryEntry, rete
             entry.total_elapsed_ms as i64,
             entry.app_name,
             entry.bundle_id,
+            entry.chars_per_sec,
         ],
     ) {
         eprintln!("[Sumi] Failed to insert history entry: {}", e);

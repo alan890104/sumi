@@ -27,6 +27,8 @@
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import CloudConfigPanel from '$lib/components/CloudConfigPanel.svelte';
+  import { formatSize, camelCase } from '$lib/utils';
+  import SectionHeader from '$lib/components/SectionHeader.svelte';
 
   // ── Model list from backend ──
 
@@ -45,10 +47,6 @@
     { value: 'cloud', label: t('settings.polish.modeCloud') },
   ]);
 
-  function formatSize(bytes: number): string {
-    if (bytes >= 1_073_741_824) return (bytes / 1_073_741_824).toFixed(1) + ' GB';
-    return (bytes / 1_048_576).toFixed(0) + ' MB';
-  }
 
   async function loadModels() {
     try {
@@ -165,16 +163,15 @@
 </script>
 
 <div class="section">
-  <div class="section-header">
-    <span class="section-icon">
+  <SectionHeader title={t('settings.polish')}>
+    {#snippet icon()}
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
         <path d="M20 3v4"/>
         <path d="M22 5h-4"/>
       </svg>
-    </span>
-    <span class="section-title">{t('settings.polish')}</span>
-  </div>
+    {/snippet}
+  </SectionHeader>
 
   <!-- Polish toggle -->
   <SettingRow name={t('settings.polish.toggle')} desc={t('settings.polish.toggleDesc')}>
@@ -290,45 +287,12 @@
   {/if}
 </div>
 
-<script lang="ts" module>
-  /** Convert snake_case model ID to camelCase for i18n key lookup */
-  function camelCase(id: string): string {
-    return id.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
-  }
-</script>
 
 <style>
   .section {
     margin-bottom: 28px;
   }
 
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 16px;
-  }
-
-  .section-icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    color: var(--text-secondary);
-  }
-
-  .section-icon :global(svg) {
-    width: 18px;
-    height: 18px;
-    display: block;
-  }
-
-  .section-title {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--text-secondary);
-  }
 
   .sub-settings {
     display: flex;

@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::whisper_models::WhisperModel;
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SttMode {
@@ -84,7 +88,7 @@ fn default_stt_model_id() -> String {
 }
 
 fn default_stt_language() -> String {
-    "zh-TW".to_string()
+    "auto".to_string()
 }
 
 impl Default for SttCloudConfig {
@@ -99,7 +103,7 @@ impl Default for SttCloudConfig {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SttConfig {
     #[serde(default)]
     pub mode: SttMode,
@@ -107,6 +111,44 @@ pub struct SttConfig {
     pub cloud: SttCloudConfig,
     #[serde(default)]
     pub whisper_model: WhisperModel,
+    /// BCP-47 language code shared by both local and cloud STT.
+    /// Migrated from `cloud.language` for older settings files.
+    #[serde(default = "default_stt_language")]
+    pub language: String,
+    /// Whether to use Silero VAD to filter out non-speech audio before transcription.
+    #[serde(default = "default_true")]
+    pub vad_enabled: bool,
+}
+
+impl Default for SttConfig {
+    fn default() -> Self {
+        Self {
+            mode: SttMode::default(),
+            cloud: SttCloudConfig::default(),
+            whisper_model: WhisperModel::default(),
+            language: default_stt_language(),
+            vad_enabled: true,
+        }
+    }
+}
+
+impl SttConfig {
+    /// Migrate: if top-level `language` is the default but `cloud.language`
+    /// was customised, pull it up.  Called once on settings load.
+    pub fn migrate_language(&mut self) {
+        // Treat empty string as "auto"
+        if self.language.is_empty() {
+            self.language = default_stt_language();
+        }
+        if self.cloud.language.is_empty() {
+            self.cloud.language = default_stt_language();
+        }
+        if self.language == default_stt_language() && self.cloud.language != default_stt_language() {
+            self.language = self.cloud.language.clone();
+        }
+        // Keep cloud.language in sync so cloud providers still work.
+        self.cloud.language = self.language.clone();
+    }
 }
 
 /// Transcribe audio via a cloud STT API.
@@ -178,11 +220,11 @@ pub fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32], client: &r
         buf
     };
 
-    let language = &stt_cloud.language;
+    let language = if stt_cloud.language == "auto" { "" } else { &stt_cloud.language };
 
     let resp = match stt_cloud.provider {
         SttProvider::Deepgram => {
-            let lang_param = if language.is_empty() { "multi".to_string() } else { language.clone() };
+            let lang_param = if language.is_empty() { "multi".to_string() } else { language.to_string() };
             let url = format!("{}?model={}&language={}&punctuate=true&smart_format=true",
                 endpoint, model_id, lang_param);
             client
@@ -194,7 +236,7 @@ pub fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32], client: &r
                 .map_err(|e| format!("Cloud STT request failed: {}", e))?
         }
         SttProvider::Azure => {
-            let lang_param = if language.is_empty() { "en-US".to_string() } else { language.clone() };
+            let lang_param = if language.is_empty() { "en-US".to_string() } else { language.to_string() };
             let url = format!("{}?language={}&format=simple", endpoint, lang_param);
             client
                 .post(&url)

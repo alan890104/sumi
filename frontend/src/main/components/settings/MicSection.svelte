@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { t } from '$lib/stores/i18n.svelte';
+  import SectionHeader from '$lib/components/SectionHeader.svelte';
   import { getMicStatus } from '$lib/api';
   import type { MicStatus } from '$lib/types';
   import SettingRow from '$lib/components/SettingRow.svelte';
@@ -85,17 +86,16 @@
 </script>
 
 <div class="section">
-  <div class="section-header">
-    <span class="section-icon">
+  <SectionHeader title={t('settings.mic')}>
+    {#snippet icon()}
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="9" y="2" width="6" height="11" rx="3"/>
         <path d="M5 10a7 7 0 0 0 14 0"/>
         <line x1="12" y1="19" x2="12" y2="22"/>
         <line x1="8" y1="22" x2="16" y2="22"/>
       </svg>
-    </span>
-    <span class="section-title">{t('settings.mic')}</span>
-  </div>
+    {/snippet}
+  </SectionHeader>
   <div class="setting-row">
     <div class="setting-info">
       <div class="setting-name" class:disconnected={!isConnected}>{deviceName}</div>
@@ -119,33 +119,6 @@
     margin-bottom: 28px;
   }
 
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 16px;
-  }
-
-  .section-icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    color: var(--text-secondary);
-  }
-
-  .section-icon :global(svg) {
-    width: 18px;
-    height: 18px;
-    display: block;
-  }
-
-  .section-title {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--text-secondary);
-  }
 
   .setting-row {
     display: flex;

@@ -430,6 +430,20 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             prompt: chat_prompt,
             enabled: true,
         },
+        // ── Developer platforms ──
+        PromptRule {
+            name: "GitHub".to_string(),
+            match_type: MatchType::Url,
+            match_value: "github.com".to_string(),
+            prompt: "The user is working on GitHub (e.g. PR description, issue, code review comment, commit message, README, or discussion).\n\
+                     IMPORTANT: Always output in English, regardless of the language spoken.\n\
+                     Use clear, professional, and concise language appropriate for software collaboration.\n\
+                     Preserve all technical terms, code references, file paths, and variable names exactly as spoken.\n\
+                     Use Markdown formatting when the content implies structure (lists, headings, code blocks).\n\
+                     Reply with ONLY the cleaned text, nothing else."
+                .to_string(),
+            enabled: true,
+        },
         // ── Social media ──
         PromptRule {
             name: "X (Twitter)".to_string(),

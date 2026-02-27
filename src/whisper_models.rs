@@ -66,7 +66,7 @@ impl WhisperModel {
             Self::Medium => "Whisper Medium",
             Self::Small => "Whisper Small",
             Self::Base => "Whisper Base",
-            Self::LargeV3TurboZhTw => "Whisper Turbo Traditional Chinese",
+            Self::LargeV3TurboZhTw => "Whisper Turbo TW",
         }
     }
 
@@ -155,27 +155,38 @@ pub struct SystemInfo {
     pub total_ram_bytes: u64,
     pub available_disk_bytes: u64,
     pub is_apple_silicon: bool,
+    pub gpu_vram_bytes: u64,
+    pub has_cuda: bool,
     pub os: String,
     pub arch: String,
 }
 
-/// Detect system information (RAM, disk space, CPU architecture).
+/// Detect system information (RAM, disk space, CPU architecture, GPU VRAM).
 pub fn detect_system_info() -> SystemInfo {
     let total_ram_bytes = get_total_ram();
     let available_disk_bytes = get_available_disk_space();
+    let gpu_vram_bytes = get_gpu_vram();
     let arch = std::env::consts::ARCH.to_string();
     let is_apple_silicon = cfg!(target_os = "macos") && arch == "aarch64";
+    let has_cuda = cfg!(feature = "cuda");
 
     SystemInfo {
         total_ram_bytes,
         available_disk_bytes,
         is_apple_silicon,
+        gpu_vram_bytes,
+        has_cuda,
         os: std::env::consts::OS.to_string(),
         arch,
     }
 }
 
 /// Recommend a model based on system info and language preference.
+///
+/// Effective memory selection:
+/// - Apple Silicon → system RAM (unified memory shared with GPU)
+/// - CUDA enabled + discrete GPU with >= 2 GB VRAM → GPU VRAM
+/// - Otherwise → system RAM
 pub fn recommend_model(system: &SystemInfo, settings_language: Option<&str>) -> WhisperModel {
     let lang = settings_language
         .map(|l| l.to_lowercase())
@@ -191,9 +202,18 @@ pub fn recommend_model(system: &SystemInfo, settings_language: Option<&str>) -> 
     let prefers_zh = lang.starts_with("zh") || lang == "chinese";
 
     let ram_gb = system.total_ram_bytes as f64 / 1_073_741_824.0;
+    let vram_gb = system.gpu_vram_bytes as f64 / 1_073_741_824.0;
     let disk_gb = system.available_disk_bytes as f64 / 1_073_741_824.0;
 
-    if ram_gb >= 8.0 && disk_gb >= 3.0 {
+    let effective_gb = if system.is_apple_silicon {
+        ram_gb
+    } else if system.has_cuda && vram_gb >= 2.0 {
+        vram_gb
+    } else {
+        ram_gb
+    };
+
+    if effective_gb >= 8.0 && disk_gb >= 3.0 {
         if prefers_zh_tw {
             return WhisperModel::LargeV3TurboZhTw;
         }
@@ -201,7 +221,7 @@ pub fn recommend_model(system: &SystemInfo, settings_language: Option<&str>) -> 
             return WhisperModel::BelleZh;
         }
         WhisperModel::LargeV3Turbo
-    } else if ram_gb >= 4.0 && disk_gb >= 1.0 {
+    } else if effective_gb >= 4.0 && disk_gb >= 1.0 {
         WhisperModel::LargeV3TurboQ5
     } else {
         WhisperModel::Base
@@ -247,14 +267,30 @@ fn get_total_ram() -> u64 {
     }
 }
 
-#[cfg(not(unix))]
+#[cfg(target_os = "windows")]
+fn get_total_ram() -> u64 {
+    use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+    unsafe {
+        let mut mem_info = MEMORYSTATUSEX {
+            dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+            ..std::mem::zeroed()
+        };
+        if GlobalMemoryStatusEx(&mut mem_info).is_ok() {
+            mem_info.ullTotalPhys
+        } else {
+            0
+        }
+    }
+}
+
+#[cfg(not(any(unix, target_os = "windows")))]
 fn get_total_ram() -> u64 {
     0
 }
 
 fn get_available_disk_space() -> u64 {
     let models = models_dir();
-    // Ensure the directory exists for statvfs
+    // Ensure the directory exists
     let _ = std::fs::create_dir_all(&models);
 
     #[cfg(unix)]
@@ -274,9 +310,66 @@ fn get_available_disk_space() -> u64 {
         }
     }
 
-    #[cfg(not(unix))]
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+        use windows::core::HSTRING;
+        let path_str = models.to_string_lossy().to_string();
+        let path_w = HSTRING::from(path_str);
+        let mut free_bytes_available: u64 = 0;
+        unsafe {
+            if GetDiskFreeSpaceExW(
+                &path_w,
+                Some(&mut free_bytes_available),
+                None,
+                None,
+            )
+            .is_ok()
+            {
+                free_bytes_available
+            } else {
+                0
+            }
+        }
+    }
+
+    #[cfg(not(any(unix, target_os = "windows")))]
     {
         let _ = models;
+        0
+    }
+}
+
+/// Detect the largest dedicated GPU VRAM via DXGI (Windows only).
+/// Returns 0 on non-Windows platforms or if no discrete GPU is found.
+fn get_gpu_vram() -> u64 {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Graphics::Dxgi::{CreateDXGIFactory1, IDXGIFactory1};
+        let factory: IDXGIFactory1 = match unsafe { CreateDXGIFactory1() } {
+            Ok(f) => f,
+            Err(_) => return 0,
+        };
+        let mut max_vram: u64 = 0;
+        let mut i = 0u32;
+        loop {
+            let adapter = match unsafe { factory.EnumAdapters(i) } {
+                Ok(a) => a,
+                Err(_) => break,
+            };
+            if let Ok(desc) = unsafe { adapter.GetDesc() } {
+                let dedicated = desc.DedicatedVideoMemory as u64;
+                if dedicated > max_vram {
+                    max_vram = dedicated;
+                }
+            }
+            i += 1;
+        }
+        max_vram
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
         0
     }
 }

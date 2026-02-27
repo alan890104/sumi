@@ -48,8 +48,11 @@ pub fn save_settings(
     current.polish = new_settings.polish;
     current.history_retention_days = new_settings.history_retention_days;
     current.stt = new_settings.stt;
+    // Keep cloud.language in sync with top-level language
+    current.stt.cloud.language = current.stt.language.clone();
     current.edit_hotkey = new_settings.edit_hotkey;
     current.onboarding_completed = new_settings.onboarding_completed;
+    current.preview_before_paste = new_settings.preview_before_paste;
     settings::save_settings_to_disk(&current);
     Ok(())
 }
@@ -216,6 +219,20 @@ pub fn save_api_key(state: State<'_, AppState>, provider: String, key: String) -
 #[tauri::command]
 pub fn get_api_key(state: State<'_, AppState>, provider: String) -> Result<String, String> {
     Ok(get_cached_api_key(&state.api_key_cache, &provider))
+}
+
+#[derive(Serialize)]
+pub struct HistoryPage {
+    pub entries: Vec<history::HistoryEntry>,
+    pub has_more: bool,
+}
+
+#[tauri::command]
+pub fn get_history_page(before_timestamp: Option<i64>, limit: Option<u32>) -> HistoryPage {
+    let limit = limit.unwrap_or(10);
+    let (entries, has_more) =
+        history::load_history_page(&settings::history_dir(), before_timestamp, limit);
+    HistoryPage { entries, has_more }
 }
 
 #[tauri::command]
@@ -582,6 +599,20 @@ pub fn stop_recording(state: State<'_, AppState>) -> Result<String, String> {
             stt_config.cloud.api_key = key;
         }
     }
+    let stt_language = stt_config.language.clone();
+    let dictionary_terms: Vec<String> = state
+        .settings
+        .lock()
+        .map(|s| {
+            s.polish
+                .dictionary
+                .entries
+                .iter()
+                .filter(|e| e.enabled && !e.term.is_empty())
+                .map(|e| e.term.clone())
+                .collect()
+        })
+        .unwrap_or_default();
     audio::do_stop_recording(
         &state.is_recording,
         &state.sample_rate,
@@ -589,6 +620,11 @@ pub fn stop_recording(state: State<'_, AppState>) -> Result<String, String> {
         &state.whisper_ctx,
         &state.http_client,
         &stt_config,
+        &stt_language,
+        "",
+        &dictionary_terms,
+        &state.vad_ctx,
+        stt_config.vad_enabled,
     )
     .map(|(text, _samples)| text)
 }
@@ -1396,6 +1432,180 @@ pub fn download_whisper_model(app: AppHandle, model: WhisperModel) -> Result<(),
             }),
         );
         println!("[Sumi] Whisper model downloaded: {:?}", model_path);
+    });
+
+    Ok(())
+}
+
+// ── Preview commands ────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn confirm_preview(
+    app: AppHandle,
+    edited_text: Option<String>,
+) -> Result<(), String> {
+    crate::do_confirm_preview(&app, edited_text);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn cancel_preview(
+    app: AppHandle,
+) -> Result<(), String> {
+    crate::do_cancel_preview(&app);
+    Ok(())
+}
+
+// ── VAD model commands ──────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn check_vad_model_status() -> Result<serde_json::Value, String> {
+    let downloaded = crate::transcribe::vad_model_path().exists();
+    Ok(serde_json::json!({ "downloaded": downloaded }))
+}
+
+#[tauri::command]
+pub fn download_vad_model(app: AppHandle) -> Result<(), String> {
+    use std::io::Read as _;
+
+    let url = "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin";
+    let dir = settings::models_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
+    let model_path = crate::transcribe::vad_model_path();
+    if model_path.exists() {
+        let _ = app.emit(
+            "vad-model-download-progress",
+            serde_json::json!({ "status": "complete" }),
+        );
+        return Ok(());
+    }
+
+    let tmp_path = model_path.with_extension("bin.part");
+    let _ = std::fs::remove_file(&tmp_path);
+
+    std::thread::spawn(move || {
+        let client = match reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = app.emit(
+                    "vad-model-download-progress",
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Failed to create HTTP client: {}", e)
+                    }),
+                );
+                return;
+            }
+        };
+
+        let resp = match client.get(url).send() {
+            Ok(r) => r,
+            Err(e) => {
+                let _ = app.emit(
+                    "vad-model-download-progress",
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Download request failed: {}", e)
+                    }),
+                );
+                return;
+            }
+        };
+
+        if !resp.status().is_success() {
+            let _ = app.emit(
+                "vad-model-download-progress",
+                serde_json::json!({
+                    "status": "error",
+                    "message": format!("Download returned HTTP {}", resp.status())
+                }),
+            );
+            return;
+        }
+
+        let total = resp.content_length().unwrap_or(0);
+
+        let mut file = match std::fs::File::create(&tmp_path) {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = app.emit(
+                    "vad-model-download-progress",
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Failed to create temp file: {}", e)
+                    }),
+                );
+                return;
+            }
+        };
+
+        let mut downloaded: u64 = 0;
+        let mut buf = [0u8; 65536];
+        let mut reader = resp;
+
+        loop {
+            let n = match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(e) => {
+                    let _ = app.emit(
+                        "vad-model-download-progress",
+                        serde_json::json!({
+                            "status": "error",
+                            "message": format!("Download read error: {}", e)
+                        }),
+                    );
+                    return;
+                }
+            };
+
+            if let Err(e) = std::io::Write::write_all(&mut file, &buf[..n]) {
+                let _ = app.emit(
+                    "vad-model-download-progress",
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Failed to write to disk: {}", e)
+                    }),
+                );
+                return;
+            }
+
+            downloaded += n as u64;
+        }
+
+        drop(file);
+        if let Err(e) = std::fs::rename(&tmp_path, &model_path) {
+            let _ = app.emit(
+                "vad-model-download-progress",
+                serde_json::json!({
+                    "status": "error",
+                    "message": format!("Failed to rename temp file: {}", e)
+                }),
+            );
+            return;
+        }
+
+        // Invalidate VAD context cache so it reloads on next use
+        if let Some(app_state) = app.try_state::<AppState>() {
+            if let Ok(mut ctx) = app_state.vad_ctx.lock() {
+                *ctx = None;
+                println!("[Sumi] VAD context cache invalidated after model download");
+            }
+        }
+
+        let _ = app.emit(
+            "vad-model-download-progress",
+            serde_json::json!({
+                "status": "complete",
+                "downloaded": downloaded,
+                "total": total
+            }),
+        );
+        println!("[Sumi] VAD model downloaded: {:?}", model_path);
     });
 
     Ok(())

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { t } from '$lib/stores/i18n.svelte';
-  import { getHotkey, getEditHotkey, setHotkey, setEditHotkey } from '$lib/stores/settings.svelte';
+  import SectionHeader from '$lib/components/SectionHeader.svelte';
+  import { getHotkey, getEditHotkey, setHotkey, setEditHotkey, getPolishConfig } from '$lib/stores/settings.svelte';
   import { updateHotkey, updateEditHotkey } from '$lib/api';
   import Keycaps from '$lib/components/Keycaps.svelte';
   import { MODIFIER_SYMBOLS } from '$lib/constants';
@@ -191,15 +192,14 @@
 </script>
 
 <div class="section">
-  <div class="section-header">
-    <span class="section-icon">
+  <SectionHeader title={t('settings.shortcuts')}>
+    {#snippet icon()}
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="2" y="4" width="20" height="16" rx="2"/>
         <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8"/>
       </svg>
-    </span>
-    <span class="section-title">{t('settings.shortcuts')}</span>
-  </div>
+    {/snippet}
+  </SectionHeader>
 
   <!-- Primary hotkey -->
   <div class="edit-hotkey-info">
@@ -232,6 +232,9 @@
     <div class="edit-hotkey-info">
       <div class="edit-hotkey-name">{t('settings.shortcuts.editHotkey')}</div>
       <div class="edit-hotkey-desc">{t('settings.shortcuts.editHotkeyDesc')}</div>
+      {#if !getPolishConfig().enabled}
+        <div class="edit-hotkey-hint">{t('settings.shortcuts.editRequiresPolish')}</div>
+      {/if}
     </div>
 
     {#if !isEditCapturing}
@@ -265,33 +268,6 @@
     margin-bottom: 28px;
   }
 
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 16px;
-  }
-
-  .section-icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    color: var(--text-secondary);
-  }
-
-  .section-icon :global(svg) {
-    width: 18px;
-    height: 18px;
-    display: block;
-  }
-
-  .section-title {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--text-secondary);
-  }
 
   .hotkey-row {
     display: flex;
@@ -400,6 +376,12 @@
     font-size: 12px;
     color: var(--text-secondary);
     margin-top: 2px;
+  }
+
+  .edit-hotkey-hint {
+    font-size: 11px;
+    color: #c87800;
+    margin-top: 4px;
   }
 
   .not-set {

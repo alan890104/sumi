@@ -7,6 +7,7 @@ import type {
   LlmModelStatus,
   PermissionStatus,
   HistoryEntry,
+  HistoryPage,
   DownloadProgress,
   TestPolishResult,
   GeneratedRule,
@@ -64,6 +65,9 @@ export const setEditTextOverride = (text: string) =>
 // ── History ──
 
 export const getHistory = () => invoke<HistoryEntry[]>('get_history');
+
+export const getHistoryPage = (beforeTimestamp?: number, limit?: number) =>
+  invoke<HistoryPage>('get_history_page', { beforeTimestamp: beforeTimestamp ?? null, limit: limit ?? null });
 
 export const deleteHistoryEntry = (id: string) =>
   invoke<void>('delete_history_entry', { id });
@@ -149,6 +153,17 @@ export const onVoiceRuleLevels = (cb: (levels: number[]) => void): Promise<Unlis
 export const onVoiceRuleTranscript = (cb: (text: string) => void): Promise<UnlistenFn> =>
   listen<string>('voice-rule-transcript', (e) => cb(e.payload));
 
+// ── Preview ──
+
+export const confirmPreview = (editedText?: string) =>
+  invoke<void>('confirm_preview', { editedText: editedText ?? null });
+
+export const cancelPreview = () =>
+  invoke<void>('cancel_preview');
+
+export const onPreviewText = (cb: (payload: { text: string; hotkey: string }) => void): Promise<UnlistenFn> =>
+  listen<{ text: string; hotkey: string }>('preview-text', (e) => cb(e.payload));
+
 // ── Whisper Models ──
 
 export const listWhisperModels = () =>
@@ -186,3 +201,16 @@ export const onPolishModelDownloadProgress = (
   cb: (p: DownloadProgress) => void,
 ): Promise<UnlistenFn> =>
   listen<DownloadProgress>('polish-model-download-progress', (e) => cb(e.payload));
+
+// ── VAD Model ──
+
+export const checkVadModelStatus = () =>
+  invoke<{ downloaded: boolean }>('check_vad_model_status');
+
+export const downloadVadModel = () =>
+  invoke<void>('download_vad_model');
+
+export const onVadModelDownloadProgress = (
+  cb: (p: DownloadProgress) => void,
+): Promise<UnlistenFn> =>
+  listen<DownloadProgress>('vad-model-download-progress', (e) => cb(e.payload));
