@@ -3,7 +3,7 @@
   import type { PromptRule, MatchType } from '$lib/types';
   import { t } from '$lib/stores/i18n.svelte';
   import { getHotkey } from '$lib/stores/settings.svelte';
-  import { formatHotkeyDisplay } from '$lib/constants';
+  import { formatHotkeyDisplay, RULE_ICON_SVG, ICON_PICKER_LIST, detectRuleIconKey } from '$lib/constants';
   import {
     setVoiceRuleMode,
     generateRuleFromDescription,
@@ -31,6 +31,8 @@
   let matchType = $state<MatchType>('app_name');
   let matchValue = $state('');
   let prompt = $state('');
+  let iconKey = $state<string | undefined>(undefined);
+  let showIconPicker = $state(false);
 
   // Voice rule state
   type VoiceState = 'idle' | 'recording' | 'processing';
@@ -64,13 +66,16 @@
           matchType = rule.match_type || 'app_name';
           matchValue = rule.match_value || '';
           prompt = rule.prompt || '';
+          iconKey = rule.icon || undefined;
         }
       } else {
         name = '';
         matchType = 'app_name';
         matchValue = '';
         prompt = '';
+        iconKey = undefined;
       }
+      showIconPicker = false;
       voiceState = 'idle';
       enableVoiceMode();
     } else {
@@ -233,6 +238,7 @@
       match_value: matchValue.trim(),
       prompt: prompt.trim(),
       enabled: true,
+      icon: iconKey,
     };
 
     // Preserve enabled state when editing
@@ -270,6 +276,49 @@
     <div class="rule-editor-backdrop" onclick={handleBackdropClick}></div>
     <div class="rule-editor-card">
       <div class="rule-editor-title">{title}</div>
+
+      <!-- Icon Picker -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="icon-picker-section">
+        <div class="icon-picker-current" onclick={() => showIconPicker = !showIconPicker}>
+          <span class="icon-picker-preview">
+            {@html iconKey && RULE_ICON_SVG[iconKey]
+              ? RULE_ICON_SVG[iconKey]
+              : (detectRuleIconKey({ name, match_value: matchValue })
+                  ? RULE_ICON_SVG[detectRuleIconKey({ name, match_value: matchValue })!]
+                  : '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v12h16V6H4zm1 1h5v2H5V7z"/></svg>')}
+          </span>
+          <span class="icon-picker-label">{t('promptRules.changeIcon')}</span>
+          <svg class="icon-picker-chevron" class:open={showIconPicker} width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l10 7-10 7z"/></svg>
+        </div>
+        {#if showIconPicker}
+          <div class="icon-picker-grid">
+            <button
+              class="icon-picker-item"
+              class:selected={!iconKey}
+              onclick={() => { iconKey = undefined; showIconPicker = false; }}
+              title={t('promptRules.autoIcon')}
+            >
+              <span class="icon-picker-item-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              </span>
+              <span class="icon-picker-item-label">{t('promptRules.autoIcon')}</span>
+            </button>
+            {#each ICON_PICKER_LIST as item}
+              <button
+                class="icon-picker-item"
+                class:selected={iconKey === item.key}
+                onclick={() => { iconKey = item.key; showIconPicker = false; }}
+                title={item.labelKey ? t(item.labelKey) : item.label}
+              >
+                <span class="icon-picker-item-icon">{@html RULE_ICON_SVG[item.key]}</span>
+                <span class="icon-picker-item-label">{item.labelKey ? t(item.labelKey) : item.label}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
 
       <!-- Voice Rule Panel -->
       <div class="voice-rule-panel">
@@ -625,5 +674,114 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--text-secondary);
+  }
+
+  /* ── Icon Picker ── */
+  .icon-picker-section {
+    margin-bottom: 14px;
+  }
+
+  .icon-picker-current {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .icon-picker-current:hover {
+    border-color: var(--accent-blue);
+  }
+
+  .icon-picker-preview {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .icon-picker-preview :global(svg) {
+    width: 24px;
+    height: 24px;
+  }
+
+  .icon-picker-label {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .icon-picker-chevron {
+    color: var(--text-tertiary);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .icon-picker-chevron.open {
+    transform: rotate(90deg);
+  }
+
+  .icon-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 4px;
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--bg-sidebar);
+    border-radius: var(--radius-sm);
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .icon-picker-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .icon-picker-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .icon-picker-item.selected {
+    border-color: var(--accent-blue);
+    background: rgba(0, 122, 255, 0.06);
+  }
+
+  .icon-picker-item-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-picker-item-icon :global(svg) {
+    width: 24px;
+    height: 24px;
+  }
+
+  .icon-picker-item-label {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
   }
 </style>

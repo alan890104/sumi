@@ -39,6 +39,20 @@ pub unsafe fn set_accessory_policy() {
     send_policy(ns_app, sel_policy, 1); // 1 = Accessory
 }
 
+/// Enable dragging the main window by its background.
+///
+/// With `titleBarStyle: "Overlay"` + `resizable: true`, macOS no longer
+/// provides a native title-bar drag region because the web content covers
+/// the full window.  Setting `isMovableByWindowBackground = YES` lets the
+/// user drag the window by clicking anywhere that is not an interactive
+/// control.
+pub unsafe fn set_movable_by_background(ns_window: *mut c_void) {
+    let sel = sel_registerName(b"setMovableByWindowBackground:\0".as_ptr());
+    let send: unsafe extern "C" fn(*mut c_void, *mut c_void, i8) =
+        std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+    send(ns_window, sel, 1); // YES
+}
+
 /// Collection behavior flags for the overlay window.
 const OVERLAY_BEHAVIOR: u64 = 1    // canJoinAllSpaces
                             | 8    // transient

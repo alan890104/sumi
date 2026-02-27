@@ -23,7 +23,8 @@
   --radius-lg: 12px;
   --radius-md: 8px;
   --radius-sm: 6px;
-  --sidebar-width: 160px;
+  --sidebar-width: 200px;
+  --content-padding: 44px;
 }
 
 body {

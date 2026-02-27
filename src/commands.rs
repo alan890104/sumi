@@ -195,8 +195,8 @@ pub fn get_default_prompt() -> String {
 }
 
 #[tauri::command]
-pub fn get_default_prompt_rules() -> Vec<polisher::PromptRule> {
-    polisher::default_prompt_rules()
+pub fn get_default_prompt_rules(language: Option<String>) -> Vec<polisher::PromptRule> {
+    polisher::default_prompt_rules_for_lang(language.as_deref())
 }
 
 #[tauri::command]
@@ -232,6 +232,11 @@ pub fn get_history_page(before_timestamp: Option<i64>, limit: Option<u32>) -> Hi
     let (entries, has_more) =
         history::load_history_page(&settings::history_dir(), before_timestamp, limit);
     HistoryPage { entries, has_more }
+}
+
+#[tauri::command]
+pub fn get_history_stats() -> history::HistoryStats {
+    history::get_stats(&settings::history_dir())
 }
 
 #[tauri::command]
@@ -650,7 +655,7 @@ pub fn set_context_override(
         if app_name.is_empty() && bundle_id.is_empty() && url.is_empty() {
             *ctx = None;
         } else {
-            *ctx = Some(context_detect::AppContext { app_name, bundle_id, url });
+            *ctx = Some(context_detect::AppContext { app_name, bundle_id, url, terminal_host: String::new() });
         }
     }
     Ok(())
@@ -1588,5 +1593,24 @@ pub fn download_vad_model(app: AppHandle) -> Result<(), String> {
         println!("[Sumi] VAD model downloaded: {:?}", model_path);
     });
 
+    Ok(())
+}
+
+// ── Clipboard image ─────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn copy_image_to_clipboard(png_bytes: Vec<u8>) -> Result<(), String> {
+    let img = image::load_from_memory_with_format(&png_bytes, image::ImageFormat::Png)
+        .map_err(|e| format!("Failed to decode PNG: {}", e))?;
+    let rgba = img.to_rgba8();
+    let (w, h) = rgba.dimensions();
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("Clipboard error: {}", e))?;
+    clipboard
+        .set_image(arboard::ImageData {
+            width: w as usize,
+            height: h as usize,
+            bytes: std::borrow::Cow::Owned(rgba.into_raw()),
+        })
+        .map_err(|e| format!("Failed to set clipboard image: {}", e))?;
     Ok(())
 }

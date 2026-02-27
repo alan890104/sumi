@@ -356,7 +356,7 @@
 
 <style>
   .section {
-    margin-bottom: 28px;
+    margin-bottom: 32px;
   }
 
 

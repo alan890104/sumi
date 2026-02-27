@@ -108,7 +108,7 @@
         audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
+        analyser.fftSize = 2048;
         source.connect(analyser);
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -118,11 +118,15 @@
           analyser.getByteFrequencyData(dataArray);
 
           const levels = new Float32Array(NUM_BARS);
-          const s = Math.max(1, Math.floor(dataArray.length / NUM_BARS));
+          // Voice energy is in lower frequencies (~100-4000Hz).
+          // Only map those bins across all bars so every bar responds to voice.
+          const voiceBins = Math.max(NUM_BARS, Math.ceil(dataArray.length * 0.15));
+          const s = Math.max(1, Math.floor(voiceBins / NUM_BARS));
           for (let i = 0; i < NUM_BARS; i++) {
             let sum = 0;
             for (let j = 0; j < s; j++) {
-              sum += dataArray[i * s + j];
+              const idx = i * s + j;
+              if (idx < voiceBins) sum += dataArray[idx];
             }
             levels[i] = sum / s / 255;
           }
@@ -829,10 +833,10 @@
   .test-page {
     display: flex;
     flex-direction: column;
-    /* 52px drag region + 36px content-scroll bottom padding */
-    height: calc(100vh - 88px);
-    margin: 0 -36px -36px;
-    padding: 0 36px;
+    /* 56px drag region + 44px content-scroll bottom padding */
+    height: calc(100vh - 100px);
+    margin: 0 -44px -44px;
+    padding: 0 44px;
   }
 
   /* ── Breadcrumb ── */
@@ -951,7 +955,7 @@
 
   /* ── Title / subtitle ── */
   .test-title {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 700;
     letter-spacing: -0.3px;
     color: var(--text-primary);

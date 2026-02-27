@@ -17,6 +17,18 @@ pub fn set_app_accessory_mode() {
     fallback::set_accessory_policy();
 }
 
+/// Make the main window draggable by its background (macOS overlay title bar fix).
+pub fn set_main_window_movable(window: &tauri::WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    if let Ok(ns_win) = window.ns_window() {
+        unsafe { macos::set_movable_by_background(ns_win); }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = window;
+    }
+}
+
 /// One-time overlay setup (non-activating, always-on-top, all Spaces).
 pub fn setup_overlay_window(overlay: &tauri::WebviewWindow) {
     #[cfg(target_os = "macos")]

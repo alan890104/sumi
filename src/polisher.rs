@@ -243,6 +243,9 @@ pub struct PromptRule {
     pub prompt: String,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// Optional icon key for the frontend (e.g. "terminal", "slack"). Auto-detected if None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -319,16 +322,103 @@ where
 
 /// Returns built-in preset prompt rules.
 pub fn default_prompt_rules() -> Vec<PromptRule> {
-    let code_editor_prompt = "The user is working in a code editor (possibly writing code, comments, commit messages, or chatting with an AI coding assistant).\n\
-                              Preserve all code, commands, paths, variable names, and technical terms exactly as spoken.\n\
-                              Output concise, precise text. No extra explanation."
-        .to_string();
+    default_prompt_rules_for_lang(None)
+}
 
-    let chat_prompt = "The user is writing a chat message.\n\
-                       Keep a casual, natural, and conversational tone.\n\
-                       Fix grammar and filler words but preserve the speaker's personality and intent.\n\
-                       Reply with ONLY the cleaned message text, nothing else."
-        .to_string();
+/// Returns built-in preset prompt rules localised to `lang` (BCP-47).
+/// Falls back to English when a translation is not available.
+pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
+    let is_zh = lang
+        .map(|l| l.starts_with("zh"))
+        .unwrap_or(false);
+
+    let (code_editor_prompt, ai_cli_prompt, chat_prompt, email_prompt, notion_prompt, slack_prompt, github_prompt, twitter_prompt) = if is_zh {
+        (
+            "使用者正在程式碼編輯器中工作（可能在寫程式碼、註解、commit 訊息，或與 AI 程式助手對話）。\n\
+             完整保留所有程式碼、指令、路徑、變數名稱和技術術語。\n\
+             輸出簡潔精確的文字，不要額外解釋。".to_string(),
+
+            "使用者正在終端機中對 AI 程式助手口述提示或訊息。\n\
+             語音內容會直接作為 AI 的輸入。\n\
+             完整保留所有技術術語、程式碼引用、檔案路徑、變數名稱和指令。\n\
+             輸出清晰、結構良好的文字。\n\
+             只回覆整理後的文字，不要附加任何其他內容。".to_string(),
+
+            "使用者正在傳送聊天訊息。\n\
+             保持輕鬆、自然、口語化的語氣。\n\
+             修正語法和贅詞，但保留說話者的個性和語意。\n\
+             只回覆整理後的訊息文字，不要附加任何其他內容。".to_string(),
+
+            "將口述內容整理成正式的電子郵件格式（問候語、正文、結尾）。\n\
+             使用專業、清晰、有禮貌的語氣。\n\
+             只回覆郵件文字，不要附加任何其他內容。".to_string(),
+
+            "使用者正在 Notion 中撰寫內容（筆記、文件或 Wiki）。\n\
+             產出乾淨、結構良好的文字，適合用於文件。\n\
+             保留說話者所暗示的列表、標題或結構。\n\
+             只回覆整理後的文字，不要附加任何其他內容。".to_string(),
+
+            "使用者正在傳送 Slack 訊息。\n\
+             保持專業但親切的語氣。\n\
+             修正語法和贅詞，保持簡潔。\n\
+             只回覆整理後的訊息文字，不要附加任何其他內容。".to_string(),
+
+            "使用者正在 GitHub 上工作（如 PR 說明、Issue、Code Review 留言、Commit 訊息、README 或討論區）。\n\
+             重要：無論口述使用什麼語言，一律以英文輸出。\n\
+             使用清晰、專業、簡潔的語言，適合軟體協作場景。\n\
+             完整保留所有技術術語、程式碼引用、檔案路徑和變數名稱。\n\
+             當內容暗示有結構時（列表、標題、程式碼區塊），使用 Markdown 格式。\n\
+             只回覆整理後的文字，不要附加任何其他內容。".to_string(),
+
+            "使用者正在 X（Twitter）上撰寫貼文或回覆。\n\
+             保持簡潔有力，在短篇幅中追求清晰。\n\
+             修正語法但保留說話者的語調和風格。\n\
+             只回覆整理後的文字，不要附加任何其他內容。".to_string(),
+        )
+    } else {
+        (
+            "The user is working in a code editor (possibly writing code, comments, commit messages, or chatting with an AI coding assistant).\n\
+             Preserve all code, commands, paths, variable names, and technical terms exactly as spoken.\n\
+             Output concise, precise text. No extra explanation.".to_string(),
+
+            "The user is dictating a prompt or message to an AI coding assistant running in the terminal. \
+             The spoken text will be sent as input to the AI. \
+             Preserve all technical terms, code references, file paths, variable names, and commands exactly. \
+             Output clear, well-structured text. \
+             Reply with ONLY the cleaned text, nothing else.".to_string(),
+
+            "The user is writing a chat message.\n\
+             Keep a casual, natural, and conversational tone.\n\
+             Fix grammar and filler words but preserve the speaker's personality and intent.\n\
+             Reply with ONLY the cleaned message text, nothing else.".to_string(),
+
+            "Restructure the spoken content into proper email format (greeting, body, sign-off).\n\
+             Use a professional, clear, and polite tone.\n\
+             Reply with ONLY the email text, nothing else.".to_string(),
+
+            "The user is writing in Notion (notes, docs, or wiki).\n\
+             Produce clean, well-structured text suitable for documentation.\n\
+             Preserve any lists, headings, or structure implied by the speaker.\n\
+             Reply with ONLY the cleaned text, nothing else.".to_string(),
+
+            "The user is writing a Slack message.\n\
+             Keep a professional but approachable tone.\n\
+             Fix grammar and filler words. Keep it concise.\n\
+             Reply with ONLY the cleaned message text, nothing else.".to_string(),
+
+            "The user is working on GitHub (e.g. PR description, issue, code review comment, commit message, README, or discussion).\n\
+             IMPORTANT: Always output in English, regardless of the language spoken.\n\
+             Use clear, professional, and concise language appropriate for software collaboration.\n\
+             Preserve all technical terms, code references, file paths, and variable names exactly as spoken.\n\
+             Use Markdown formatting when the content implies structure (lists, headings, code blocks).\n\
+             Reply with ONLY the cleaned text, nothing else.".to_string(),
+
+            "The user is composing a post or reply on X (Twitter).\n\
+             Keep it concise and punchy. Aim for clarity within a short format.\n\
+             Fix grammar but preserve the speaker's voice and tone.\n\
+             Reply with ONLY the cleaned text, nothing else.".to_string(),
+        )
+    };
 
     vec![
         // ── Email ──
@@ -336,11 +426,42 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             name: "Gmail".to_string(),
             match_type: MatchType::Url,
             match_value: "mail.google.com".to_string(),
-            prompt: "Restructure the spoken content into proper email format (greeting, body, sign-off).\n\
-                     Use a professional, clear, and polite tone.\n\
-                     Reply with ONLY the email text, nothing else."
-                .to_string(),
+            prompt: email_prompt,
             enabled: true,
+            icon: None,
+        },
+        // ── AI CLI tools (detected via terminal subprocess enrichment) ──
+        PromptRule {
+            name: "Claude Code".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Claude Code".to_string(),
+            prompt: ai_cli_prompt.clone(),
+            enabled: true,
+            icon: None,
+        },
+        PromptRule {
+            name: "Gemini CLI".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Gemini CLI".to_string(),
+            prompt: ai_cli_prompt.clone(),
+            enabled: true,
+            icon: None,
+        },
+        PromptRule {
+            name: "Codex CLI".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Codex CLI".to_string(),
+            prompt: ai_cli_prompt.clone(),
+            enabled: true,
+            icon: None,
+        },
+        PromptRule {
+            name: "Aider".to_string(),
+            match_type: MatchType::AppName,
+            match_value: "Aider".to_string(),
+            prompt: ai_cli_prompt,
+            enabled: true,
+            icon: None,
         },
         // ── Code editors & terminals ──
         PromptRule {
@@ -349,6 +470,7 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             match_value: "Terminal".to_string(),
             prompt: code_editor_prompt.clone(),
             enabled: true,
+            icon: None,
         },
         PromptRule {
             name: "VSCode".to_string(),
@@ -356,6 +478,7 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             match_value: "Code".to_string(),
             prompt: code_editor_prompt.clone(),
             enabled: true,
+            icon: None,
         },
         PromptRule {
             name: "Cursor".to_string(),
@@ -363,6 +486,7 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             match_value: "Cursor".to_string(),
             prompt: code_editor_prompt.clone(),
             enabled: true,
+            icon: None,
         },
         PromptRule {
             name: "Antigravity".to_string(),
@@ -370,6 +494,7 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             match_value: "Antigravity".to_string(),
             prompt: code_editor_prompt.clone(),
             enabled: true,
+            icon: None,
         },
         PromptRule {
             name: "iTerm2".to_string(),
@@ -377,18 +502,16 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             match_value: "iTerm2".to_string(),
             prompt: code_editor_prompt,
             enabled: true,
+            icon: None,
         },
         // ── Notes & docs ──
         PromptRule {
             name: "Notion".to_string(),
             match_type: MatchType::Url,
             match_value: "notion.so".to_string(),
-            prompt: "The user is writing in Notion (notes, docs, or wiki).\n\
-                     Produce clean, well-structured text suitable for documentation.\n\
-                     Preserve any lists, headings, or structure implied by the speaker.\n\
-                     Reply with ONLY the cleaned text, nothing else."
-                .to_string(),
+            prompt: notion_prompt,
             enabled: true,
+            icon: None,
         },
         // ── Chat & messaging ──
         PromptRule {
@@ -397,6 +520,7 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             match_value: "WhatsApp".to_string(),
             prompt: chat_prompt.clone(),
             enabled: true,
+            icon: None,
         },
         PromptRule {
             name: "Telegram".to_string(),
@@ -404,17 +528,15 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             match_value: "Telegram".to_string(),
             prompt: chat_prompt.clone(),
             enabled: true,
+            icon: None,
         },
         PromptRule {
             name: "Slack".to_string(),
             match_type: MatchType::AppName,
             match_value: "Slack".to_string(),
-            prompt: "The user is writing a Slack message.\n\
-                     Keep a professional but approachable tone.\n\
-                     Fix grammar and filler words. Keep it concise.\n\
-                     Reply with ONLY the cleaned message text, nothing else."
-                .to_string(),
+            prompt: slack_prompt,
             enabled: true,
+            icon: None,
         },
         PromptRule {
             name: "Discord".to_string(),
@@ -422,6 +544,7 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             match_value: "Discord".to_string(),
             prompt: chat_prompt.clone(),
             enabled: true,
+            icon: None,
         },
         PromptRule {
             name: "LINE".to_string(),
@@ -429,32 +552,25 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
             match_value: "LINE".to_string(),
             prompt: chat_prompt,
             enabled: true,
+            icon: None,
         },
         // ── Developer platforms ──
         PromptRule {
             name: "GitHub".to_string(),
             match_type: MatchType::Url,
             match_value: "github.com".to_string(),
-            prompt: "The user is working on GitHub (e.g. PR description, issue, code review comment, commit message, README, or discussion).\n\
-                     IMPORTANT: Always output in English, regardless of the language spoken.\n\
-                     Use clear, professional, and concise language appropriate for software collaboration.\n\
-                     Preserve all technical terms, code references, file paths, and variable names exactly as spoken.\n\
-                     Use Markdown formatting when the content implies structure (lists, headings, code blocks).\n\
-                     Reply with ONLY the cleaned text, nothing else."
-                .to_string(),
+            prompt: github_prompt,
             enabled: true,
+            icon: None,
         },
         // ── Social media ──
         PromptRule {
             name: "X (Twitter)".to_string(),
             match_type: MatchType::Url,
             match_value: "x.com".to_string(),
-            prompt: "The user is composing a post or reply on X (Twitter).\n\
-                     Keep it concise and punchy. Aim for clarity within a short format.\n\
-                     Fix grammar but preserve the speaker's voice and tone.\n\
-                     Reply with ONLY the cleaned text, nothing else."
-                .to_string(),
+            prompt: twitter_prompt,
             enabled: true,
+            icon: None,
         },
     ]
 }
@@ -499,7 +615,9 @@ fn format_app_context(context: &AppContext) -> String {
         return String::new();
     }
     let mut line = format!("App: {}", context.app_name);
-    if !context.url.is_empty() {
+    if !context.terminal_host.is_empty() {
+        line.push_str(&format!(" (in {})", context.terminal_host));
+    } else if !context.url.is_empty() {
         line.push_str(&format!(" ({})", context.url));
     }
     line

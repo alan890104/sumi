@@ -4344,6 +4344,7 @@ dependencies = [
  "cpal",
  "dirs",
  "hound",
+ "image",
  "keyring",
  "libc",
  "llama-cpp-2",
@@ -4357,6 +4358,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+ "unicode-segmentation",
  "whisper-rs",
  "windows 0.58.0",
 ]

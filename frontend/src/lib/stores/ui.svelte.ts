@@ -2,7 +2,7 @@ import type { Page } from '../types';
 
 // ── Current page ──
 
-let currentPage = $state<Page>('settings');
+let currentPage = $state<Page>('stats');
 
 export function getCurrentPage(): Page {
   return currentPage;

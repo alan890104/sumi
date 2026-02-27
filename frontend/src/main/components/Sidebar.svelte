@@ -6,6 +6,11 @@
   let { version = '' }: { version?: string } = $props();
 
   const navItems: { id: Page; labelKey: string; icon: string }[] = [
+    {
+      id: 'stats',
+      labelKey: 'nav.stats',
+      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+    },
     { id: 'settings', labelKey: 'nav.settings', icon: '⚙' },
     {
       id: 'promptRules',
@@ -36,7 +41,12 @@
 </script>
 
 <div class="sidebar">
-  <div class="sidebar-drag"></div>
+  <div class="sidebar-drag">
+    <div class="sidebar-brand">
+      <img src="/icon.png" alt="Sumi" class="sidebar-logo" />
+      <span class="sidebar-app-name">Sumi</span>
+    </div>
+  </div>
   <nav class="sidebar-nav">
     {#each navItems as item}
       <button
@@ -66,10 +76,39 @@
   }
 
   .sidebar-drag {
-    height: 52px;
+    height: 56px;
+    padding-top: 12px;
+    padding-bottom: 16px;
     -webkit-app-region: drag;
     app-region: drag;
     flex-shrink: 0;
+    display: flex;
+    align-items: flex-end;
+    box-sizing: content-box;
+  }
+
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 20px;
+  }
+
+  .sidebar-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .sidebar-app-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
   }
 
   .sidebar-nav {
@@ -77,7 +116,7 @@
     padding: 0 12px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
   }
 
   .nav-item {
@@ -86,9 +125,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 12px;
+    padding: 9px 14px;
     border-radius: var(--radius-md);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--text-secondary);
     cursor: pointer;
@@ -112,8 +151,8 @@
   }
 
   .nav-icon {
-    font-size: 16px;
-    width: 20px;
+    font-size: 17px;
+    width: 22px;
     text-align: center;
     flex-shrink: 0;
     display: flex;

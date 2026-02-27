@@ -26,7 +26,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 0;
+    padding: 12px 0;
     gap: 16px;
   }
 
@@ -39,13 +39,13 @@
   }
 
   .setting-name {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
   }
 
   .setting-desc {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
     margin-top: 2px;
   }

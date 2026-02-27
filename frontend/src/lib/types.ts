@@ -82,6 +82,7 @@ export interface PromptRule {
   match_value: string;
   prompt: string;
   enabled: boolean;
+  icon?: string;
 }
 
 export interface DictionaryEntry {
@@ -142,11 +143,21 @@ export interface HistoryEntry {
   app_name: string;
   bundle_id: string;
   chars_per_sec: number;
+  word_count: number;
 }
 
 export interface HistoryPage {
   entries: HistoryEntry[];
   has_more: boolean;
+}
+
+export interface HistoryStats {
+  total_entries: number;
+  total_duration_secs: number;
+  total_chars: number;
+  local_entries: number;
+  local_duration_secs: number;
+  total_words: number;
 }
 
 // ── API responses ──
@@ -195,6 +206,7 @@ export interface DownloadProgress {
 // ── Pages ──
 
 export type Page =
+  | 'stats'
   | 'settings'
   | 'promptRules'
   | 'dictionary'

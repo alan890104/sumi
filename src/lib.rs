@@ -316,6 +316,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         "None".to_string()
                     };
                     let has_audio = history::save_audio_wav(&audio_dir(), &entry_id, &samples_16k);
+                    let word_count = history::count_words(&text) as u64;
                     let entry = history::HistoryEntry {
                         id: entry_id,
                         timestamp: std::time::SystemTime::now()
@@ -335,6 +336,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         app_name: history_context.app_name.clone(),
                         bundle_id: history_context.bundle_id.clone(),
                         chars_per_sec,
+                        word_count,
                     };
                     history::add_entry(&history_dir(), &audio_dir(), entry, retention_days);
                     println!("[Sumi] 📝 History entry saved (audio={})", has_audio);
@@ -577,6 +579,7 @@ pub fn run() {
             commands::download_llm_model,
             commands::save_api_key,
             commands::get_api_key,
+            commands::get_history_stats,
             commands::get_history,
             commands::get_history_page,
             commands::delete_history_entry,
@@ -599,6 +602,7 @@ pub fn run() {
             commands::download_whisper_model,
             commands::check_vad_model_status,
             commands::download_vad_model,
+            commands::copy_image_to_clipboard,
         ])
         .setup(|app| {
             // Hide Dock icon (macOS) / equivalent
@@ -771,8 +775,9 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Window close → hide
+            // Window close → hide; enable drag-by-background for overlay title bar
             if let Some(main_window) = app.get_webview_window("main") {
+                platform::set_main_window_movable(&main_window);
                 let win = main_window.clone();
                 main_window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {

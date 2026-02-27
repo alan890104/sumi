@@ -16,7 +16,7 @@
   const BAR_W = 2;
   const BAR_GAP = 2;
   const CW = NUM_BARS * (BAR_W + BAR_GAP) - BAR_GAP; // 78
-  const CH = 24;
+  const CH = 32;
   const UNDO_DURATION = 5000;
   const TIMER_INTERVAL = 200;
   const INTERPOLATION_FACTOR = 0.25;
@@ -692,7 +692,7 @@
   .waveform {
     flex-shrink: 0;
     width: 78px;
-    height: 24px;
+    height: 32px;
   }
 
   /* ── State: Recording (orange -> red gradient via --rec-progress) ── */

@@ -9,6 +9,7 @@
   import ConfirmModal from './components/ConfirmModal.svelte';
   import SetupOverlay from './components/SetupOverlay.svelte';
 
+  import StatsPage from './pages/StatsPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
   import PromptRulesPage from './pages/PromptRulesPage.svelte';
   import DictionaryPage from './pages/DictionaryPage.svelte';
@@ -43,7 +44,9 @@
   <div class="content-area">
     <div class="content-drag"></div>
     <div class="content-scroll">
-      {#if getCurrentPage() === 'settings'}
+      {#if getCurrentPage() === 'stats'}
+        <StatsPage />
+      {:else if getCurrentPage() === 'settings'}
         <SettingsPage />
       {:else if getCurrentPage() === 'promptRules'}
         <PromptRulesPage />
@@ -78,7 +81,7 @@
   }
 
   .content-drag {
-    height: 52px;
+    height: 56px;
     -webkit-app-region: drag;
     app-region: drag;
     flex-shrink: 0;
@@ -87,6 +90,6 @@
   .content-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 0 36px 36px;
+    padding: 0 var(--content-padding, 44px) 44px;
   }
 </style>

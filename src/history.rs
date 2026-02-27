@@ -1,6 +1,7 @@
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -24,6 +25,14 @@ pub struct HistoryEntry {
     pub bundle_id: String,
     #[serde(default)]
     pub chars_per_sec: f64,
+    #[serde(default)]
+    pub word_count: u64,
+}
+
+/// Count "words" using UAX#29 word boundaries.
+/// Each CJK character is its own word; Latin text is split by whitespace/punctuation.
+pub fn count_words(text: &str) -> usize {
+    text.unicode_words().count()
 }
 
 fn db_path(history_dir: &Path) -> PathBuf {
@@ -84,6 +93,29 @@ fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
     if !has_cps {
         conn.execute_batch("ALTER TABLE history ADD COLUMN chars_per_sec REAL NOT NULL DEFAULT 0.0;")?;
     }
+    // Migrate: add word_count column if missing (non-destructive)
+    let has_wc: bool = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('history') WHERE name = 'word_count'",
+        [],
+        |row| row.get::<_, i64>(0),
+    )? > 0;
+    if !has_wc {
+        conn.execute_batch("ALTER TABLE history ADD COLUMN word_count INTEGER NOT NULL DEFAULT 0;")?;
+    }
+    // Backfill word_count for existing rows that have 0
+    {
+        let mut stmt = conn.prepare("SELECT id, raw_text FROM history WHERE word_count = 0")?;
+        let rows: Vec<(String, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .filter_map(|r| r.ok())
+            .collect();
+        for (id, raw_text) in rows {
+            conn.execute(
+                "UPDATE history SET word_count = ?1 WHERE id = ?2",
+                params![count_words(&raw_text) as i64, id],
+            )?;
+        }
+    }
     Ok(conn)
 }
 
@@ -98,6 +130,46 @@ pub fn migrate_from_json(history_dir: &Path, audio_dir: &Path) {
             let _ = std::fs::remove_dir_all(audio_dir);
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryStats {
+    pub total_entries: u64,
+    pub total_duration_secs: f64,
+    pub total_chars: u64,
+    pub local_entries: u64,
+    pub local_duration_secs: f64,
+    pub total_words: u64,
+}
+
+pub fn get_stats(history_dir: &Path) -> HistoryStats {
+    let zero = HistoryStats { total_entries: 0, total_duration_secs: 0.0, total_chars: 0, local_entries: 0, local_duration_secs: 0.0, total_words: 0 };
+    let conn = match open_db(history_dir) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("[Sumi] Failed to open history DB for stats: {}", e);
+            return zero;
+        }
+    };
+    conn.query_row(
+        "SELECT COUNT(*), COALESCE(SUM(duration_secs), 0), COALESCE(SUM(LENGTH(raw_text)), 0),
+                SUM(CASE WHEN stt_model NOT LIKE '%(Cloud/%)%' THEN 1 ELSE 0 END),
+                COALESCE(SUM(CASE WHEN stt_model NOT LIKE '%(Cloud/%)%' THEN duration_secs ELSE 0 END), 0),
+                COALESCE(SUM(word_count), 0)
+         FROM history",
+        [],
+        |row| {
+            Ok(HistoryStats {
+                total_entries: row.get::<_, i64>(0).unwrap_or(0) as u64,
+                total_duration_secs: row.get::<_, f64>(1).unwrap_or(0.0),
+                total_chars: row.get::<_, i64>(2).unwrap_or(0) as u64,
+                local_entries: row.get::<_, i64>(3).unwrap_or(0) as u64,
+                local_duration_secs: row.get::<_, f64>(4).unwrap_or(0.0),
+                total_words: row.get::<_, i64>(5).unwrap_or(0) as u64,
+            })
+        },
+    )
+    .unwrap_or(zero)
 }
 
 pub fn load_history_page(
@@ -130,13 +202,14 @@ pub fn load_history_page(
             app_name: row.get::<_, String>(12).unwrap_or_default(),
             bundle_id: row.get::<_, String>(13).unwrap_or_default(),
             chars_per_sec: row.get::<_, f64>(14).unwrap_or(0.0),
+            word_count: row.get::<_, i64>(15).unwrap_or(0) as u64,
         })
     };
     let mut entries: Vec<HistoryEntry> = if let Some(ts) = before_timestamp {
         let mut stmt = match conn.prepare(
             "SELECT id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
                     duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
-                    app_name, bundle_id, chars_per_sec
+                    app_name, bundle_id, chars_per_sec, word_count
              FROM history WHERE timestamp < ?1 ORDER BY timestamp DESC LIMIT ?2",
         ) {
             Ok(s) => s,
@@ -157,7 +230,7 @@ pub fn load_history_page(
         let mut stmt = match conn.prepare(
             "SELECT id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
                     duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
-                    app_name, bundle_id, chars_per_sec
+                    app_name, bundle_id, chars_per_sec, word_count
              FROM history ORDER BY timestamp DESC LIMIT ?1",
         ) {
             Ok(s) => s,
@@ -193,7 +266,7 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
     let mut stmt = match conn.prepare(
         "SELECT id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
                 duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
-                app_name, bundle_id, chars_per_sec
+                app_name, bundle_id, chars_per_sec, word_count
          FROM history ORDER BY timestamp DESC LIMIT 200",
     ) {
         Ok(s) => s,
@@ -219,6 +292,7 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
             app_name: row.get::<_, String>(12).unwrap_or_default(),
             bundle_id: row.get::<_, String>(13).unwrap_or_default(),
             chars_per_sec: row.get::<_, f64>(14).unwrap_or(0.0),
+            word_count: row.get::<_, i64>(15).unwrap_or(0) as u64,
         })
     });
     match rows {
@@ -244,8 +318,8 @@ pub fn add_entry(history_dir: &Path, audio_dir: &Path, entry: HistoryEntry, rete
         "INSERT OR REPLACE INTO history
             (id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
              duration_secs, has_audio, stt_elapsed_ms, polish_elapsed_ms, total_elapsed_ms,
-             app_name, bundle_id, chars_per_sec)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+             app_name, bundle_id, chars_per_sec, word_count)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
         params![
             entry.id,
             entry.timestamp,
@@ -262,6 +336,7 @@ pub fn add_entry(history_dir: &Path, audio_dir: &Path, entry: HistoryEntry, rete
             entry.app_name,
             entry.bundle_id,
             entry.chars_per_sec,
+            entry.word_count as i64,
         ],
     ) {
         eprintln!("[Sumi] Failed to insert history entry: {}", e);

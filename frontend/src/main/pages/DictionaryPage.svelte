@@ -115,15 +115,15 @@
 
 <style>
   .page-title {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.3px;
     color: var(--text-primary);
-    margin-bottom: 24px;
+    margin-bottom: 28px;
   }
 
   .dictionary-desc {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
     margin-bottom: 16px;
   }

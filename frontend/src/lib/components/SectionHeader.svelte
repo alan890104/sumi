@@ -20,25 +20,25 @@
   .section-header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 16px;
+    gap: 8px;
+    margin-bottom: 18px;
   }
 
   .section-icon {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
     color: var(--text-secondary);
   }
 
   .section-icon :global(svg) {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     display: block;
   }
 
   .section-title {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.8px;

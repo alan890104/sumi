@@ -8,6 +8,7 @@ import type {
   PermissionStatus,
   HistoryEntry,
   HistoryPage,
+  HistoryStats,
   DownloadProgress,
   TestPolishResult,
   GeneratedRule,
@@ -37,8 +38,8 @@ export const resetSettings = () => invoke<void>('reset_settings');
 export const getDefaultPrompt = () =>
   invoke<string>('get_default_prompt');
 
-export const getDefaultPromptRules = () =>
-  invoke<PromptRule[]>('get_default_prompt_rules');
+export const getDefaultPromptRules = (language?: string) =>
+  invoke<PromptRule[]>('get_default_prompt_rules', { language: language ?? null });
 
 // ── Recording ──
 
@@ -63,6 +64,8 @@ export const setEditTextOverride = (text: string) =>
   invoke<void>('set_edit_text_override', { text });
 
 // ── History ──
+
+export const getHistoryStats = () => invoke<HistoryStats>('get_history_stats');
 
 export const getHistory = () => invoke<HistoryEntry[]>('get_history');
 
@@ -203,3 +206,8 @@ export const onVadModelDownloadProgress = (
   cb: (p: DownloadProgress) => void,
 ): Promise<UnlistenFn> =>
   listen<DownloadProgress>('vad-model-download-progress', (e) => cb(e.payload));
+
+// ── Clipboard ──
+
+export const copyImageToClipboard = (pngBytes: number[]) =>
+  invoke<void>('copy_image_to_clipboard', { pngBytes });

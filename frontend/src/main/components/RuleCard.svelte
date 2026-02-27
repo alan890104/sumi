@@ -81,7 +81,7 @@
     display: flex;
     cursor: pointer;
     align-items: center;
-    padding: 10px 12px;
+    padding: 12px 14px;
     gap: 8px;
     border-radius: var(--radius-md);
     transition: background 0.15s ease;
@@ -107,7 +107,7 @@
 
   .prompt-rule-header-name {
     flex: 1;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
     overflow: hidden;
