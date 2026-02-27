@@ -40,7 +40,7 @@ cd frontend && npm run build
 
 ### Backend
 
-Rust source files (14 modules + platform sub-module):
+Rust source files (13 modules + platform sub-module):
 
 #### `src/lib.rs` — Core application logic & app setup
 - **`AppState`** — shared state managed by Tauri: `is_recording` (AtomicBool), `is_processing` (AtomicBool), `buffer` (Arc<Mutex<Vec<f32>>>), `sample_rate`, `settings`, `mic_available`, `whisper_ctx`, `llm_model`, `captured_context`, `context_override`, `test_mode` (AtomicBool), `voice_rule_mode` (AtomicBool), `last_hotkey_time`, `http_client` (shared reqwest client), `api_key_cache`, `edit_mode` (AtomicBool), `edit_selected_text`, `edit_text_override`, `saved_clipboard`, `vad_ctx` (Silero VAD).
@@ -64,7 +64,7 @@ All `#[tauri::command]` functions exposed to the frontend:
 - **Credentials**: `save_api_key`, `get_api_key`
 - **History**: `get_history`, `get_history_page`, `get_history_stats`, `delete_history_entry`, `clear_all_history`, `export_history_audio`, `get_history_storage_path`
 - **Permissions**: `check_permissions`, `open_permission_settings`
-- **Utilities**: `get_app_icon`, `trigger_undo`
+- **Utilities**: `get_app_icon`, `trigger_undo`, `copy_image_to_clipboard`
 
 #### `src/stt.rs` — STT configuration
 - **`SttConfig`** — fields: `mode` (SttMode: Local or Cloud), `cloud` (SttCloudConfig), `whisper_model` (WhisperModel), `language` (BCP-47 string, "auto" or specific like "zh-TW"), `vad_enabled` (bool, Silero VAD toggle).
@@ -76,7 +76,7 @@ All `#[tauri::command]` functions exposed to the frontend:
 - **`PolishModel`** variants: `LlamaTaiwan` (Llama 3 Taiwan 8B, ~4.9 GB), `Qwen25` (Qwen 2.5 7B, ~4.7 GB), `Qwen3` (Qwen 3 8B, ~5.0 GB).
 - **`polish_text`** — dispatches to `run_cloud_inference` (OpenAI-compatible HTTP) or `run_llm_inference` (local llama-cpp-2) based on `PolishMode`. Returns `PolishResult { text, reasoning }`.
 - **`edit_text_by_instruction`** — "Edit by Voice": takes selected text + spoken instruction, returns edited text via LLM.
-- **Prompt rules**: `PromptRule { name, match_type (AppName/BundleId/Url), match_value, prompt, enabled }`. Built-in preset rules for Gmail, Terminal, VSCode, Cursor, Antigravity, iTerm2, Notion, WhatsApp, Telegram, Slack, Discord, LINE, GitHub, X (Twitter).
+- **Prompt rules**: `PromptRule { name, match_type (AppName/BundleId/Url), match_value, prompt, enabled, icon (Option<String>) }`. The `icon` field is an optional key for the frontend (e.g. "terminal", "slack"); auto-detected if None. Built-in preset rules for Gmail, Terminal, VSCode, Cursor, Antigravity, iTerm2, Notion, WhatsApp, Telegram, Slack, Discord, LINE, GitHub, X (Twitter).
 - **Dictionary**: `DictionaryConfig { enabled, entries: Vec<DictionaryEntry> }` for proper noun correction, injected into both Whisper initial prompt and LLM system prompt.
 - **Reasoning toggle**: When `reasoning` is false, `/no_think` is prepended to suppress model reasoning (e.g. Qwen3 `<think>` blocks).
 
@@ -99,14 +99,14 @@ All `#[tauri::command]` functions exposed to the frontend:
 - **`do_stop_recording`** — flips `is_recording` to false, extracts samples, resamples to 16 kHz. Applies VAD filtering (or RMS trimming fallback). Dispatches to local Whisper or cloud STT based on `SttConfig.mode`.
 
 #### `src/context_detect.rs` — App context detection
-- **`AppContext`** — `app_name`, `bundle_id`, `url`.
-- NSWorkspace FFI for frontmost app + osascript for browser URLs. Supports Safari, Chrome, Arc, Brave, Microsoft Edge.
+- **`AppContext`** — `app_name`, `bundle_id`, `url`, `terminal_host` (original terminal app name when `app_name` was enriched with a CLI tool name; empty when no enrichment occurred).
+- NSWorkspace FFI for frontmost app + osascript for browser URLs. Supports Safari, Chrome, Arc, Brave, Microsoft Edge. Terminal subprocess detection enriches `app_name` with CLI tool names.
 - Cross-platform: Windows uses `GetForegroundWindow`/`QueryFullProcessImageNameW` FFI.
 - Captured context fed to LLM prompt for context-aware polishing.
 
 #### `src/history.rs` — Transcription history (SQLite)
-- **`HistoryEntry`** — fields: `id`, `timestamp`, `text` (polished), `raw_text`, `reasoning` (Option), `stt_model`, `polish_model`, `duration_secs`, `has_audio`, `stt_elapsed_ms`, `polish_elapsed_ms` (Option), `total_elapsed_ms`, `app_name`, `bundle_id`, `chars_per_sec`.
-- **`HistoryStats`** — `total_entries`, `total_duration_secs`, `total_chars`.
+- **`HistoryEntry`** — fields: `id`, `timestamp`, `text` (polished), `raw_text`, `reasoning` (Option), `stt_model`, `polish_model`, `duration_secs`, `has_audio`, `stt_elapsed_ms`, `polish_elapsed_ms` (Option), `total_elapsed_ms`, `app_name`, `bundle_id`, `chars_per_sec`, `word_count` (u64, multilingual via UAX#29 word boundaries).
+- **`HistoryStats`** — `total_entries`, `total_duration_secs`, `total_chars`, `local_entries`, `local_duration_secs`, `total_words`.
 - SQLite database (`history.db`) with WAL mode. Audio files saved as WAV under `~/.sumi/audio/`.
 - Functions: `load_history`, `load_history_page` (paginated), `get_stats`, `add_entry`, `delete_entry`, `clear_all`, `migrate_from_json` (legacy migration).
 - Retention cleanup: deletes entries older than `history_retention_days` setting.
@@ -132,13 +132,13 @@ Replaces the previous `macos_ffi` module. Sub-modules: `macos.rs`, `windows.rs`,
 ### Frontend (`frontend/`)
 Svelte 5 + TypeScript + Vite. Two Vite entry points (`main.html` + `overlay.html`), each mounting a separate Svelte app. Uses `@tauri-apps/api` ESM imports (`withGlobalTauri: false`). Path alias: `$lib → src/lib`.
 
-- **`src/main/`** — Settings window. Pages: StatsPage (landing/default), SettingsPage, PromptRulesPage, DictionaryPage, HistoryPage, TestWizard, AboutPage. Components: Sidebar, SetupOverlay, ConfirmModal, RuleCard, RuleEditorModal, DictEditorModal, HistoryDetailModal, and settings sub-sections (BehaviorSection, LanguageSection, HotkeySection, MicSection, SttSection, PolishSection, DangerZone).
-- **`src/overlay/`** — Transparent, always-on-top recording indicator capsule. States: `preparing`, `recording`, `transcribing`, `polishing`, `pasted`, `copied`, `error`, `edited`, `edit_requires_polish`, `processing`. Features 20-bar canvas waveform and elapsed timer with color gradient.
+- **`src/main/`** — Settings window. Pages: StatsPage (landing/default), SettingsPage, PromptRulesPage, DictionaryPage, HistoryPage, TestWizard, AboutPage. Components: Sidebar, SetupOverlay, ConfirmModal, RuleCard, RuleGridCard, RuleEditorModal, DictEditorModal, HistoryDetailModal, and settings sub-sections (BehaviorSection, LanguageSection, HotkeySection, MicSection, SttSection, PolishSection, DangerZone).
+- **`src/overlay/`** — Transparent, always-on-top recording indicator capsule. States: `preparing`, `recording`, `transcribing`, `polishing`, `pasted`, `copied`, `error`, `edited`, `edit_requires_polish`, `processing`, `undo`. Features 20-bar canvas waveform and elapsed timer with color gradient.
 - **`src/lib/`** — Shared code: `types.ts` (TypeScript interfaces), `api.ts` (typed Tauri command wrappers), `constants.ts` (provider metadata, key labels, SVG icons), `utils.ts`, `stores/` (Svelte 5 `$state` rune stores for settings, i18n, UI state), `components/` (SettingRow, Toggle, SegmentedControl, Select, Keycaps, Modal, ProgressBar, CloudConfigPanel, InstructionCard, SectionHeader).
 - **`src/i18n/`** — 58 locale JSON files (af, ar, az, be, bg, bs, ca, cs, cy, da, de, el, en, es, et, fa, fi, fr, gl, he, hi, hr, hu, hy, id, is, it, ja, kk, kn, ko, lt, lv, mi, mk, mr, ms, ne, nl, no, pl, pt, ro, ru, sk, sl, sr, sv, sw, ta, th, tl, tr, uk, ur, vi, zh-CN, zh-TW), statically imported by the i18n store.
 
 ### Two Windows
-- **`main`** (settings): 960×720 px, hidden by default, shown by tray click or "Settings…" menu item; close button hides rather than quits. `titleBarStyle: "Overlay"` with hidden title. Default page is StatsPage.
+- **`main`** (settings): 1120×800 px, hidden by default, shown by tray click or "Settings…" menu item; close button hides rather than quits. `titleBarStyle: "Overlay"` with hidden title. Default page is StatsPage.
 - **`overlay`**: frameless, transparent, always-on-top, 300×52 px, centered horizontally near the bottom of the screen during recording. Shown/hidden without activating the app via `platform` module.
 
 ### Hotkey String Format
