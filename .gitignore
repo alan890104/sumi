@@ -6,3 +6,4 @@ target
 frontend/node_modules/
 frontend/dist/
 ideas/
+AUDIT_REPORT.md

@@ -26,7 +26,7 @@ Most voice dictation tools require a monthly subscription and only offer cloud p
 
 - **Local-First** — Run Whisper + LLM entirely on your Mac's GPU (Metal). In local mode, your audio never leaves your device — verifiable because the code is open source.
 - **Cloud-Ready** — Prefer faster processing? Bring your own API keys for Groq, OpenAI, Deepgram, Azure, and more. Mix and match local and cloud freely.
-- **Open Source** — MIT licensed. Free to use, inspect, modify, and contribute.
+- **Open Source** — GPLv3 licensed. Free to use, inspect, modify, and contribute.
 
 ### How It Looks
 
@@ -41,7 +41,7 @@ The AI adapts to context — casual in Slack, formal in email, technical in your
 | | **Sumi** | Built-in Dictation | Typeless | Wispr Flow | VoiceInk | SuperWhisper |
 |---|---|---|---|---|---|---|
 | **Price** | **Free** | Free | 4K words/wk free, $12-30/mo | 2K words/wk free, $12-15/mo | $39.99 | Free trial, $10/mo |
-| **Open Source** | ✅ MIT | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **Open Source** | ✅ GPLv3 | ❌ | ❌ | ❌ | ✅ | ❌ |
 | **Local STT** | ✅ Whisper+Metal | ✅ Apple Silicon | ❌ Cloud only | ❌ Cloud only | ✅ | ✅ |
 | **Cloud STT** | ✅ BYOK | ❌ | ✅ | ✅ | ✅ Optional | ✅ |
 | **One-Step AI Polish** | ✅ | ❌ Separate Writing Tools | ✅ | ✅ | ❌ | ✅ |
@@ -117,4 +117,4 @@ Requires [Rust](https://rustup.rs/) and [Tauri CLI](https://v2.tauri.app/) (`car
 
 ## License
 
-MIT
+GPLv3
