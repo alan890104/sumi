@@ -130,6 +130,7 @@ export interface Settings {
   language: string | null;
   stt: SttConfig;
   edit_hotkey: string | null;
+  onboarding_completed: boolean;
 }
 
 // ── History ──

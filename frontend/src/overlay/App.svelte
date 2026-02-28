@@ -6,6 +6,7 @@
     onRecordingMaxDuration,
     onAudioLevels,
     triggerUndo,
+    getSettings,
   } from '$lib/api';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import type { UnlistenFn } from '@tauri-apps/api/event';
@@ -370,8 +371,13 @@
 
   // ── Lifecycle ──
   onMount(async () => {
-    // Init i18n from localStorage
-    await initLocale(localStorage.getItem('sumi-lang'));
+    // Init i18n from backend settings
+    try {
+      const s = await getSettings();
+      await initLocale(s.language);
+    } catch {
+      await initLocale();
+    }
 
     // Set initial state
     setPreparing();

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { t } from '$lib/stores/i18n.svelte';
-  import { resetOnboarding } from '$lib/stores/settings.svelte';
+  import { resetOnboarding, buildPayload } from '$lib/stores/settings.svelte';
   import { showConfirm, setShowSetup } from '$lib/stores/ui.svelte';
-  import { resetSettings as apiResetSettings } from '$lib/api';
+  import { resetSettings as apiResetSettings, saveSettings as saveSettingsApi } from '$lib/api';
   import { load as loadSettings } from '$lib/stores/settings.svelte';
   import SettingRow from '$lib/components/SettingRow.svelte';
   import SectionHeader from '$lib/components/SectionHeader.svelte';
@@ -23,8 +23,13 @@
     );
   }
 
-  function handleRerunSetup() {
+  async function handleRerunSetup() {
     resetOnboarding();
+    try {
+      await saveSettingsApi(buildPayload());
+    } catch (e) {
+      console.error('Failed to save onboarding reset:', e);
+    }
     setShowSetup(true);
   }
 </script>

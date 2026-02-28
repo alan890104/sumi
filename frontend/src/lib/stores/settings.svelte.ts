@@ -40,9 +40,8 @@ let settings = $state<Settings>({
     vad_enabled: true,
   },
   edit_hotkey: null,
+  onboarding_completed: false,
 });
-
-let onboardingCompleted = $state(true);
 
 export function getSettings(): Settings {
   return settings;
@@ -65,11 +64,7 @@ export function getEditHotkey(): string | null {
 }
 
 export function getOnboardingCompleted(): boolean {
-  return onboardingCompleted;
-}
-
-export function setOnboardingCompleted(v: boolean) {
-  onboardingCompleted = v;
+  return settings.onboarding_completed;
 }
 
 // ── Load settings from backend ──
@@ -78,9 +73,17 @@ export async function load(): Promise<void> {
   const s = await api.getSettings();
   settings = s;
 
-  // Check onboarding
-  const saved = localStorage.getItem('sumi-onboarding-completed');
-  onboardingCompleted = saved === 'true';
+  // Migrate: if legacy localStorage flag exists, carry it over to backend settings
+  const legacyOnboarding = localStorage.getItem('sumi-onboarding-completed');
+  if (legacyOnboarding === 'true' && !settings.onboarding_completed) {
+    settings.onboarding_completed = true;
+    try {
+      await api.saveSettings(buildPayload());
+    } catch {
+      // best-effort migration
+    }
+  }
+  localStorage.removeItem('sumi-onboarding-completed');
 
   // Load API keys from keychain
   try {
@@ -248,11 +251,9 @@ export function setCustomPrompt(prompt: string | null) {
 }
 
 export function markOnboardingComplete() {
-  onboardingCompleted = true;
-  localStorage.setItem('sumi-onboarding-completed', 'true');
+  settings.onboarding_completed = true;
 }
 
 export function resetOnboarding() {
-  onboardingCompleted = false;
-  localStorage.removeItem('sumi-onboarding-completed');
+  settings.onboarding_completed = false;
 }

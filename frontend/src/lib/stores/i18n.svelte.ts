@@ -61,7 +61,6 @@ export async function setLocale(locale: string) {
   const translations = await loadLocale(locale);
   if (translations) {
     currentLocale = locale;
-    localStorage.setItem('sumi-lang', locale);
   }
 }
 
@@ -81,7 +80,7 @@ export function detectLocale(): string {
 }
 
 export async function initLocale(savedLocale?: string | null) {
-  const locale = savedLocale || localStorage.getItem('sumi-lang') || detectLocale();
+  const locale = savedLocale || detectLocale();
   if ((SUPPORTED as readonly string[]).includes(locale)) {
     await loadLocale(locale);
     currentLocale = locale;
