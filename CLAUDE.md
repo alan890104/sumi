@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Sumi is a macOS desktop app (Tauri 2) that provides system-wide speech-to-text via a global hotkey. It supports both local (Whisper via `whisper-rs` with Metal acceleration) and cloud STT APIs (Groq/OpenAI/Deepgram/Azure/Custom) for transcription, and pastes the result at the cursor. Optionally uses a local LLM (via `llama-cpp-2`) or cloud API (Groq/OpenRouter/OpenAI/Gemini/SambaNova/Custom) to polish transcription output. Also supports an "Edit by Voice" mode that applies spoken instructions to selected text via LLM.
+Sumi is a macOS desktop app (Tauri 2) that provides system-wide speech-to-text via a global hotkey. It supports both local (Whisper via `whisper-rs` with Metal acceleration) and cloud STT APIs (Groq/OpenAI/Deepgram/Azure/Custom) for transcription, and pastes the result at the cursor. Optionally uses a local LLM (via `llama-cpp-2`) or cloud API (GitHubModels/Groq/OpenRouter/OpenAI/Gemini/SambaNova/Custom) to polish transcription output. Also supports an "Edit by Voice" mode that applies spoken instructions to selected text via LLM.
 
 ## Commands
 
@@ -43,13 +43,13 @@ cd frontend && npm run build
 Rust source files (13 modules + platform sub-module):
 
 #### `src/lib.rs` — Core application logic & app setup
-- **`AppState`** — shared state managed by Tauri: `is_recording` (AtomicBool), `is_processing` (AtomicBool), `buffer` (Arc<Mutex<Vec<f32>>>), `sample_rate`, `settings`, `mic_available`, `whisper_ctx`, `llm_model`, `captured_context`, `context_override`, `test_mode` (AtomicBool), `voice_rule_mode` (AtomicBool), `last_hotkey_time`, `http_client` (shared reqwest client), `api_key_cache`, `edit_mode` (AtomicBool), `edit_selected_text`, `edit_text_override`, `saved_clipboard`, `vad_ctx` (Silero VAD).
-- **Global shortcut handler** — two hotkeys: the main recording toggle (default `Alt+KeyZ`) and edit-by-voice (default `Control+Alt+KeyZ`). Main toggle: first press starts recording + shows overlay; second press stops recording, transcribes, optionally polishes with LLM, copies to clipboard, optionally pastes with Cmd+V, then hides the overlay. Edit-by-voice: copies selected text via Cmd+C, records spoken instruction, applies edit via LLM, pastes result. Max recording duration: 30 seconds (auto-stop).
+- **`AppState`** — shared state managed by Tauri: `is_recording` (AtomicBool), `is_processing` (AtomicBool), `buffer` (Arc<Mutex<Vec<f32>>>), `sample_rate`, `settings`, `mic_available`, `whisper_ctx`, `llm_model`, `captured_context`, `context_override`, `test_mode` (AtomicBool), `voice_rule_mode` (AtomicBool), `last_hotkey_time`, `http_client` (shared reqwest client), `api_key_cache`, `edit_mode` (AtomicBool), `edit_selected_text`, `edit_text_override`, `saved_clipboard`, `vad_ctx` (Silero VAD), `downloading` (AtomicBool).
+- **Global shortcut handler** — two hotkeys: the main recording toggle (default `Alt+KeyZ`, debug: `Alt+Super+KeyZ`) and edit-by-voice (default `Control+Alt+KeyZ`, debug: `Control+Alt+Super+KeyZ`). Main toggle: first press starts recording + shows overlay; second press stops recording, transcribes, optionally polishes with LLM, copies to clipboard, optionally pastes with Cmd+V, then hides the overlay. Edit-by-voice: copies selected text via Cmd+C, records spoken instruction, applies edit via LLM, pastes result. Max recording duration: 120 seconds (auto-stop). Debounce: 300 ms.
 - Registers all Tauri commands from `commands.rs` and sets up the tray menu, windows, and global shortcuts.
 
 #### `src/settings.rs` — Settings & data directories
 - **`Settings`** — persisted to `~/.sumi/config/settings.json`. Fields: `hotkey`, `auto_paste`, `polish` (PolishConfig), `stt` (SttConfig), `history_retention_days` (u32, 0 = keep forever), `language` (Option<String>, UI language override), `edit_hotkey` (Option<String>, default `"Control+Alt+KeyZ"`), `onboarding_completed` (bool).
-- **Data directory layout**: `~/.sumi/` with subdirectories: `config/` (settings.json), `models/` (Whisper & LLM GGUF files), `history/` (history.db), `audio/` (WAV files).
+- **Data directory layout**: `~/.sumi/` (release) or `~/.sumi-dev/` (debug) with subdirectories: `config/` (settings.json), `models/` (Whisper & LLM GGUF files), `history/` (history.db), `audio/` (WAV files).
 
 #### `src/commands.rs` — Tauri command handlers
 All `#[tauri::command]` functions exposed to the frontend:
@@ -64,24 +64,24 @@ All `#[tauri::command]` functions exposed to the frontend:
 - **Credentials**: `save_api_key`, `get_api_key`
 - **History**: `get_history`, `get_history_page`, `get_history_stats`, `delete_history_entry`, `clear_all_history`, `export_history_audio`, `get_history_storage_path`
 - **Permissions**: `check_permissions`, `open_permission_settings`
-- **Utilities**: `get_app_icon`, `trigger_undo`, `copy_image_to_clipboard`
+- **Utilities**: `get_app_icon`, `trigger_undo`, `copy_image_to_clipboard`, `is_dev_mode`
 
 #### `src/stt.rs` — STT configuration
 - **`SttConfig`** — fields: `mode` (SttMode: Local or Cloud), `cloud` (SttCloudConfig), `whisper_model` (WhisperModel), `language` (BCP-47 string, "auto" or specific like "zh-TW"), `vad_enabled` (bool, Silero VAD toggle).
 - **`SttCloudConfig`** — fields: `provider` (SttProvider: Deepgram/Groq/OpenAi/Azure/Custom), `api_key` (#[serde(skip)]), `endpoint`, `model_id`, `language`.
 
 #### `src/polisher.rs` — AI text polishing
-- **`PolishConfig`** — fields: `enabled` (default true), `model` (PolishModel), `custom_prompt` (Option<String>), `mode` (PolishMode: Local or Cloud), `cloud` (CloudConfig), `prompt_rules` (HashMap<String, Vec<PromptRule>>, per-language map), `dictionary` (DictionaryConfig), `reasoning` (bool, default false).
-- **`CloudConfig`** — fields: `provider` (CloudProvider: Groq/OpenRouter/OpenAi/Gemini/SambaNova/Custom), `api_key` (#[serde(skip)]), `endpoint`, `model_id` (default: "qwen/qwen3-32b").
+- **`PolishConfig`** — fields: `enabled` (default false), `model` (PolishModel), `custom_prompt` (Option<String>), `mode` (PolishMode: Local or Cloud, default Cloud), `cloud` (CloudConfig), `prompt_rules` (HashMap<String, Vec<PromptRule>>, per-language map), `dictionary` (DictionaryConfig), `reasoning` (bool, default false).
+- **`CloudConfig`** — fields: `provider` (CloudProvider: GitHubModels/Groq/OpenRouter/OpenAi/Gemini/SambaNova/Custom), `api_key` (#[serde(skip)]), `endpoint`, `model_id` (default empty, locale-initialized on new install: Chinese locales → "qwen/qwen3-32b", others → "openai/gpt-oss-120b").
 - **`PolishModel`** variants: `LlamaTaiwan` (Llama 3 Taiwan 8B, ~4.9 GB), `Qwen25` (Qwen 2.5 7B, ~4.7 GB), `Qwen3` (Qwen 3 8B, ~5.0 GB).
 - **`polish_text`** — dispatches to `run_cloud_inference` (OpenAI-compatible HTTP) or `run_llm_inference` (local llama-cpp-2) based on `PolishMode`. Returns `PolishResult { text, reasoning }`.
 - **`edit_text_by_instruction`** — "Edit by Voice": takes selected text + spoken instruction, returns edited text via LLM.
-- **Prompt rules**: `PromptRule { name, match_type (AppName/BundleId/Url), match_value, prompt, enabled, icon (Option<String>) }`. The `icon` field is an optional key for the frontend (e.g. "terminal", "slack"); auto-detected if None. Built-in preset rules for Gmail, Terminal, VSCode, Cursor, Antigravity, iTerm2, Notion, WhatsApp, Telegram, Slack, Discord, LINE, GitHub, X (Twitter).
+- **Prompt rules**: `PromptRule { name, match_type (AppName/BundleId/Url), match_value, prompt, enabled, icon (Option<String>), alt_matches (Vec<MatchCondition>) }`. `MatchCondition { match_type, match_value }` allows multi-match rules. The `icon` field is an optional key for the frontend (e.g. "terminal", "slack"); auto-detected if None. Built-in preset rules for Gmail, Claude Code, Gemini CLI, Codex CLI, Aider, Terminal, VSCode, Cursor, Antigravity, iTerm2, Notion, WhatsApp, Telegram, Slack, Discord, LINE, GitHub, X (Twitter).
 - **Dictionary**: `DictionaryConfig { enabled, entries: Vec<DictionaryEntry> }` for proper noun correction, injected into both Whisper initial prompt and LLM system prompt.
 - **Reasoning toggle**: When `reasoning` is false, `/no_think` is prepended to suppress model reasoning (e.g. Qwen3 `<think>` blocks).
 
 #### `src/whisper_models.rs` — Multi-model Whisper selection
-- **`WhisperModel`** variants: `LargeV3Turbo` (default, 1.62 GB), `LargeV3TurboQ5` (547 MB), `BelleZh` (1.6 GB), `Medium` (1.53 GB), `Small` (488 MB), `Base` (148 MB), `LargeV3TurboZhTw` (1.6 GB).
+- **`WhisperModel`** variants: `LargeV3Turbo` (default, 1.62 GB), `LargeV3TurboQ5` (547 MB), `BelleZh` (1.6 GB), `Medium` (1.53 GB), `Small` (488 MB), `Base` (148 MB), `LargeV3TurboZhTw` (1.6 GB). Note: `WhisperModel::all()` returns only 5 managed models (excludes Medium and Small).
 - **`WhisperModelInfo`** — serializable model metadata for frontend: `id`, `display_name`, `description`, `size_bytes`, `languages`, `downloaded`, `file_size_on_disk`, `is_active`.
 - **`SystemInfo`** — `total_ram_bytes`, `available_disk_bytes`, `is_apple_silicon`, `gpu_vram_bytes`, `has_cuda`, `os`, `arch`.
 - **`recommend_model`** — smart model recommendation based on system RAM/VRAM/disk/language preference.
@@ -100,7 +100,7 @@ All `#[tauri::command]` functions exposed to the frontend:
 
 #### `src/context_detect.rs` — App context detection
 - **`AppContext`** — `app_name`, `bundle_id`, `url`, `terminal_host` (original terminal app name when `app_name` was enriched with a CLI tool name; empty when no enrichment occurred).
-- NSWorkspace FFI for frontmost app + osascript for browser URLs. Supports Safari, Chrome, Arc, Brave, Microsoft Edge. Terminal subprocess detection enriches `app_name` with CLI tool names.
+- NSWorkspace FFI for frontmost app + osascript for browser URLs. Supports Safari, Chrome, Arc, Brave, Microsoft Edge. Terminal emulators detected: Terminal.app, iTerm2, Ghostty, Warp. Terminal subprocess detection enriches `app_name` with CLI tool names (Claude Code, Gemini CLI, Codex CLI, Aider, Neovim, Vim, Emacs, Helix).
 - Cross-platform: Windows uses `GetForegroundWindow`/`QueryFullProcessImageNameW` FFI.
 - Captured context fed to LLM prompt for context-aware polishing.
 
@@ -113,7 +113,7 @@ All `#[tauri::command]` functions exposed to the frontend:
 
 #### `src/credentials.rs` — API key storage
 - Cross-platform credential storage. macOS: `security` CLI (Keychain). Non-macOS: `keyring` crate (Windows Credential Manager).
-- Service name format: `sumi-api-key-{provider}`. Functions: `save`, `load`, `delete`.
+- Service name format: `sumi-api-key-{provider}` (release) or `sumi-dev-api-key-{provider}` (debug). Functions: `save`, `load`, `delete`.
 
 #### `src/hotkey.rs` — Hotkey parsing
 - `parse_key_code`, `parse_hotkey_string`, `hotkey_display_label` — parsing and display of hotkey strings.
@@ -125,8 +125,9 @@ All `#[tauri::command]` functions exposed to the frontend:
 #### `src/platform/` — Cross-platform abstraction
 Replaces the previous `macos_ffi` module. Sub-modules: `macos.rs`, `windows.rs`, `fallback.rs`.
 - `set_app_accessory_mode` — LSUIElement equivalent.
-- `setup_overlay_window` — sets window level to NSFloatingWindowLevel, disables `hidesOnDeactivate`, joins all Spaces.
-- `show_overlay` / `hide_overlay` — `orderFrontRegardless` / `orderOut:` so the overlay never steals focus.
+- `set_main_window_movable` — enables drag-by-background for the main window (macOS only).
+- `setup_overlay_window` — converts NSWindow to `SumiOverlayPanel` (NSPanel subclass), sets window level to `kCGPopUpMenuWindowLevel` (101), disables `hidesOnDeactivate`, joins all Spaces.
+- `show_overlay` / `hide_overlay` — `orderFrontRegardless` with alpha=1.0 / alpha=0.0 (keeps window registered across Spaces).
 - `simulate_paste` / `simulate_copy` / `simulate_undo` — CGEvent-based HID simulation.
 
 ### Frontend (`frontend/`)
@@ -134,7 +135,7 @@ Svelte 5 + TypeScript + Vite. Two Vite entry points (`main.html` + `overlay.html
 
 - **`src/main/`** — Settings window. Pages: StatsPage (landing/default), SettingsPage, PromptRulesPage, DictionaryPage, HistoryPage, TestWizard, AboutPage. Components: Sidebar, SetupOverlay, ConfirmModal, RuleCard, RuleGridCard, RuleEditorModal, DictEditorModal, HistoryDetailModal, and settings sub-sections (BehaviorSection, LanguageSection, HotkeySection, MicSection, SttSection, PolishSection, DangerZone).
 - **`src/overlay/`** — Transparent, always-on-top recording indicator capsule. States: `preparing`, `recording`, `transcribing`, `polishing`, `pasted`, `copied`, `error`, `edited`, `edit_requires_polish`, `processing`, `undo`. Features 20-bar canvas waveform and elapsed timer with color gradient.
-- **`src/lib/`** — Shared code: `types.ts` (TypeScript interfaces), `api.ts` (typed Tauri command wrappers), `constants.ts` (provider metadata, key labels, SVG icons), `utils.ts`, `stores/` (Svelte 5 `$state` rune stores for settings, i18n, UI state), `components/` (SettingRow, Toggle, SegmentedControl, Select, Keycaps, Modal, ProgressBar, CloudConfigPanel, InstructionCard, SectionHeader).
+- **`src/lib/`** — Shared code: `types.ts` (TypeScript interfaces), `api.ts` (typed Tauri command wrappers), `constants.ts` (provider metadata, key labels, SVG icons), `utils.ts`, `stores/` (Svelte 5 `$state` rune stores for settings, i18n, UI state, iconCache), `components/` (SettingRow, Toggle, SegmentedControl, Select, Keycaps, Modal, ProgressBar, CloudConfigPanel, InstructionCard, SectionHeader).
 - **`src/i18n/`** — 58 locale JSON files (af, ar, az, be, bg, bs, ca, cs, cy, da, de, el, en, es, et, fa, fi, fr, gl, he, hi, hr, hu, hy, id, is, it, ja, kk, kn, ko, lt, lv, mi, mk, mr, ms, ne, nl, no, pl, pt, ro, ru, sk, sl, sr, sv, sw, ta, th, tl, tr, uk, ur, vi, zh-CN, zh-TW), statically imported by the i18n store.
 
 ### Two Windows
