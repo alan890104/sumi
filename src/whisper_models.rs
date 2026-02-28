@@ -228,7 +228,7 @@ pub fn recommend_model(system: &SystemInfo, settings_language: Option<&str>) -> 
 /// Detect the system language. On macOS, reads NSLocale.currentLocale via
 /// Objective-C FFI (GUI apps don't inherit LANG from the shell).
 /// Falls back to LANG/LC_ALL on other platforms.
-fn detect_system_language() -> Option<String> {
+pub fn detect_system_language() -> Option<String> {
     #[cfg(target_os = "macos")]
     {
         if let Some(locale) = macos_locale_identifier() {

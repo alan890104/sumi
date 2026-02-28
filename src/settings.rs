@@ -76,7 +76,8 @@ pub fn settings_path() -> PathBuf {
 
 pub fn load_settings() -> Settings {
     let path = settings_path();
-    let mut settings = if path.exists() {
+    let is_new_install = !path.exists();
+    let mut settings = if !is_new_install {
         match std::fs::read_to_string(&path) {
             Ok(contents) => match serde_json::from_str(&contents) {
                 Ok(s) => s,
@@ -91,6 +92,16 @@ pub fn load_settings() -> Settings {
         Settings::default()
     };
     settings.stt.migrate_language();
+
+    // For new installs, initialise STT language from the system locale.
+    if is_new_install {
+        if let Some(locale) = crate::whisper_models::detect_system_language() {
+            let lang = crate::stt::locale_to_stt_language(&locale);
+            settings.stt.language = lang.clone();
+            settings.stt.cloud.language = lang;
+        }
+    }
+
     settings
 }
 

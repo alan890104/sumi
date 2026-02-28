@@ -151,6 +151,44 @@ impl SttConfig {
     }
 }
 
+/// Map a raw system locale identifier (e.g. `"zh_tw"`, `"en_us"`) to a
+/// BCP-47 language code recognised by Whisper.  Returns `"auto"` when the
+/// locale cannot be mapped.
+pub fn locale_to_stt_language(locale: &str) -> String {
+    let lower = locale.to_lowercase();
+    // Strip encoding suffix (e.g. "en_us.utf-8" → "en_us")
+    let base = lower.split('.').next().unwrap_or(&lower);
+
+    // Chinese: region/script matters
+    if base.starts_with("zh") {
+        if base.contains("tw") || base.contains("hant") {
+            return "zh-TW".to_string();
+        }
+        return "zh-CN".to_string();
+    }
+
+    // Extract the language part (before _ or -)
+    let lang = base.split(|c: char| c == '_' || c == '-').next().unwrap_or(base);
+
+    const VALID: &[&str] = &[
+        "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs",
+        "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi",
+        "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy",
+        "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "ln",
+        "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my",
+        "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa",
+        "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta",
+        "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi",
+        "yo", "yue",
+    ];
+
+    if VALID.contains(&lang) {
+        lang.to_string()
+    } else {
+        "auto".to_string()
+    }
+}
+
 /// Transcribe audio via a cloud STT API.
 pub fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32], client: &reqwest::blocking::Client) -> Result<String, String> {
     if stt_cloud.api_key.is_empty() {
