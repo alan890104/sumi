@@ -115,6 +115,20 @@ pub fn load_settings() -> Settings {
         }
     }
 
+    // Initialise UI language from system locale when not explicitly set.
+    // Covers new installs AND upgrades from older versions that never populated
+    // settings.language.  Without this the frontend falls back to
+    // navigator.language in WKWebView, which returns "en" when the app bundle
+    // lacks localisation resources (no .lproj directories).
+    if settings.language.is_none() {
+        if let Some(locale) = crate::whisper_models::detect_system_language() {
+            let lang = crate::stt::locale_to_stt_language(&locale);
+            if lang != "auto" {
+                settings.language = Some(lang);
+            }
+        }
+    }
+
     // Ensure polish cloud model_id is never empty (e.g. upgraded from older version).
     if settings.polish.cloud.model_id.is_empty() {
         let locale = crate::whisper_models::detect_system_language().unwrap_or_default();
