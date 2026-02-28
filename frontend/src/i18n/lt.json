@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Transkripcija…",
   "promptRules.voiceGenerating": "Taisyklės generavimas…",
   "promptRules.voiceEmpty": "Kalba nesurastas. Bandykite iš naujo!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Pagrindinis ragimas",
   "promptRules.basePromptDesc": "Universalios STT apdorojimo taisyklės, automatiškai taikomos visoms transkriptoms",
   "promptRules.changeIcon": "Piktograma",

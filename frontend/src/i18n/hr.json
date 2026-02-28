@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Transkripcija...",
   "promptRules.voiceGenerating": "Generiranje pravila...",
   "promptRules.voiceEmpty": "Govor nije detektovan. Pokušajte ponovno!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Osnovni Upit",
   "promptRules.basePromptDesc": "Univerzalna pravila obrade STT, automatski primijenjena na sve transkripcije",
   "promptRules.changeIcon": "Ikona",

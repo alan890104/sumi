@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Pārtranskliptējums notiek…",
   "promptRules.voiceGenerating": "Noteikuma ģenerēšana…",
   "promptRules.voiceEmpty": "Runa nav atrasta. Mēģiniet vēlreiz!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Pamata uzvedne",
   "promptRules.basePromptDesc": "Universāli STT apstrādes noteikumi, automātiski piemēroti visiem pārtranskliptējumiem",
   "promptRules.changeIcon": "Ikona",

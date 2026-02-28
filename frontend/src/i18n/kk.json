@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Транскрипциялау...",
   "promptRules.voiceGenerating": "Ереже өндіру...",
   "promptRules.voiceEmpty": "Сөз табылмады. Қайтадан талпыну!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Негіз подсказкасы",
   "promptRules.basePromptDesc": "Әмбеге STT өңдеу ережелері, барлық транскрипцияларға автоматты түрде қолданылады",
   "promptRules.changeIcon": "Белгіше",

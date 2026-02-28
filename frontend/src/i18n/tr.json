@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Yazıya dönüştürülüyor…",
   "promptRules.voiceGenerating": "Kural oluşturuluyor…",
   "promptRules.voiceEmpty": "Konuşma algılanmadı. Tekrar deneyin!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Temel İstem",
   "promptRules.basePromptDesc": "Evrensel STT işleme kuralları, tüm transkriptlere otomatik olarak uygulanır",
   "promptRules.changeIcon": "Simge",

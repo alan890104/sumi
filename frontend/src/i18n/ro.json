@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Se transcrie…",
   "promptRules.voiceGenerating": "Se generează regulă…",
   "promptRules.voiceEmpty": "Nicio vorbire detectată. Încercați din nou!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Prompt de Bază",
   "promptRules.basePromptDesc": "Reguli universale de prelucrare STT, aplicate automat la toate transcriurile",
   "promptRules.changeIcon": "Pictogramă",

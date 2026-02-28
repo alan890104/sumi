@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Transkripsie...",
   "promptRules.voiceGenerating": "Genereer reël...",
   "promptRules.voiceEmpty": "Geen spraak opgespoor nie. Probeer weer!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Basisaanwysing",
   "promptRules.basePromptDesc": "Universele STT verwerkingsreëls, outomaties toegepas op alle transkripsies",
   "promptRules.changeIcon": "Ikoon",

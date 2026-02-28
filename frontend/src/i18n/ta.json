@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "எழுத்துப்படி செய்கிறது…",
   "promptRules.voiceGenerating": "விதி உருவாக்குகிறது…",
   "promptRules.voiceEmpty": "பேச்சு கண்டறியப்படவில்லை. மீண்டும் முயற்சி செய்யவும்!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "அடிப்படை விசை",
   "promptRules.basePromptDesc": "உலகளாவிய STT செயலாக்க விதிகள், தானாகவே அனைத்து உச்சாடனங்களுக்கும் பொருந்தும்",
   "promptRules.changeIcon": "ஐகான்",

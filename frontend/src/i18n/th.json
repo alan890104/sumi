@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "กำลังแปลง...",
   "promptRules.voiceGenerating": "กำลังสร้างกฎ...",
   "promptRules.voiceEmpty": "ไม่พบเสียงพูด ลองอีกครั้ง!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "พร้อมท์ฐาน",
   "promptRules.basePromptDesc": "กฎการประมวลผล STT สากล ใช้โดยอัตโนมัติกับการออกเสียงทั้งหมด",
   "promptRules.changeIcon": "ไอคอน",

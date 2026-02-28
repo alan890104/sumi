@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "ट्रान्सक्राइब हुँदैछ…",
   "promptRules.voiceGenerating": "नियम उत्पन्न हुँदैछ…",
   "promptRules.voiceEmpty": "कुनै भाषण पत्ता लागेन। फेरि प्रयास गर्नुहोस्!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "आधार प्रम्प्ट",
   "promptRules.basePromptDesc": "सार्वभौमिक STT प्रसंस्करण नियमहरू, सबै ट्रान्सक्रिप्शनहरूमा स्वचालित रूपमा लागू गरिएका",
   "promptRules.changeIcon": "आइकन",

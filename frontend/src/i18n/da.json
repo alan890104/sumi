@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Transskriberer…",
   "promptRules.voiceGenerating": "Genererer regel…",
   "promptRules.voiceEmpty": "Ingen tale detekteret. Prøv igen!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Basisprompt",
   "promptRules.basePromptDesc": "Universelle STT-behandlingsregler, automatisk anvendt på alle transskriptioner",
   "promptRules.changeIcon": "Ikon",

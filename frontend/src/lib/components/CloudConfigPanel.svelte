@@ -104,7 +104,7 @@
   let showModelRow = $derived(
     type === 'stt'
       ? sttModel !== null
-      : polishModels.length > 0 || provider === 'custom' || provider === 'open_router' || provider === 'open_ai' || provider === 'gemini'
+      : true
   );
 
   async function onProviderChange(e: Event) {

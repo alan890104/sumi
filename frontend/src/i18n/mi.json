@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "E whakahuatia ana…",
   "promptRules.voiceGenerating": "E waihanga ture…",
   "promptRules.voiceEmpty": "Kaore he reo kua kitea. Whakamahi ano!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Karanga Tuatahi",
   "promptRules.basePromptDesc": "Ture tūroa STT whakamatau, ka tukuna aunoa i ngā kupu katoa",
   "promptRules.changeIcon": "Ata",

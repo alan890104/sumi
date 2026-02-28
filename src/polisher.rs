@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use unicode_segmentation::UnicodeSegmentation;
 
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
@@ -127,7 +128,7 @@ impl Default for CloudConfig {
             provider: CloudProvider::default(),
             api_key: String::new(),
             endpoint: String::new(),
-            model_id: "openai/gpt-4o-mini".to_string(),
+            model_id: "openai/gpt-5-nano".to_string(),
         }
     }
 }
@@ -740,11 +741,11 @@ pub fn polish_text(
                 println!("[Sumi] Polish returned empty, using original");
                 return PolishResult { text: raw_text.to_string(), reasoning };
             }
-            let raw_chars = raw_text.chars().count();
-            let polished_chars = polished.chars().count();
+            let raw_chars = raw_text.graphemes(true).count();
+            let polished_chars = polished.graphemes(true).count();
             if polished_chars > raw_chars * 3 + 200 {
                 println!(
-                    "[Sumi] Polish output too long ({} vs {} chars), likely hallucination — using original",
+                    "[Sumi] Polish output too long ({} vs {} graphemes), likely hallucination — using original",
                     polished_chars,
                     raw_chars
                 );
@@ -814,15 +815,18 @@ fn run_cloud_inference(
         &cloud.model_id
     };
 
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": model_id,
         "messages": [
             { "role": "system", "content": system_prompt },
             { "role": "user", "content": raw_text }
         ],
-        "temperature": 0.1,
-        "max_tokens": 512
+        "max_completion_tokens": 1024
     });
+    // GPT-5 series does not support temperature; only set it for other models
+    if !model_id.contains("gpt-5") {
+        body["temperature"] = serde_json::json!(0.1);
+    }
 
     println!("[Sumi] Cloud polish: {} via {}", model_id, sanitize_url_for_log(&endpoint));
     let start = std::time::Instant::now();
@@ -856,9 +860,9 @@ fn run_cloud_inference(
         })?;
 
     println!(
-        "[Sumi] Cloud polish done: {:.0?}, {} chars",
+        "[Sumi] Cloud polish done: {:.0?}, {} graphemes",
         start.elapsed(),
-        content.len()
+        content.graphemes(true).count()
     );
 
     Ok(content.trim().to_string())

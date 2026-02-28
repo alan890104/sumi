@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "טרנסקריבציה...",
   "promptRules.voiceGenerating": "יצירת כלל...",
   "promptRules.voiceEmpty": "לא התגלה דיבור. נסה שוב!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "נושאה בסיסה",
   "promptRules.basePromptDesc": "כללי עיבוד STT אוניברסליים, יושמו באופן אוטומטי על כל הטרנסקריפציות",
   "promptRules.changeIcon": "סמל",

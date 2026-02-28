@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Транскрыбаванне...",
   "promptRules.voiceGenerating": "Генерацыя правіла...",
   "promptRules.voiceEmpty": "Голас не выяўлены. Спробуйце зноў!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Базавы Запрас",
   "promptRules.basePromptDesc": "Ўнівёрсальныя правілы апрацоўкі STT, аўтаматычна ўжыты ко ўсім транскрыпцыям",
   "promptRules.changeIcon": "Іконка",

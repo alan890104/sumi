@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Feldolgozás folyamatban...",
   "promptRules.voiceGenerating": "Szabály generálása...",
   "promptRules.voiceEmpty": "Nem észlelhetett beszédet. Próbálja újra!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Alapparancs",
   "promptRules.basePromptDesc": "Univerzális beszédfelismerési feldolgozási szabályok, automatikusan az összes feldolgozásra alkalmazva",
   "promptRules.changeIcon": "Ikon",

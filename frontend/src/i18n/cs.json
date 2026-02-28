@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Přepis...",
   "promptRules.voiceGenerating": "Generování pravidla...",
   "promptRules.voiceEmpty": "Řeč nebyla detekována. Zkuste znovu!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Základní Výzva",
   "promptRules.basePromptDesc": "Univerzální pravidla zpracování STT, automaticky použitá na všechny přepisy",
   "promptRules.changeIcon": "Ikona",

@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Transkripsiya...",
   "promptRules.voiceGenerating": "Qaydanı yaradır...",
   "promptRules.voiceEmpty": "Nitq aşkarlanmadı. Yenidən cəhd edin!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Əsas Promt",
   "promptRules.basePromptDesc": "Ümumi STT emalı qaydaları, bütün transkripsiyalara avtomatik olaraq tətbiq edilir",
   "promptRules.changeIcon": "İkon",

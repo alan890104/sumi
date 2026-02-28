@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Inaandikia...",
   "promptRules.voiceGenerating": "Inazalisha sheria...",
   "promptRules.voiceEmpty": "Sauti haijagundulika. Jaribu tena!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Maagizo ya msingi",
   "promptRules.basePromptDesc": "Sheria za STT za ulimwengu, zinalotumika otomatiki kwa maandishi yote",
   "promptRules.changeIcon": "Ikoni",

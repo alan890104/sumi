@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Μεταγραφή σε εξέλιξη…",
   "promptRules.voiceGenerating": "Δημιουργία κανόνα…",
   "promptRules.voiceEmpty": "Δεν ανιχνεύθηκε ομιλία. Προσπαθήστε ξανά!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Βασική εντολή",
   "promptRules.basePromptDesc": "Καθολικοί κανόνες επεξεργασίας STT, αυτόματα εφαρμόζονται σε όλες τις μεταγραφές",
   "promptRules.changeIcon": "Εικονίδιο",

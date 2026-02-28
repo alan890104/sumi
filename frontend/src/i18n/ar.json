@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "جاري النسخ...",
   "promptRules.voiceGenerating": "جاري إنشاء القاعدة...",
   "promptRules.voiceEmpty": "لم يتم اكتشاف كلام. حاول مرة أخرى!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "الموجه الأساسي",
   "promptRules.basePromptDesc": "قواعد معالجة STT العامة، تُطبق تلقائياً على جميع النسخ",
   "promptRules.changeIcon": "أيقونة",

@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Mengtranskripsi…",
   "promptRules.voiceGenerating": "Menjana peraturan…",
   "promptRules.voiceEmpty": "Tiada pertuturan dikesan. Cuba lagi!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Prompt Asas",
   "promptRules.basePromptDesc": "Peraturan pemprosesan STT sejagat, digunakan secara automatik untuk semua transkripsi",
   "promptRules.changeIcon": "Ikon",

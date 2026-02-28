@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "轉錄中…",
   "promptRules.voiceGenerating": "正在生成規則…",
   "promptRules.voiceEmpty": "未偵測到語音，請再試一次！",
+  "promptRules.polishDisabled": "提示規則需要啟用 AI 潤飾才能生效。",
+  "promptRules.enablePolish": "前往設定",
   "promptRules.basePrompt": "基礎提示詞",
   "promptRules.basePromptDesc": "通用語音轉文字處理規則，自動套用於所有轉錄",
   "promptRules.changeIcon": "圖示",

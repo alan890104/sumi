@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Տրամագրում...",
   "promptRules.voiceGenerating": "Կանոն գեներացիա...",
   "promptRules.voiceEmpty": "Ձայն չի հայտնաբերվել։ Կրկին փորձեք!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Հիմնական Հուշում",
   "promptRules.basePromptDesc": "Ընդհանուր STT մշակման կանոններ, ինքնաբերար կիրառվում են բոլոր տրամագրերին",
   "promptRules.changeIcon": "Պատկեր",

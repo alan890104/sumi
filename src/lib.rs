@@ -26,6 +26,8 @@ use tauri::{
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use whisper_rs::WhisperContextParameters;
 
+use unicode_segmentation::UnicodeSegmentation;
+
 use commands::get_cached_api_key;
 use hotkey::{hotkey_display_label, parse_hotkey_string};
 use settings::{load_settings, models_dir, history_dir, audio_dir, Settings};
@@ -160,7 +162,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         ) {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
-                println!("[Sumi] [timing] stop→transcribed: {:.0?} | len: {} chars", transcribe_elapsed, text.len());
+                println!("[Sumi] [timing] stop→transcribed: {:.0?} | len: {} graphemes", transcribe_elapsed, text.graphemes(true).count());
 
                 // Voice Rule Mode
                 if state.voice_rule_mode.compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
@@ -181,16 +183,16 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 let raw_text = text.clone();
                 let audio_duration_secs = samples_16k.len() as f64 / 16000.0;
 
-                let char_count = text.chars().count();
+                let grapheme_count = text.graphemes(true).count();
                 let stt_secs = transcribe_elapsed.as_secs_f64();
                 let chars_per_sec = if stt_secs > 0.0 {
-                    char_count as f64 / stt_secs
+                    grapheme_count as f64 / stt_secs
                 } else {
                     0.0
                 };
                 println!(
-                    "[Sumi] [stats] STT output: {} chars in {:.2}s = {:.1} chars/sec",
-                    char_count, stt_secs, chars_per_sec
+                    "[Sumi] [stats] STT output: {} graphemes in {:.2}s = {:.1} graphemes/sec",
+                    grapheme_count, stt_secs, chars_per_sec
                 );
 
                 // AI Polishing
@@ -237,7 +239,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                             &state.http_client,
                         );
                         let p_elapsed = polish_start.elapsed().as_millis() as u64;
-                        println!("[Sumi] [timing] polish ({}): {:.0?} | len: {} chars", mode_label, polish_start.elapsed(), result.text.len());
+                        println!("[Sumi] [timing] polish ({}): {:.0?} | len: {} graphemes", mode_label, polish_start.elapsed(), result.text.graphemes(true).count());
                         (result.text, result.reasoning, Some(p_elapsed))
                     } else {
                         println!("[Sumi] Polish enabled but not ready (model missing or no API key), skipping");
@@ -349,6 +351,15 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         let _ = main_win.emit("voice-rule-transcript", "");
                     }
                 }
+                // Release immediately and hide overlay — nothing to display
+                state.is_processing.store(false, Ordering::SeqCst);
+                let app_for_hide = app_handle.clone();
+                let _ = app_handle.run_on_main_thread(move || {
+                    if let Some(overlay) = app_for_hide.get_webview_window("overlay") {
+                        platform::hide_overlay(&overlay);
+                    }
+                });
+                return;
             }
             Err(e) => {
                 eprintln!("[Sumi] Transcription error: {} (after {:.0?})", e, pipeline_start.elapsed());
@@ -456,7 +467,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
             stt_config.vad_enabled,
         ) {
             Ok((instruction, _samples)) => {
-                println!("[Sumi] Edit instruction received: {} chars", instruction.len());
+                println!("[Sumi] Edit instruction received: {} graphemes", instruction.graphemes(true).count());
 
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "polishing");
@@ -495,8 +506,8 @@ fn stop_edit_and_replace(app: &AppHandle) {
                 ) {
                     Ok(edited_text) => {
                         println!(
-                            "[Sumi] Edit result: {} chars (took {:.0?})",
-                            edited_text.len(),
+                            "[Sumi] Edit result: {} graphemes (took {:.0?})",
+                            edited_text.graphemes(true).count(),
                             pipeline_start.elapsed()
                         );
 
@@ -888,7 +899,7 @@ pub fn run() {
                                             *et = Some(text.clone());
                                         }
                                         state.edit_mode.store(true, Ordering::SeqCst);
-                                        println!("[Sumi] ✏️ Edit-by-voice (override): captured {} chars", text.len());
+                                        println!("[Sumi] ✏️ Edit-by-voice (override): captured {} graphemes", text.graphemes(true).count());
                                     } else {
                                         let original_clipboard = arboard::Clipboard::new()
                                             .ok()
@@ -921,7 +932,7 @@ pub fn run() {
                                             *et = Some(selected.clone());
                                         }
                                         state.edit_mode.store(true, Ordering::SeqCst);
-                                        println!("[Sumi] ✏️ Edit-by-voice: captured {} chars", selected.len());
+                                        println!("[Sumi] ✏️ Edit-by-voice: captured {} graphemes", selected.graphemes(true).count());
                                     }
                                 }
 

@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "ಪ್ರತಿಲೇಖಿತ...",
   "promptRules.voiceGenerating": "ನಿಯಮ ಸೃಷ್ಟಿಸುತ್ತಿದೆ...",
   "promptRules.voiceEmpty": "ಯಾವುದೇ ಭಾಷಣ ಕಂಡುಬಂದಿಲ್ಲ. ಪುನಿಸ ಪ್ರಯತ್ನ ಮಾಡಿ!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "ಮೂಲ ಪ್ರಾಂಪ್ಟ್",
   "promptRules.basePromptDesc": "ಸಾರ್ವತ್ರಿಕ STT ಪ್ರಕ್ರಿಯಾಕರಣ ನಿಯಮಗಳು, ಎಲ್ಲಾ ಪ್ರತಿಲೇಖನಗಳಿಗೆ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಅನ್ವಯಿಸಲಾಗುತ್ತದೆ",
   "promptRules.changeIcon": "ಐಕಾನ್",

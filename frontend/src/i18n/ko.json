@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "전사 중…",
   "promptRules.voiceGenerating": "규칙 생성 중…",
   "promptRules.voiceEmpty": "음성이 감지되지 않았습니다. 다시 시도하세요!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "기본 프롬프트",
   "promptRules.basePromptDesc": "모든 전사에 자동으로 적용되는 범용 STT 처리 규칙",
   "promptRules.changeIcon": "아이콘",

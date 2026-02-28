@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Transkrypcja…",
   "promptRules.voiceGenerating": "Generowanie reguły…",
   "promptRules.voiceEmpty": "Nie wykryto mowy. Spróbuj ponownie!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Główne polecenie",
   "promptRules.basePromptDesc": "Uniwersalne reguły przetwarzania STT, automatycznie stosowane do wszystkich transkrypcji",
   "promptRules.changeIcon": "Ikona",

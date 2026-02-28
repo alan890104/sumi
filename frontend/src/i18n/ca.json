@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Transcrivint…",
   "promptRules.voiceGenerating": "Generant regla…",
   "promptRules.voiceEmpty": "No s'ha detectat veu. Prova de nou!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Prompt Base",
   "promptRules.basePromptDesc": "Regles de processament STT universals, aplicades automàticament a totes les transcripcions",
   "promptRules.changeIcon": "Icona",

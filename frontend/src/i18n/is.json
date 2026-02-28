@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Umbreyting...",
   "promptRules.voiceGenerating": "Reglur myndar...",
   "promptRules.voiceEmpty": "Engin tala greind. Reyndu aftur!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Grunnboð",
   "promptRules.basePromptDesc": "Alhliða STT vinnslustemming, sjálfkrafa beitt fyrir alla transcriptions",
   "promptRules.changeIcon": "Tákn",

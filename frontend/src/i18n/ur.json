@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "ٹرانسکرب ہو رہا ہے…",
   "promptRules.voiceGenerating": "اصول تیار ہو رہا ہے…",
   "promptRules.voiceEmpty": "کوئی تقریر نہیں ملی۔ دوبارہ کوشش کریں!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "بنیادی اشارہ",
   "promptRules.basePromptDesc": "عام STT پروسیسنگ اصول، تمام ٹرانسکرپٹس میں خودکار طور پر لاگو ہوتے ہیں",
   "promptRules.changeIcon": "آئیکن",

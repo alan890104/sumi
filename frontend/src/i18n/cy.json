@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Yn trawsnewid…",
   "promptRules.voiceGenerating": "Yn cynhyrchu rheol…",
   "promptRules.voiceEmpty": "Heb ganfod lleferydd. Ceisiwch eto!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Hybina Sylfaenol",
   "promptRules.basePromptDesc": "Rheolau prosesu STT cyffredinol, wedi'u cymhwyso'n awtomatig i holl drawsnewidad",
   "promptRules.changeIcon": "Eicon",

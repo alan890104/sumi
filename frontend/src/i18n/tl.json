@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Isinusulat...",
   "promptRules.voiceGenerating": "Lumilikha ng patakaran...",
   "promptRules.voiceEmpty": "Walang tunog na natuklasan. Subukan muli!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Base Prompt",
   "promptRules.basePromptDesc": "Mga universal na patakaran sa pagproseso ng STT, awtomatikong inilapat sa lahat ng pagsusulat",
   "promptRules.changeIcon": "Icon",

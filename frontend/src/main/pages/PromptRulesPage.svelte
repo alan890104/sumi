@@ -8,9 +8,17 @@
     savePolish,
     getPolishConfig,
   } from '$lib/stores/settings.svelte';
+  import { setCurrentPage, setHighlightSection } from '$lib/stores/ui.svelte';
   import { getDefaultPrompt, getDefaultPromptRules } from '$lib/api';
   import RuleGridCard from '../components/RuleGridCard.svelte';
   import RuleEditorModal from '../components/RuleEditorModal.svelte';
+
+  const polishEnabled = $derived(getPolishConfig().enabled);
+
+  function goToPolishSettings() {
+    setHighlightSection('polish');
+    setCurrentPage('settings');
+  }
 
   let basePrompt = $state('');
   let editorVisible = $state(false);
@@ -110,45 +118,57 @@
 </script>
 
 <div class="page">
-  <h1 class="page-title">{t('promptRules.title')}</h1>
-  <div class="prompt-rules-desc">{t('promptRules.desc')}</div>
-
-  <!-- Base Prompt Card -->
-  {#if basePrompt}
-    <div class="default-prompt-card">
-      <div class="prompt-rule-top">
-        <span class="prompt-rule-name">
-          <span class="default-prompt-badge">{t('promptRules.basePrompt')}</span>
-        </span>
-      </div>
-      <div class="default-prompt-desc">{t('promptRules.basePromptDesc')}</div>
-      <div class="prompt-rule-prompt">{basePrompt}</div>
+  {#if !polishEnabled}
+    <div class="polish-disabled-banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span class="polish-disabled-text">{t('promptRules.polishDisabled')}</span>
+      <button class="polish-disabled-btn" onclick={goToPolishSettings}>{t('promptRules.enablePolish')}</button>
     </div>
   {/if}
 
-  <!-- Rule Grid -->
-  <div class="prompt-rules-grid">
-    {#if sortedRules.length === 0}
-      <div class="prompt-rules-empty">{t('settings.polish.noRules')}</div>
-    {:else}
-      {#each sortedRules as { rule, origIndex } (origIndex)}
-        <RuleGridCard
-          {rule}
-          index={origIndex}
-          onEdit={() => openEditor(origIndex)}
-          onDelete={() => handleDelete(origIndex)}
-          onToggle={() => handleToggle(origIndex)}
-        />
-      {/each}
+  <div class:page-disabled={!polishEnabled}>
+    <h1 class="page-title">{t('promptRules.title')}</h1>
+    <div class="prompt-rules-desc">{t('promptRules.desc')}</div>
+
+    <!-- Base Prompt Card -->
+    {#if basePrompt}
+      <div class="default-prompt-card">
+        <div class="prompt-rule-top">
+          <span class="prompt-rule-name">
+            <span class="default-prompt-badge">{t('promptRules.basePrompt')}</span>
+          </span>
+        </div>
+        <div class="default-prompt-desc">{t('promptRules.basePromptDesc')}</div>
+        <div class="prompt-rule-prompt">{basePrompt}</div>
+      </div>
     {/if}
-    <!-- Add rule tile -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="grid-tile-add" onclick={() => openEditor(-1)}>
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
-      <span>{t('settings.polish.addRule')}</span>
+
+    <!-- Rule Grid -->
+    <div class="prompt-rules-grid">
+      {#if sortedRules.length === 0}
+        <div class="prompt-rules-empty">{t('settings.polish.noRules')}</div>
+      {:else}
+        {#each sortedRules as { rule, origIndex } (origIndex)}
+          <RuleGridCard
+            {rule}
+            index={origIndex}
+            onEdit={() => openEditor(origIndex)}
+            onDelete={() => handleDelete(origIndex)}
+            onToggle={() => handleToggle(origIndex)}
+          />
+        {/each}
+      {/if}
+      <!-- Add rule tile -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="grid-tile-add" onclick={() => openEditor(-1)}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        <span>{t('settings.polish.addRule')}</span>
+      </div>
     </div>
   </div>
 </div>
@@ -162,6 +182,53 @@
 />
 
 <style>
+  .polish-disabled-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    border-radius: var(--radius-md);
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    color: var(--text-secondary);
+  }
+
+  .polish-disabled-banner svg {
+    flex-shrink: 0;
+    color: rgb(217, 164, 6);
+  }
+
+  .polish-disabled-text {
+    flex: 1;
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+
+  .polish-disabled-btn {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent-blue);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .polish-disabled-btn:hover {
+    opacity: 0.85;
+  }
+
+  .page-disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
   .page-title {
     font-size: 22px;
     font-weight: 700;

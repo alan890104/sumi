@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Transkrebeerimine...",
   "promptRules.voiceGenerating": "Reegli genereerimine...",
   "promptRules.voiceEmpty": "Kõnet ei tuvastatud. Proovige uuesti!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Põhiviip",
   "promptRules.basePromptDesc": "Universaalse STT töötlemise reeglid, automaatselt rakendatakse kõigile transkrebeerimisel",
   "promptRules.changeIcon": "Ikoon",

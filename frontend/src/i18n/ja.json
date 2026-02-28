@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "文字起こし中...",
   "promptRules.voiceGenerating": "ルール生成中...",
   "promptRules.voiceEmpty": "音声が検出されませんでした。もう一度試してください!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "ベースプロンプト",
   "promptRules.basePromptDesc": "ユニバーサルSTT処理ルール、すべての文字起こしに自動的に適用されます",
   "promptRules.changeIcon": "アイコン",

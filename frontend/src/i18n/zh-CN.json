@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "转录中…",
   "promptRules.voiceGenerating": "生成规则中…",
   "promptRules.voiceEmpty": "未检测到语音。再试一次！",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "基础提示",
   "promptRules.basePromptDesc": "通用STT处理规则，自动应用于所有转录",
   "promptRules.changeIcon": "图标",

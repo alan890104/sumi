@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Транскрибирование…",
   "promptRules.voiceGenerating": "Создание правила…",
   "promptRules.voiceEmpty": "Речь не обнаружена. Попробуйте еще раз!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Основная Подсказка",
   "promptRules.basePromptDesc": "Универсальные правила обработки STT, автоматически применяются ко всем транскрипциям",
   "promptRules.changeIcon": "Иконка",

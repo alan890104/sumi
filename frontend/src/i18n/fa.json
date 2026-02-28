@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "در حال رونویسی…",
   "promptRules.voiceGenerating": "درحال تولید قانون…",
   "promptRules.voiceEmpty": "هیچ صدایی تشخیص داده نشد. دوباره امتحان کنید!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "درخواست پایه",
   "promptRules.basePromptDesc": "قوانین پردازش STT جهانی، خودکار برای تمام رونویسی‌ها اعمال می‌شود",
   "promptRules.changeIcon": "آیکون",

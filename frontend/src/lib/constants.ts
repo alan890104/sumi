@@ -39,10 +39,11 @@ export interface CloudProviderMeta {
 export const CLOUD_PROVIDERS: Record<CloudProvider, CloudProviderMeta> = {
   github_models: {
     models: [
-      { id: 'openai/gpt-4o-mini', name: 'GPT-4o mini' },
+      { id: 'openai/gpt-5-nano', name: 'GPT-5 Nano' },
+      { id: 'openai/gpt-5-mini', name: 'GPT-5 Mini' },
+      { id: 'openai/gpt-4.1-mini', name: 'GPT-4.1 Mini' },
       { id: 'openai/gpt-4o', name: 'GPT-4o' },
-      { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B' },
-      { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1' },
+      { id: 'microsoft/Phi-4', name: 'Phi-4' },
     ],
     apiKeyUrl: 'https://github.com/settings/personal-access-tokens/new',
   },

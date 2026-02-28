@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Đang chuyển đổi…",
   "promptRules.voiceGenerating": "Đang tạo quy tắc…",
   "promptRules.voiceEmpty": "Không phát hiện giọng nói. Hãy thử lại!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Lời nhắc cơ bản",
   "promptRules.basePromptDesc": "Quy tắc xử lý STT phổ quát, được áp dụng tự động cho tất cả các bản chuyển đổi",
   "promptRules.changeIcon": "Biểu tượng",

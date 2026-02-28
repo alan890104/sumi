@@ -118,6 +118,8 @@
   "promptRules.voiceTranscribing": "Litterointi käynnissä...",
   "promptRules.voiceGenerating": "Luodaan sääntöä...",
   "promptRules.voiceEmpty": "Puhetta ei havaittu. Yritä uudelleen!",
+  "promptRules.polishDisabled": "Prompt rules require AI Polishing to be enabled.",
+  "promptRules.enablePolish": "Go to Settings",
   "promptRules.basePrompt": "Peruskehoite",
   "promptRules.basePromptDesc": "Yleismaailmalliset STT-käsittelysäännöt, jotka sovelletaan automaattisesti kaikkiin transkriktioihin",
   "promptRules.changeIcon": "Kuvake",
