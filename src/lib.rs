@@ -58,6 +58,7 @@ pub struct AppState {
     pub edit_text_override: Mutex<Option<String>>,
     pub saved_clipboard: Mutex<Option<String>>,
     pub vad_ctx: Mutex<Option<transcribe::VadContextCache>>,
+    pub downloading: AtomicBool,
 }
 
 /// Restore original clipboard content from saved_clipboard.
@@ -139,13 +140,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
             .ok()
             .and_then(|ctx| ctx.as_ref().map(|c| c.app_name.clone()))
             .unwrap_or_default();
-        let dictionary_terms: Vec<String> = polish_config
-            .dictionary
-            .entries
-            .iter()
-            .filter(|e| e.enabled && !e.term.is_empty())
-            .map(|e| e.term.clone())
-            .collect();
+        let dictionary_terms = polish_config.dictionary.enabled_terms();
 
         match audio::do_stop_recording(
             &state.is_recording,
@@ -445,13 +440,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
             .ok()
             .and_then(|ctx| ctx.as_ref().map(|c| c.app_name.clone()))
             .unwrap_or_default();
-        let edit_dict_terms: Vec<String> = polish_config
-            .dictionary
-            .entries
-            .iter()
-            .filter(|e| e.enabled && !e.term.is_empty())
-            .map(|e| e.term.clone())
-            .collect();
+        let edit_dict_terms = polish_config.dictionary.enabled_terms();
 
         match audio::do_stop_recording(
             &state.is_recording,
@@ -565,6 +554,9 @@ fn stop_edit_and_replace(app: &AppHandle) {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            show_settings_window(app);
+        }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
@@ -665,20 +657,25 @@ pub fn run() {
                 edit_text_override: Mutex::new(None),
                 saved_clipboard: Mutex::new(None),
                 vad_ctx: Mutex::new(None),
+                downloading: AtomicBool::new(false),
             });
 
             // Migration: if old zh-TW model exists but settings use default (LargeV3Turbo)
             // and the LargeV3Turbo model file doesn't exist, switch to LargeV3TurboZhTw
             {
                 let state = app.state::<AppState>();
-                let mut settings_guard = state.settings.lock().unwrap();
-                if settings_guard.stt.whisper_model == whisper_models::WhisperModel::LargeV3Turbo {
+                let current_model = state.settings.lock()
+                    .map(|s| s.stt.whisper_model.clone())
+                    .unwrap_or_default();
+                if current_model == whisper_models::WhisperModel::LargeV3Turbo {
                     let default_path = models_dir().join(whisper_models::WhisperModel::LargeV3Turbo.filename());
                     let legacy_path = models_dir().join("ggml-large-v3-turbo-zh-TW.bin");
                     if !default_path.exists() && legacy_path.exists() {
                         println!("[Sumi] Migrating whisper model setting: LargeV3Turbo → LargeV3TurboZhTw (legacy file exists)");
-                        settings_guard.stt.whisper_model = whisper_models::WhisperModel::LargeV3TurboZhTw;
-                        settings::save_settings_to_disk(&settings_guard);
+                        if let Ok(mut guard) = state.settings.lock() {
+                            guard.stt.whisper_model = whisper_models::WhisperModel::LargeV3TurboZhTw;
+                            settings::save_settings_to_disk(&guard);
+                        }
                     }
                 }
             }
@@ -803,8 +800,13 @@ pub fn run() {
             // Global Shortcut
             #[cfg(desktop)]
             {
+                let fallback_shortcut = if settings::is_debug() {
+                    Shortcut::new(Some(Modifiers::ALT | Modifiers::SUPER), Code::KeyZ)
+                } else {
+                    Shortcut::new(Some(Modifiers::ALT | Modifiers::SUPER), Code::KeyR)
+                };
                 let primary_shortcut = parse_hotkey_string(&hotkey_str)
-                    .unwrap_or(Shortcut::new(Some(Modifiers::ALT | Modifiers::SUPER), Code::KeyR));
+                    .unwrap_or(fallback_shortcut);
                 let edit_shortcut = settings.edit_hotkey.as_deref().and_then(parse_hotkey_string);
                 let edit_shortcut_clone = edit_shortcut;
 
@@ -895,11 +897,12 @@ pub fn run() {
                                             println!("[Sumi] Edit-by-voice: override text is empty, aborting");
                                             return;
                                         }
+                                        let grapheme_count = text.graphemes(true).count();
                                         if let Ok(mut et) = state.edit_selected_text.lock() {
-                                            *et = Some(text.clone());
+                                            *et = Some(text);
                                         }
                                         state.edit_mode.store(true, Ordering::SeqCst);
-                                        println!("[Sumi] ✏️ Edit-by-voice (override): captured {} graphemes", text.graphemes(true).count());
+                                        println!("[Sumi] ✏️ Edit-by-voice (override): captured {} graphemes", grapheme_count);
                                     } else {
                                         let original_clipboard = arboard::Clipboard::new()
                                             .ok()
@@ -928,11 +931,12 @@ pub fn run() {
                                             return;
                                         }
 
+                                        let grapheme_count = selected.graphemes(true).count();
                                         if let Ok(mut et) = state.edit_selected_text.lock() {
-                                            *et = Some(selected.clone());
+                                            *et = Some(selected);
                                         }
                                         state.edit_mode.store(true, Ordering::SeqCst);
-                                        println!("[Sumi] ✏️ Edit-by-voice: captured {} graphemes", selected.graphemes(true).count());
+                                        println!("[Sumi] ✏️ Edit-by-voice: captured {} graphemes", grapheme_count);
                                     }
                                 }
 

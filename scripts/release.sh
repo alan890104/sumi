@@ -100,6 +100,12 @@ if ! command -v gh &> /dev/null; then
   exit 1
 fi
 
+# ── macOS code signing ──
+# Required for TCC (microphone/accessibility) to persist across updates.
+# This is just the certificate name, not a secret. The private key stays in Keychain.
+# Override with: APPLE_SIGNING_IDENTITY="Developer ID Application: ..." ./scripts/release.sh
+export APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-Sumi Code Signing}"
+
 # ── Build both architectures ──
 export MACOSX_DEPLOYMENT_TARGET="11.0"
 export CMAKE_OSX_DEPLOYMENT_TARGET="11.0"
@@ -109,6 +115,16 @@ ARTIFACTS=()
 for target in "${TARGETS[@]}"; do
   echo "==> Building for ${target}..."
   cargo tauri build --target "$target"
+
+  # Code sign the .app bundle if identity is set
+  if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+    APP_PATH="target/${target}/release/bundle/macos/Sumi.app"
+    echo "==> Code signing ${APP_PATH}..."
+    codesign --force --deep --options runtime \
+      --sign "${APPLE_SIGNING_IDENTITY}" \
+      "${APP_PATH}"
+    echo "==> Signed successfully"
+  fi
 
   BUNDLE_DIR="target/${target}/release/bundle/macos"
 

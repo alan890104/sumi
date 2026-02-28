@@ -87,7 +87,12 @@ pub fn update_hotkey(
 
     let label = hotkey_display_label(&new_hotkey);
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(&format!("Sumi – {} to record", label)));
+        let tooltip = if settings::is_debug() {
+            format!("Sumi [Dev] – {} to record", label)
+        } else {
+            format!("Sumi – {} to record", label)
+        };
+        let _ = tray.set_tooltip(Some(&tooltip));
     }
 
     println!(
@@ -182,7 +187,12 @@ pub fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
 
     let label = hotkey_display_label(&default_hotkey);
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(&format!("Sumi – {} to record", label)));
+        let tooltip = if settings::is_debug() {
+            format!("Sumi [Dev] – {} to record", label)
+        } else {
+            format!("Sumi – {} to record", label)
+        };
+        let _ = tray.set_tooltip(Some(&tooltip));
     }
 
     println!("[Sumi] Settings reset to defaults (hotkey: {})", label);
@@ -750,10 +760,18 @@ pub fn download_model(app: AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
+    {
+        let state = app.state::<AppState>();
+        if state.downloading.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+            return Err("A model download is already in progress".to_string());
+        }
+    }
+
     let tmp_path = model_path.with_extension("bin.part");
     let _ = std::fs::remove_file(&tmp_path);
 
     std::thread::spawn(move || {
+        (|| {
         let url = "https://huggingface.co/Alkd/whisper-large-v3-turbo-zh-TW/resolve/main/ggml-model.bin";
         let client = match reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(600))
@@ -868,6 +886,10 @@ pub fn download_model(app: AppHandle) -> Result<(), String> {
             "percent": 100.0
         }));
         println!("[Sumi] Whisper model downloaded: {:?}", model_path);
+        })();
+        if let Some(state) = app.try_state::<AppState>() {
+            state.downloading.store(false, Ordering::SeqCst);
+        }
     });
 
     Ok(())
@@ -917,12 +939,17 @@ pub fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<
         return Ok(());
     }
 
+    if state.downloading.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        return Err("A model download is already in progress".to_string());
+    }
+
     let tmp_path = model_path.with_extension("gguf.part");
     let _ = std::fs::remove_file(&tmp_path);
 
     let url = model.download_url().to_string();
 
     std::thread::spawn(move || {
+        (|| {
         let client = match reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(1800))
             .build()
@@ -1033,6 +1060,10 @@ pub fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<
             "percent": 100.0
         }));
         println!("[Sumi] LLM model downloaded: {:?}", model_path);
+        })();
+        if let Some(state) = app.try_state::<AppState>() {
+            state.downloading.store(false, Ordering::SeqCst);
+        }
     });
 
     Ok(())
@@ -1089,12 +1120,20 @@ pub fn download_polish_model(app: AppHandle, model: polisher::PolishModel) -> Re
         return Ok(());
     }
 
+    {
+        let state = app.state::<AppState>();
+        if state.downloading.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+            return Err("A model download is already in progress".to_string());
+        }
+    }
+
     let tmp_path = model_path.with_extension("gguf.part");
     let _ = std::fs::remove_file(&tmp_path);
 
     let url = model.download_url().to_string();
 
     std::thread::spawn(move || {
+        (|| {
         let client = match reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(1800))
             .build()
@@ -1205,6 +1244,10 @@ pub fn download_polish_model(app: AppHandle, model: polisher::PolishModel) -> Re
             "percent": 100.0
         }));
         println!("[Sumi] Polish model downloaded: {:?}", model_path);
+        })();
+        if let Some(state) = app.try_state::<AppState>() {
+            state.downloading.store(false, Ordering::SeqCst);
+        }
     });
 
     Ok(())
@@ -1283,6 +1326,13 @@ pub fn download_whisper_model(app: AppHandle, model: WhisperModel) -> Result<(),
         return Ok(());
     }
 
+    {
+        let state = app.state::<AppState>();
+        if state.downloading.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+            return Err("A model download is already in progress".to_string());
+        }
+    }
+
     let tmp_path = model_path.with_extension("bin.part");
     let _ = std::fs::remove_file(&tmp_path);
 
@@ -1291,6 +1341,7 @@ pub fn download_whisper_model(app: AppHandle, model: WhisperModel) -> Result<(),
     let _ = needs_rename; // used implicitly — rename always happens via tmp_path → model_path
 
     std::thread::spawn(move || {
+        (|| {
         let client = match reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(1800))
             .build()
@@ -1432,6 +1483,10 @@ pub fn download_whisper_model(app: AppHandle, model: WhisperModel) -> Result<(),
             }),
         );
         println!("[Sumi] Whisper model downloaded: {:?}", model_path);
+        })();
+        if let Some(state) = app.try_state::<AppState>() {
+            state.downloading.store(false, Ordering::SeqCst);
+        }
     });
 
     Ok(())

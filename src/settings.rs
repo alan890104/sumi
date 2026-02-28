@@ -28,14 +28,19 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
+        let (hotkey, edit_hotkey) = if is_debug() {
+            ("Alt+Super+KeyZ".to_string(), Some("Control+Alt+Super+KeyZ".to_string()))
+        } else {
+            ("Alt+KeyZ".to_string(), Some("Control+Alt+KeyZ".to_string()))
+        };
         Self {
-            hotkey: "Alt+KeyZ".to_string(),
+            hotkey,
             auto_paste: true,
             polish: polisher::PolishConfig::default(),
             history_retention_days: 0,
             language: None,
             stt: SttConfig::default(),
-            edit_hotkey: Some("Control+Alt+KeyZ".to_string()),
+            edit_hotkey,
             onboarding_completed: false,
         }
     }
