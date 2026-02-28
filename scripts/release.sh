@@ -100,11 +100,20 @@ if ! command -v gh &> /dev/null; then
   exit 1
 fi
 
-# ── macOS code signing ──
-# Required for TCC (microphone/accessibility) to persist across updates.
-# This is just the certificate name, not a secret. The private key stays in Keychain.
-# Override with: APPLE_SIGNING_IDENTITY="Developer ID Application: ..." ./scripts/release.sh
-export APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-Sumi Code Signing}"
+# ── macOS code signing (local only) ──
+# Signs the .app AFTER build for TCC (microphone/accessibility) persistence on
+# the developer's own machine. This does NOT affect the DMG or .app.tar.gz
+# distributed to users — those remain ad-hoc signed so users can bypass
+# Gatekeeper with: xattr -cr /Applications/Sumi.app
+#
+# IMPORTANT: Do NOT export APPLE_SIGNING_IDENTITY before `cargo tauri build`.
+# Tauri's bundler reads this env var and would sign the .app during build,
+# embedding the self-signed cert into the DMG. Other users' macOS would then
+# reject the DMG as "damaged" (untrusted signature is worse than no signature).
+#
+# For proper distribution signing, use an Apple Developer ID certificate:
+#   APPLE_SIGNING_IDENTITY="Developer ID Application: ..." ./scripts/release.sh
+SUMI_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-Sumi Code Signing}"
 
 # ── Build both architectures ──
 export MACOSX_DEPLOYMENT_TARGET="11.0"
@@ -116,12 +125,13 @@ for target in "${TARGETS[@]}"; do
   echo "==> Building for ${target}..."
   cargo tauri build --target "$target"
 
-  # Code sign the .app bundle if identity is set
-  if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+  # Code sign the LOCAL .app bundle (does not affect DMG or .app.tar.gz)
+  # This is only useful on the developer's machine for TCC persistence.
+  if [ -n "${SUMI_SIGNING_IDENTITY:-}" ]; then
     APP_PATH="target/${target}/release/bundle/macos/Sumi.app"
-    echo "==> Code signing ${APP_PATH}..."
+    echo "==> Code signing ${APP_PATH} (local only, not in DMG)..."
     codesign --force --deep --options runtime \
-      --sign "${APPLE_SIGNING_IDENTITY}" \
+      --sign "${SUMI_SIGNING_IDENTITY}" \
       "${APP_PATH}"
     echo "==> Signed successfully"
   fi
