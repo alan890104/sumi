@@ -808,7 +808,6 @@ pub fn run() {
                 let primary_shortcut = parse_hotkey_string(&hotkey_str)
                     .unwrap_or(fallback_shortcut);
                 let edit_shortcut = settings.edit_hotkey.as_deref().and_then(parse_hotkey_string);
-                let edit_shortcut_clone = edit_shortcut;
 
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
@@ -819,7 +818,9 @@ pub fn run() {
 
                             let state = app.state::<AppState>();
 
-                            let is_edit_hotkey = edit_shortcut_clone
+                            let is_edit_hotkey = state.settings.lock()
+                                .ok()
+                                .and_then(|s| s.edit_hotkey.as_deref().and_then(parse_hotkey_string))
                                 .is_some_and(|es| *shortcut == es);
 
                             if state.test_mode.load(Ordering::SeqCst) {
