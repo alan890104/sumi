@@ -79,10 +79,10 @@ pub fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }
 
+/// Load settings from disk. Pure file I/O — no locale detection.
 pub fn load_settings() -> Settings {
     let path = settings_path();
-    let is_new_install = !path.exists();
-    let mut settings = if !is_new_install {
+    let mut settings = if path.exists() {
         match std::fs::read_to_string(&path) {
             Ok(contents) => match serde_json::from_str(&contents) {
                 Ok(s) => s,
@@ -97,50 +97,47 @@ pub fn load_settings() -> Settings {
         Settings::default()
     };
     settings.stt.migrate_language();
+    settings
+}
 
-    // Resolve "auto" STT language to system locale (covers new installs AND
-    // edge cases where the file existed but language was never properly set).
-    // Also initialise polish cloud model_id for new installs from the same locale.
-    if is_new_install || settings.stt.language == "auto" || settings.stt.language.is_empty() {
-        if let Some(locale) = crate::whisper_models::detect_system_language() {
-            if is_new_install {
-                settings.polish.cloud.model_id =
-                    polisher::CloudConfig::default_model_id_for_locale(&locale).to_string();
-            }
+/// Fill in any missing locale-dependent fields (UI language, STT language,
+/// polish model_id) by detecting the system locale.  Call this once, AFTER
+/// the AppKit / Cocoa runtime is initialised so that the NSLocale FFI works.
+pub fn apply_locale_defaults(settings: &mut Settings) {
+    let mut changed = false;
+    let is_new_install = settings.stt.language == "auto" || settings.stt.language.is_empty();
+
+    if let Some(locale) = crate::whisper_models::detect_system_language() {
+        // STT language
+        if is_new_install {
             let lang = crate::stt::locale_to_stt_language(&locale);
             if lang != "auto" {
                 settings.stt.language = lang.clone();
                 settings.stt.cloud.language = lang;
+                changed = true;
             }
         }
-    }
 
-    // Initialise UI language from system locale when not explicitly set.
-    // Covers new installs AND upgrades from older versions that never populated
-    // settings.language.  Without this the frontend falls back to
-    // navigator.language in WKWebView, which returns "en" when the app bundle
-    // lacks localisation resources (no .lproj directories).
-    if settings.language.is_none() {
-        if let Some(locale) = crate::whisper_models::detect_system_language() {
+        // Polish cloud model_id for new installs
+        if settings.polish.cloud.model_id.is_empty() {
+            settings.polish.cloud.model_id =
+                polisher::CloudConfig::default_model_id_for_locale(&locale).to_string();
+            changed = true;
+        }
+
+        // UI language
+        if settings.language.is_none() {
             let lang = crate::stt::locale_to_stt_language(&locale);
             if lang != "auto" {
                 settings.language = Some(lang);
+                changed = true;
             }
         }
     }
 
-    // Ensure polish cloud model_id is never empty (e.g. upgraded from older version).
-    if settings.polish.cloud.model_id.is_empty() {
-        let locale = crate::whisper_models::detect_system_language().unwrap_or_default();
-        settings.polish.cloud.model_id =
-            polisher::CloudConfig::default_model_id_for_locale(&locale).to_string();
+    if changed {
+        save_settings_to_disk(settings);
     }
-
-    // Persist any detected/migrated values back to disk so they survive
-    // even if the app exits without a frontend save.
-    save_settings_to_disk(&settings);
-
-    settings
 }
 
 pub fn save_settings_to_disk(settings: &Settings) {

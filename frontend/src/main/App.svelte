@@ -18,6 +18,7 @@
   import TestWizard from './pages/TestWizard.svelte';
 
   let version = $state('');
+  let ready = $state(false);
 
   onMount(async () => {
     // Get app version
@@ -27,10 +28,11 @@
       version = '0.0.0';
     }
 
-    // Load settings & init i18n
+    // Load settings & init i18n BEFORE rendering content
     await settingsStore.load();
     const settings = settingsStore.getSettings();
     await initLocale(settings.language);
+    ready = true;
 
     // Check onboarding
     if (!settingsStore.getOnboardingCompleted()) {
@@ -39,32 +41,34 @@
   });
 </script>
 
-<div class="app">
-  <Sidebar {version} />
-  <div class="content-area">
-    <div class="content-drag"></div>
-    <div class="content-scroll">
-      {#if getCurrentPage() === 'stats'}
-        <StatsPage />
-      {:else if getCurrentPage() === 'settings'}
-        <SettingsPage />
-      {:else if getCurrentPage() === 'promptRules'}
-        <PromptRulesPage />
-      {:else if getCurrentPage() === 'dictionary'}
-        <DictionaryPage />
-      {:else if getCurrentPage() === 'history'}
-        <HistoryPage />
-      {:else if getCurrentPage() === 'about'}
-        <AboutPage />
-      {:else if getCurrentPage() === 'test'}
-        <TestWizard />
-      {/if}
+{#if ready}
+  <div class="app">
+    <Sidebar {version} />
+    <div class="content-area">
+      <div class="content-drag"></div>
+      <div class="content-scroll">
+        {#if getCurrentPage() === 'stats'}
+          <StatsPage />
+        {:else if getCurrentPage() === 'settings'}
+          <SettingsPage />
+        {:else if getCurrentPage() === 'promptRules'}
+          <PromptRulesPage />
+        {:else if getCurrentPage() === 'dictionary'}
+          <DictionaryPage />
+        {:else if getCurrentPage() === 'history'}
+          <HistoryPage />
+        {:else if getCurrentPage() === 'about'}
+          <AboutPage />
+        {:else if getCurrentPage() === 'test'}
+          <TestWizard />
+        {/if}
+      </div>
     </div>
-  </div>
 
-  <SetupOverlay />
-  <ConfirmModal />
-</div>
+    <SetupOverlay />
+    <ConfirmModal />
+  </div>
+{/if}
 
 <style>
   .app {

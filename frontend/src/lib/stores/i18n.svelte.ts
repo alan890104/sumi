@@ -1,4 +1,6 @@
 import en from '../../i18n/en.json';
+import zhTW from '../../i18n/zh-TW.json';
+import zhCN from '../../i18n/zh-CN.json';
 
 const SUPPORTED = [
   'en', 'zh-TW', 'zh-CN',
@@ -17,6 +19,8 @@ type Translations = Record<string, string>;
 
 const locales: Record<string, Translations> = {
   en: en as Translations,
+  'zh-TW': zhTW as Translations,
+  'zh-CN': zhCN as Translations,
 };
 
 let currentLocale = $state(FALLBACK);

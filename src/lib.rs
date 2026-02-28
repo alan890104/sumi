@@ -612,8 +612,11 @@ pub fn run() {
             // Hide Dock icon (macOS) / equivalent
             platform::set_app_accessory_mode();
 
-            // Load settings
-            let settings = load_settings();
+            // Load settings, then apply locale defaults.
+            // Locale detection uses NSLocale FFI which requires the Cocoa
+            // runtime to be initialised — by this point AppKit is loaded.
+            let mut settings = load_settings();
+            settings::apply_locale_defaults(&mut settings);
             let hotkey_str = settings.hotkey.clone();
 
             // Migrate legacy JSON history to SQLite

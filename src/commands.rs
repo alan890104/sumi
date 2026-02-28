@@ -165,21 +165,15 @@ pub fn trigger_undo(app: AppHandle) -> Result<(), String> {
 pub fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-    // Save bare defaults to disk, then re-load so that system language
-    // detection and other initialisations run (just like a fresh launch).
+    // Save bare defaults to disk, then re-load and apply locale defaults.
     settings::save_settings_to_disk(&Settings::default());
-    let fresh = settings::load_settings();
+    let mut fresh = settings::load_settings();
+    settings::apply_locale_defaults(&mut fresh);
     let default_hotkey = fresh.hotkey.clone();
 
     {
         let mut current = state.settings.lock().map_err(|e| e.to_string())?;
         *current = fresh;
-    }
-
-    // Persist the detected values (language, model_id, etc.) back to disk.
-    {
-        let current = state.settings.lock().map_err(|e| e.to_string())?;
-        settings::save_settings_to_disk(&current);
     }
 
     let shortcut = parse_hotkey_string(&default_hotkey)

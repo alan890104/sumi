@@ -227,7 +227,8 @@ pub fn recommend_model(system: &SystemInfo, settings_language: Option<&str>) -> 
 // ── System language detection ─────────────────────────────────────────────────
 
 /// Detect the system language. On macOS, reads NSLocale.currentLocale via
-/// Objective-C FFI (GUI apps don't inherit LANG from the shell).
+/// Objective-C FFI (requires Foundation / Cocoa to be loaded — call only
+/// after the AppKit runtime is initialised, e.g. inside Tauri `.setup()`).
 /// Falls back to LANG/LC_ALL on other platforms.
 pub fn detect_system_language() -> Option<String> {
     #[cfg(target_os = "macos")]
