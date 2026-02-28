@@ -56,8 +56,8 @@ pub fn spawn_audio_thread(
                             Ok(b) => b,
                             Err(_) => return, // S-11: handle poisoned mutex
                         };
-                        // S-08: safety cap — ~125s at 16 kHz mono
-                        if buf.len() > 2_000_000 {
+                        // S-08: safety cap — ~40 MB / 4 bytes = 10M samples
+                        if buf.len() > 10_000_000 {
                             rec.store(false, Ordering::Relaxed);
                             return;
                         }

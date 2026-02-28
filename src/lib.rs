@@ -31,7 +31,7 @@ use hotkey::{hotkey_display_label, parse_hotkey_string};
 use settings::{load_settings, models_dir, history_dir, audio_dir, Settings};
 use stt::{SttConfig, SttMode};
 
-const MAX_RECORDING_SECS: u64 = 30;
+const MAX_RECORDING_SECS: u64 = 120;
 
 // ── App State ───────────────────────────────────────────────────────────────
 
