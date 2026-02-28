@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::polisher::truncate_for_error;
 use crate::whisper_models::WhisperModel;
 
 fn default_true() -> bool {
@@ -367,15 +368,3 @@ pub fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32], client: &r
     }
 }
 
-/// Truncate a string for inclusion in error messages to avoid leaking large response bodies.
-fn truncate_for_error(s: &str, max_len: usize) -> &str {
-    if s.len() <= max_len {
-        s
-    } else {
-        let mut end = max_len;
-        while end > 0 && !s.is_char_boundary(end) {
-            end -= 1;
-        }
-        &s[..end]
-    }
-}

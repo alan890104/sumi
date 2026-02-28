@@ -227,6 +227,25 @@ unsafe fn simulate_cmd_key(virtual_key: u16) -> bool {
     true
 }
 
+/// Convert an NSString pointer to a Rust String.
+pub unsafe fn nsstring_to_string(nsstr: *mut c_void) -> String {
+    if nsstr.is_null() {
+        return String::new();
+    }
+
+    let sel_utf8 = sel_registerName(b"UTF8String\0".as_ptr());
+    let send_cstr: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const i8 =
+        std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+    let cstr_ptr = send_cstr(nsstr, sel_utf8);
+    if cstr_ptr.is_null() {
+        return String::new();
+    }
+    std::ffi::CStr::from_ptr(cstr_ptr)
+        .to_str()
+        .unwrap_or("")
+        .to_string()
+}
+
 /// Simulate Cmd+V (paste).
 pub unsafe fn simulate_cmd_v() -> bool { simulate_cmd_key(9) }
 /// Simulate Cmd+C (copy).

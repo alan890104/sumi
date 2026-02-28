@@ -8,7 +8,7 @@
     savePolish,
     getPolishConfig,
   } from '$lib/stores/settings.svelte';
-  import { setCurrentPage, setHighlightSection } from '$lib/stores/ui.svelte';
+  import { setCurrentPage, setHighlightSection, showConfirm } from '$lib/stores/ui.svelte';
   import { getDefaultPrompt, getDefaultPromptRules } from '$lib/api';
   import RuleGridCard from '../components/RuleGridCard.svelte';
   import RuleEditorModal from '../components/RuleEditorModal.svelte';
@@ -115,6 +115,23 @@
     setCurrentRules(currentRules);
     await savePolish();
   }
+
+  function handleResetToDefaults() {
+    showConfirm(
+      t('promptRules.resetDefaultsTitle'),
+      t('promptRules.resetDefaultsMessage'),
+      t('confirm.reset'),
+      async () => {
+        try {
+          const defaults = await getDefaultPromptRules(getLocale());
+          setCurrentRules(defaults);
+          await savePolish();
+        } catch (e) {
+          console.error('Failed to reset prompt rules:', e);
+        }
+      },
+    );
+  }
 </script>
 
 <div class="page">
@@ -129,7 +146,10 @@
   {/if}
 
   <div class:page-disabled={!polishEnabled}>
-    <h1 class="page-title">{t('promptRules.title')}</h1>
+    <div class="page-header">
+      <h1 class="page-title">{t('promptRules.title')}</h1>
+      <button class="reset-defaults-btn" onclick={handleResetToDefaults}>{t('promptRules.resetDefaults')}</button>
+    </div>
     <div class="prompt-rules-desc">{t('promptRules.desc')}</div>
 
     <!-- Base Prompt Card -->
@@ -229,12 +249,39 @@
     pointer-events: none;
   }
 
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
   .page-title {
     font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.3px;
     color: var(--text-primary);
-    margin-bottom: 28px;
+    margin-bottom: 0;
+  }
+
+  .reset-defaults-btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .reset-defaults-btn:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: rgb(239, 68, 68);
   }
 
   .prompt-rules-desc {

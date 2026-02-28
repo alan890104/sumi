@@ -295,32 +295,8 @@ fn get_frontmost_app_info() -> (String, String) {
     }
 }
 
-/// Convert an NSString pointer to a Rust String.
 #[cfg(target_os = "macos")]
-unsafe fn nsstring_to_string(nsstr: *mut std::ffi::c_void) -> String {
-    use std::ffi::{c_void, CStr};
-
-    if nsstr.is_null() {
-        return String::new();
-    }
-
-    extern "C" {
-        fn sel_registerName(name: *const u8) -> *mut c_void;
-        fn objc_msgSend();
-    }
-
-    let sel_utf8 = sel_registerName(c"UTF8String".as_ptr().cast());
-    let send_cstr: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const i8 =
-        std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-    let cstr_ptr = send_cstr(nsstr, sel_utf8);
-    if cstr_ptr.is_null() {
-        return String::new();
-    }
-    CStr::from_ptr(cstr_ptr)
-        .to_str()
-        .unwrap_or("")
-        .to_string()
-}
+use crate::platform::macos::nsstring_to_string;
 
 /// For known browsers, run an AppleScript to get the current URL.
 /// Returns empty string for non-browser apps or on failure.

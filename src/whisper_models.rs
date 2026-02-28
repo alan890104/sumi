@@ -246,7 +246,7 @@ pub fn detect_system_language() -> Option<String> {
 /// Read [[NSLocale currentLocale] localeIdentifier] via Objective-C FFI.
 #[cfg(target_os = "macos")]
 fn macos_locale_identifier() -> Option<String> {
-    use std::ffi::{c_void, CStr};
+    use std::ffi::c_void;
 
     extern "C" {
         fn objc_getClass(name: *const u8) -> *mut c_void;
@@ -276,16 +276,7 @@ fn macos_locale_identifier() -> Option<String> {
             return None;
         }
 
-        // [nsString UTF8String]
-        let sel_utf8 = sel_registerName(b"UTF8String\0".as_ptr());
-        let send_utf8: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const i8 =
-            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-        let cstr = send_utf8(ns_string, sel_utf8);
-        if cstr.is_null() {
-            return None;
-        }
-
-        let s = CStr::from_ptr(cstr).to_string_lossy().to_lowercase();
+        let s = crate::platform::macos::nsstring_to_string(ns_string).to_lowercase();
         if s.is_empty() { None } else { Some(s) }
     }
 }

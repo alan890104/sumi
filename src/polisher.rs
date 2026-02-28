@@ -281,6 +281,16 @@ impl Default for DictionaryConfig {
     }
 }
 
+impl DictionaryConfig {
+    pub fn enabled_terms(&self) -> Vec<String> {
+        self.entries
+            .iter()
+            .filter(|e| e.enabled && !e.term.is_empty())
+            .map(|e| e.term.clone())
+            .collect()
+    }
+}
+
 // ── Cached model ────────────────────────────────────────────────────────────
 
 pub struct LlmModelCache {
@@ -1195,7 +1205,7 @@ fn sanitize_url_for_log(url: &str) -> String {
 }
 
 /// Truncate a string for inclusion in error messages to avoid leaking large response bodies.
-fn truncate_for_error(s: &str, max_len: usize) -> &str {
+pub fn truncate_for_error(s: &str, max_len: usize) -> &str {
     if s.len() <= max_len {
         s
     } else {
