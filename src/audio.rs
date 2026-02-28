@@ -291,6 +291,12 @@ pub fn do_stop_recording(
     }
 }
 
+/// RMS (root mean square) energy of an audio slice.
+#[inline]
+fn rms(samples: &[f32]) -> f32 {
+    (samples.iter().map(|&s| s * s).sum::<f32>() / samples.len() as f32).sqrt()
+}
+
 /// Strip leading/trailing silence using RMS, and reject near-silent audio.
 fn rms_trim_silence(samples_16k: &mut Vec<f32>) -> Result<(), String> {
     const SILENCE_RMS_THRESHOLD: f32 = 0.01;
@@ -299,10 +305,7 @@ fn rms_trim_silence(samples_16k: &mut Vec<f32>) -> Result<(), String> {
 
     let speech_onset = samples_16k
         .windows(WINDOW)
-        .position(|w| {
-            let rms = (w.iter().map(|&s| s * s).sum::<f32>() / WINDOW as f32).sqrt();
-            rms > SILENCE_RMS_THRESHOLD
-        })
+        .position(|w| rms(w) > SILENCE_RMS_THRESHOLD)
         .unwrap_or(0);
 
     let trim_start = speech_onset.saturating_sub(LOOKBACK);
@@ -319,10 +322,7 @@ fn rms_trim_silence(samples_16k: &mut Vec<f32>) -> Result<(), String> {
         let total = samples_16k.len();
         let last_speech = samples_16k
             .windows(WINDOW)
-            .rposition(|w| {
-                let rms = (w.iter().map(|&s| s * s).sum::<f32>() / WINDOW as f32).sqrt();
-                rms > SILENCE_RMS_THRESHOLD
-            })
+            .rposition(|w| rms(w) > SILENCE_RMS_THRESHOLD)
             .map(|pos| pos + WINDOW)
             .unwrap_or(total);
 
@@ -337,12 +337,12 @@ fn rms_trim_silence(samples_16k: &mut Vec<f32>) -> Result<(), String> {
     }
 
     // Pre-check: if the entire audio is near-silent, skip Whisper entirely
-    let rms = (samples_16k.iter().map(|&s| s * s).sum::<f32>() / samples_16k.len() as f32).sqrt();
-    if rms < 0.005 {
-        println!("[Sumi] Audio RMS {:.5} below threshold — no speech detected", rms);
+    let overall_rms = rms(samples_16k);
+    if overall_rms < 0.005 {
+        println!("[Sumi] Audio RMS {:.5} below threshold — no speech detected", overall_rms);
         return Err("no_speech".to_string());
     }
-    println!("[Sumi] Audio RMS: {:.5}", rms);
+    println!("[Sumi] Audio RMS: {:.5}", overall_rms);
 
     Ok(())
 }
