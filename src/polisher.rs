@@ -990,35 +990,8 @@ fn run_llm_inference(
     // Validate the GGUF file before loading to prevent SIGSEGV on corrupted files
     validate_gguf_file(&model_path, &config.model)?;
 
-    // Ensure model is loaded (lazy init)
-    {
-        let mut cache = llm_cache.lock().map_err(|e| e.to_string())?;
-        let needs_reload = match cache.as_ref() {
-            Some(c) => c.loaded_path != model_path,
-            None => true,
-        };
-        if needs_reload {
-            let load_start = std::time::Instant::now();
-            println!(
-                "[Sumi] Loading LLM: {}",
-                config.model.display_name()
-            );
-
-            let mut backend = LlamaBackend::init().map_err(|e| format!("Backend init: {}", e))?;
-            backend.void_logs();
-
-            let model_params = LlamaModelParams::default().with_n_gpu_layers(99);
-            let model = LlamaModel::load_from_file(&backend, &model_path, &model_params)
-                .map_err(|e| format!("Model load: {}", e))?;
-
-            println!("[Sumi] LLM loaded with GPU offload (took {:.0?})", load_start.elapsed());
-            *cache = Some(LlmModelCache {
-                backend,
-                model,
-                loaded_path: model_path.clone(),
-            });
-        }
-    }
+    // Ensure model is loaded (lazy init / reuse pre-warmed cache)
+    ensure_llm_loaded(llm_cache, &model_path, config.model.display_name())?;
 
     let user_prompt = raw_text.to_string();
 
@@ -1282,6 +1255,53 @@ pub fn invalidate_cache(llm_cache: &Mutex<Option<LlmModelCache>>) {
         *cache = None;
         println!("[Sumi] LLM model cache invalidated");
     }
+}
+
+/// Pre-warm the LLM model cache so the first polish request is instant.
+pub fn warm_llm_cache(
+    llm_cache: &Mutex<Option<LlmModelCache>>,
+    model_dir: &std::path::Path,
+    model: &PolishModel,
+) -> Result<(), String> {
+    let model_path = model_dir.join(model.filename());
+    if !model_path.exists() {
+        return Err(format!("Model file not found: {}", model_path.display()));
+    }
+    validate_gguf_file(&model_path, model)?;
+    ensure_llm_loaded(llm_cache, &model_path, model.display_name())?;
+    Ok(())
+}
+
+/// Shared helper: ensure the LLM is loaded into `llm_cache`, reloading only
+/// when the cached path differs from `model_path` (or the cache is empty).
+fn ensure_llm_loaded(
+    llm_cache: &Mutex<Option<LlmModelCache>>,
+    model_path: &std::path::Path,
+    display_name: &str,
+) -> Result<(), String> {
+    let mut cache = llm_cache.lock().map_err(|e| e.to_string())?;
+    let needs_reload = match cache.as_ref() {
+        Some(c) => c.loaded_path != model_path,
+        None => true,
+    };
+    if needs_reload {
+        let load_start = std::time::Instant::now();
+        println!("[Sumi] Loading LLM: {} ...", display_name);
+
+        let mut backend = LlamaBackend::init().map_err(|e| format!("Backend init: {}", e))?;
+        backend.void_logs();
+        let model_params = LlamaModelParams::default().with_n_gpu_layers(99);
+        let loaded = LlamaModel::load_from_file(&backend, model_path, &model_params)
+            .map_err(|e| format!("Model load: {}", e))?;
+
+        *cache = Some(LlmModelCache {
+            backend,
+            model: loaded,
+            loaded_path: model_path.to_path_buf(),
+        });
+        println!("[Sumi] LLM loaded (took {:.0?})", load_start.elapsed());
+    }
+    Ok(())
 }
 
 /// Extract only the host from a URL for safe logging (strips path, query params, credentials).

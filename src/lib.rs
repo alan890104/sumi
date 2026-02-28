@@ -734,9 +734,20 @@ pub fn run() {
                         }
                     }
 
-                    // NOTE: LLM pre-warming is intentionally skipped at startup.
-                    // The model is loaded lazily on first polish request. This avoids
-                    // a startup crash (SIGSEGV) if the model file is corrupted.
+                    // Pre-warm LLM if polish is local and model exists.
+                    // validate_gguf_file() catches corrupted files before loading,
+                    // mitigating the SIGSEGV concern that previously motivated lazy loading.
+                    let (polish_mode, polish_model) = state.settings.lock()
+                        .map(|s| (s.polish.mode.clone(), s.polish.model.clone()))
+                        .unwrap_or_default();
+                    if polish_mode == polisher::PolishMode::Local {
+                        let model_dir = models_dir();
+                        if model_dir.join(polish_model.filename()).exists() {
+                            if let Err(e) = polisher::warm_llm_cache(&state.llm_model, &model_dir, &polish_model) {
+                                eprintln!("[Sumi] LLM pre-warm failed: {}", e);
+                            }
+                        }
+                    }
 
                     println!("[Sumi] All models pre-warmed ({:.0?} total)", warmup_start.elapsed());
                 });

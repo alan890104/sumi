@@ -98,14 +98,20 @@ pub fn load_settings() -> Settings {
     };
     settings.stt.migrate_language();
 
-    // For new installs, initialise STT language and polish model from the system locale.
-    if is_new_install {
+    // Resolve "auto" STT language to system locale (covers new installs AND
+    // edge cases where the file existed but language was never properly set).
+    // Also initialise polish cloud model_id for new installs from the same locale.
+    if is_new_install || settings.stt.language == "auto" || settings.stt.language.is_empty() {
         if let Some(locale) = crate::whisper_models::detect_system_language() {
+            if is_new_install {
+                settings.polish.cloud.model_id =
+                    polisher::CloudConfig::default_model_id_for_locale(&locale).to_string();
+            }
             let lang = crate::stt::locale_to_stt_language(&locale);
-            settings.stt.language = lang.clone();
-            settings.stt.cloud.language = lang;
-            settings.polish.cloud.model_id =
-                polisher::CloudConfig::default_model_id_for_locale(&locale).to_string();
+            if lang != "auto" {
+                settings.stt.language = lang.clone();
+                settings.stt.cloud.language = lang;
+            }
         }
     }
 

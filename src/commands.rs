@@ -947,6 +947,7 @@ pub fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<
     let _ = std::fs::remove_file(&tmp_path);
 
     let url = model.download_url().to_string();
+    let downloaded_model = model;
 
     std::thread::spawn(move || {
         (|| {
@@ -1050,7 +1051,10 @@ pub fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<
         }
 
         if let Some(app_state) = app.try_state::<AppState>() {
-            polisher::invalidate_cache(&app_state.llm_model);
+            if let Err(e) = polisher::warm_llm_cache(&app_state.llm_model, &settings::models_dir(), &downloaded_model) {
+                eprintln!("[Sumi] Failed to pre-warm LLM after download: {}", e);
+                polisher::invalidate_cache(&app_state.llm_model); // fallback to lazy load
+            }
         }
 
         let _ = app.emit("llm-model-download-progress", serde_json::json!({
@@ -1092,8 +1096,14 @@ pub fn switch_polish_model(state: State<'_, AppState>, model: polisher::PolishMo
         settings::save_settings_to_disk(&settings);
     }
 
-    // Invalidate LLM model cache so it reloads next time
+    // Invalidate and pre-warm the new model if it's already downloaded
     polisher::invalidate_cache(&state.llm_model);
+    let model_dir = settings::models_dir();
+    if model_dir.join(model.filename()).exists() {
+        if let Err(e) = polisher::warm_llm_cache(&state.llm_model, &model_dir, &model) {
+            eprintln!("[Sumi] Failed to pre-warm LLM: {}", e);
+        }
+    }
     println!(
         "[Sumi] Polish model switched to {}",
         model.display_name()
@@ -1276,12 +1286,18 @@ pub fn get_system_info() -> SystemInfo {
 #[tauri::command]
 pub fn get_whisper_model_recommendation(state: State<'_, AppState>) -> WhisperModel {
     let system = whisper_models::detect_system_info();
+    // When stt.language is "auto", resolve to proper BCP-47 code via system locale
     let stt_language = state
         .settings
         .lock()
         .ok()
         .map(|s| s.stt.language.clone())
-        .filter(|l| !l.is_empty() && l != "auto");
+        .filter(|l| !l.is_empty() && l != "auto")
+        .or_else(|| {
+            whisper_models::detect_system_language()
+                .map(|locale| crate::stt::locale_to_stt_language(&locale))
+                .filter(|l| l != "auto")
+        });
     whisper_models::recommend_model(&system, stt_language.as_deref())
 }
 

@@ -193,7 +193,8 @@ pub fn recommend_model(system: &SystemInfo, settings_language: Option<&str>) -> 
         .or_else(|| detect_system_language())
         .unwrap_or_default();
 
-    let prefers_zh_tw = lang.starts_with("zh-tw") || lang.starts_with("zh_tw") || lang.starts_with("zh-hant");
+    let prefers_zh_tw = lang.starts_with("zh-tw") || lang.starts_with("zh_tw")
+        || lang.starts_with("zh-hant") || lang.starts_with("zh_hant");
     let prefers_zh = lang.starts_with("zh") || lang == "chinese";
 
     let ram_gb = system.total_ram_bytes as f64 / 1_073_741_824.0;
