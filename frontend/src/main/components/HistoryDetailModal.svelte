@@ -1,7 +1,8 @@
 <script lang="ts">
   import { t } from '$lib/stores/i18n.svelte';
   import { showConfirm } from '$lib/stores/ui.svelte';
-  import { exportHistoryAudio, deleteHistoryEntry, getAppIcon } from '$lib/api';
+  import { exportHistoryAudio, deleteHistoryEntry } from '$lib/api';
+  import { iconUri } from '$lib/stores/iconCache.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import type { HistoryEntry } from '$lib/types';
 
@@ -19,16 +20,7 @@
 
   let exporting = $state(false);
   let exportDone = $state(false);
-  let appIconUri = $state<string | null>(null);
-
-  $effect(() => {
-    appIconUri = null;
-    if (entry?.bundle_id) {
-      getAppIcon(entry.bundle_id)
-        .then((uri) => { appIconUri = uri; })
-        .catch(() => {});
-    }
-  });
+  let appIconUri = $derived(entry?.bundle_id ? iconUri(entry.bundle_id) : undefined);
 
   let formattedTime = $derived.by(() => {
     if (!entry) return '';

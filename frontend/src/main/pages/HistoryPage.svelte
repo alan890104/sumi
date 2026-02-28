@@ -9,8 +9,8 @@
     clearAllHistory,
     exportHistoryAudio,
     deleteHistoryEntry,
-    getAppIcon,
   } from '$lib/api';
+  import { iconUri, resolveIcons } from '$lib/stores/iconCache.svelte';
   import { RETENTION_OPTIONS } from '$lib/constants';
   import Select from '$lib/components/Select.svelte';
   import HistoryDetailModal from '../components/HistoryDetailModal.svelte';
@@ -26,34 +26,6 @@
   // Detail modal
   let detailVisible = $state(false);
   let detailEntry = $state<HistoryEntry | null>(null);
-
-  // App icon cache: bundle_id → data URI
-  let iconCache = $state<Record<string, string>>({});
-
-  async function resolveIcons(items: HistoryEntry[]) {
-    const bundleIds = [...new Set(items.map((e) => e.bundle_id).filter(Boolean))];
-    const missing = bundleIds.filter((bid) => !iconCache[bid]);
-    if (missing.length === 0) return;
-
-    const results = await Promise.allSettled(
-      missing.map(async (bid) => {
-        const uri = await getAppIcon(bid);
-        return { bid, uri };
-      })
-    );
-
-    const newCache = { ...iconCache };
-    let updated = false;
-    for (const r of results) {
-      if (r.status === 'fulfilled') {
-        newCache[r.value.bid] = r.value.uri;
-        updated = true;
-      }
-    }
-    if (updated) {
-      iconCache = newCache; // single reactive update
-    }
-  }
 
   $effect(() => {
     if (entries.length > 0) {
@@ -357,8 +329,8 @@
               <div class="history-meta">
                 {#if item.app_name}
                   <span class="history-meta-item">
-                    {#if iconCache[item.bundle_id]}
-                      <img class="history-app-icon" src={iconCache[item.bundle_id]} alt="" width="14" height="14" />
+                    {#if iconUri(item.bundle_id)}
+                      <img class="history-app-icon" src={iconUri(item.bundle_id)} alt="" width="14" height="14" />
                     {/if}
                     {item.app_name}
                   </span>
