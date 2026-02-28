@@ -47,6 +47,7 @@ pub fn save_settings(
     current.auto_paste = new_settings.auto_paste;
     current.polish = new_settings.polish;
     current.history_retention_days = new_settings.history_retention_days;
+    current.language = new_settings.language;
     current.stt = new_settings.stt;
     // Keep cloud.language in sync with top-level language
     current.stt.cloud.language = current.stt.language.clone();
@@ -164,15 +165,22 @@ pub fn trigger_undo(app: AppHandle) -> Result<(), String> {
 pub fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-    let defaults = Settings::default();
-    let default_hotkey = defaults.hotkey.clone();
+    // Save bare defaults to disk, then re-load so that system language
+    // detection and other initialisations run (just like a fresh launch).
+    settings::save_settings_to_disk(&Settings::default());
+    let fresh = settings::load_settings();
+    let default_hotkey = fresh.hotkey.clone();
 
     {
         let mut current = state.settings.lock().map_err(|e| e.to_string())?;
-        *current = defaults;
+        *current = fresh;
     }
 
-    settings::save_settings_to_disk(&Settings::default());
+    // Persist the detected values (language, model_id, etc.) back to disk.
+    {
+        let current = state.settings.lock().map_err(|e| e.to_string())?;
+        settings::save_settings_to_disk(&current);
+    }
 
     let shortcut = parse_hotkey_string(&default_hotkey)
         .ok_or_else(|| "Invalid default hotkey string".to_string())?;

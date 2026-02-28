@@ -136,6 +136,10 @@ pub fn load_settings() -> Settings {
             polisher::CloudConfig::default_model_id_for_locale(&locale).to_string();
     }
 
+    // Persist any detected/migrated values back to disk so they survive
+    // even if the app exits without a frontend save.
+    save_settings_to_disk(&settings);
+
     settings
 }
 
