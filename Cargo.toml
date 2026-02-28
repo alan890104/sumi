@@ -30,6 +30,7 @@ base64 = "0.22"
 keyring = { version = "3", features = ["windows-native"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 unicode-segmentation = "1.12.0"
+url = "2"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

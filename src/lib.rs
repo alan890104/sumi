@@ -160,7 +160,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         ) {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
-                println!("[Sumi] [timing] stop→transcribed: {:.0?} | text: {}", transcribe_elapsed, text);
+                println!("[Sumi] [timing] stop→transcribed: {:.0?} | len: {} chars", transcribe_elapsed, text.len());
 
                 // Voice Rule Mode
                 if state.voice_rule_mode.compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
@@ -237,7 +237,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                             &state.http_client,
                         );
                         let p_elapsed = polish_start.elapsed().as_millis() as u64;
-                        println!("[Sumi] [timing] polish ({}): {:.0?} | text: {:?}", mode_label, polish_start.elapsed(), result.text);
+                        println!("[Sumi] [timing] polish ({}): {:.0?} | len: {} chars", mode_label, polish_start.elapsed(), result.text.len());
                         (result.text, result.reasoning, Some(p_elapsed))
                     } else {
                         println!("[Sumi] Polish enabled but not ready (model missing or no API key), skipping");
@@ -456,7 +456,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
             stt_config.vad_enabled,
         ) {
             Ok((instruction, _samples)) => {
-                println!("[Sumi] Edit instruction: {:?}", instruction);
+                println!("[Sumi] Edit instruction received: {} chars", instruction.len());
 
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "polishing");
@@ -495,8 +495,8 @@ fn stop_edit_and_replace(app: &AppHandle) {
                 ) {
                     Ok(edited_text) => {
                         println!(
-                            "[Sumi] Edit result: {:?} (took {:.0?})",
-                            edited_text,
+                            "[Sumi] Edit result: {} chars (took {:.0?})",
+                            edited_text.len(),
                             pipeline_start.elapsed()
                         );
 

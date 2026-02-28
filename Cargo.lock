@@ -4359,6 +4359,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-updater",
  "unicode-segmentation",
+ "url",
  "whisper-rs",
  "windows 0.58.0",
 ]

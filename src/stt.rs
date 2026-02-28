@@ -170,10 +170,14 @@ pub fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32], client: &r
         if stt_cloud.endpoint.is_empty() {
             return Err("Cloud STT endpoint is not configured.".to_string());
         }
+        crate::polisher::validate_custom_endpoint(&stt_cloud.endpoint)?;
         stt_cloud.endpoint.clone()
     } else {
         let default_ep = stt_cloud.provider.default_endpoint();
         if default_ep.is_empty() {
+            if !stt_cloud.endpoint.is_empty() {
+                crate::polisher::validate_custom_endpoint(&stt_cloud.endpoint)?;
+            }
             stt_cloud.endpoint.clone()
         } else {
             default_ep.to_string()
@@ -280,11 +284,15 @@ pub fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32], client: &r
         .map_err(|e| format!("Failed to read Cloud STT response: {}", e))?;
 
     if !status.is_success() {
-        return Err(format!("Cloud STT returned HTTP {}: {}", status, body));
+        let preview = truncate_for_error(&body, 200);
+        return Err(format!("Cloud STT returned HTTP {}: {}", status, preview));
     }
 
     let json: serde_json::Value = serde_json::from_str(&body)
-        .map_err(|e| format!("Failed to parse Cloud STT response: {} — body: {}", e, body))?;
+        .map_err(|e| {
+            let preview = truncate_for_error(&body, 200);
+            format!("Failed to parse Cloud STT response: {} — body: {}", e, preview)
+        })?;
 
     let text = match stt_cloud.provider {
         SttProvider::Deepgram => {
@@ -318,5 +326,18 @@ pub fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32], client: &r
         Err("no_speech".to_string())
     } else {
         Ok(text)
+    }
+}
+
+/// Truncate a string for inclusion in error messages to avoid leaking large response bodies.
+fn truncate_for_error(s: &str, max_len: usize) -> &str {
+    if s.len() <= max_len {
+        s
+    } else {
+        let mut end = max_len;
+        while end > 0 && !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        &s[..end]
     }
 }

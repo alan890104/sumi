@@ -796,6 +796,7 @@ fn run_cloud_inference(
     let endpoint = if cloud.endpoint.is_empty() {
         cloud.provider.default_endpoint().to_string()
     } else {
+        validate_custom_endpoint(&cloud.endpoint)?;
         cloud.endpoint.clone()
     };
 
@@ -819,7 +820,7 @@ fn run_cloud_inference(
         "max_tokens": 512
     });
 
-    println!("[Sumi] Cloud polish: {} via {}", model_id, endpoint);
+    println!("[Sumi] Cloud polish: {} via {}", model_id, sanitize_url_for_log(&endpoint));
     let start = std::time::Instant::now();
 
     let body_str = serde_json::to_string(&body).map_err(|e| format!("Serialize body: {}", e))?;
@@ -836,7 +837,8 @@ fn run_cloud_inference(
     let resp_text = resp.text().map_err(|e| format!("Read response: {}", e))?;
 
     if !status.is_success() {
-        return Err(format!("Cloud API returned HTTP {}: {}", status, resp_text));
+        let preview = truncate_for_error(&resp_text, 200);
+        return Err(format!("Cloud API returned HTTP {}: {}", status, preview));
     }
 
     let json: serde_json::Value =
@@ -844,12 +846,15 @@ fn run_cloud_inference(
 
     let content = json["choices"][0]["message"]["content"]
         .as_str()
-        .ok_or_else(|| format!("Unexpected response format: {}", resp_text))?;
+        .ok_or_else(|| {
+            let preview = truncate_for_error(&resp_text, 200);
+            format!("Unexpected response format: {}", preview)
+        })?;
 
     println!(
-        "[Sumi] Cloud polish done: {:.0?}, raw content: {:?}",
+        "[Sumi] Cloud polish done: {:.0?}, {} chars",
         start.elapsed(),
-        content
+        content.len()
     );
 
     Ok(content.trim().to_string())
@@ -1167,4 +1172,89 @@ pub fn invalidate_cache(llm_cache: &Mutex<Option<LlmModelCache>>) {
         *cache = None;
         println!("[Sumi] LLM model cache invalidated");
     }
+}
+
+/// Extract only the host from a URL for safe logging (strips path, query params, credentials).
+fn sanitize_url_for_log(url: &str) -> String {
+    match url::Url::parse(url) {
+        Ok(parsed) => {
+            let host = parsed.host_str().unwrap_or("unknown");
+            let port = parsed.port().map(|p| format!(":{}", p)).unwrap_or_default();
+            format!("{}://{}{}", parsed.scheme(), host, port)
+        }
+        Err(_) => "invalid-url".to_string(),
+    }
+}
+
+/// Truncate a string for inclusion in error messages to avoid leaking large response bodies.
+fn truncate_for_error(s: &str, max_len: usize) -> &str {
+    if s.len() <= max_len {
+        s
+    } else {
+        // Find a valid UTF-8 boundary
+        let mut end = max_len;
+        while end > 0 && !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        &s[..end]
+    }
+}
+
+/// Validate a custom cloud endpoint URL.
+/// Allows localhost/private IPs (needed for local model servers like Ollama, LM Studio)
+/// but blocks known dangerous targets (cloud metadata endpoints) and requires http(s).
+pub fn validate_custom_endpoint(url_str: &str) -> Result<(), String> {
+    if url_str.is_empty() {
+        return Err("Endpoint URL is empty".to_string());
+    }
+
+    let parsed = url::Url::parse(url_str)
+        .map_err(|e| format!("Invalid endpoint URL: {}", e))?;
+
+    // Only allow HTTP and HTTPS schemes (block file://, ftp://, etc.)
+    if parsed.scheme() != "https" && parsed.scheme() != "http" {
+        return Err(format!(
+            "Endpoint must use HTTP or HTTPS (got \"{}://\")",
+            parsed.scheme()
+        ));
+    }
+
+    let host = parsed.host_str().unwrap_or("");
+    if host.is_empty() {
+        return Err("Endpoint URL has no host".to_string());
+    }
+
+    // Block cloud metadata endpoints (AWS/GCP/Azure instance metadata)
+    if let Ok(ip) = host.parse::<std::net::Ipv4Addr>() {
+        // 169.254.169.254 — AWS/GCP/Azure instance metadata service
+        if ip == std::net::Ipv4Addr::new(169, 254, 169, 254) {
+            return Err("Endpoint must not target a cloud metadata address".to_string());
+        }
+    }
+    // GCP metadata hostname
+    if host == "metadata.google.internal" {
+        return Err("Endpoint must not target a cloud metadata address".to_string());
+    }
+
+    // Reject credentials embedded in URL (e.g. https://user:pass@host/)
+    if parsed.username() != "" || parsed.password().is_some() {
+        return Err("Endpoint URL must not contain embedded credentials".to_string());
+    }
+
+    // Warn via log (not block) if using plain HTTP to a non-local host
+    if parsed.scheme() == "http" {
+        let is_local = host == "localhost"
+            || host == "127.0.0.1"
+            || host == "[::1]"
+            || host == "0.0.0.0"
+            || host.parse::<std::net::Ipv4Addr>().map_or(false, |ip| ip.is_private());
+        if !is_local {
+            eprintln!(
+                "[Sumi] Warning: custom endpoint uses plain HTTP to remote host ({}). Data will be sent unencrypted.",
+                host
+            );
+        }
+    }
+
+    Ok(())
 }
