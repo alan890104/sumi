@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Auto",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Farlig zon",
   "settings.danger.reset": "Återställ till standardvärden",
   "settings.danger.resetDesc": "Återställ alla inställningar till sina ursprungliga värden",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Sparad tid = {count} koppar kaffe",
   "stats.fact.animeEpisodes": "Sparad tid = {count} anime-avsnitt",
   "stats.fact.streak": "{count} dikteringar och räknar!",
-  "stats.fact.keepGoing": "Fortsätt diktera för att låsa upp rolig statistik!"
+  "stats.fact.keepGoing": "Fortsätt diktera för att låsa upp rolig statistik!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

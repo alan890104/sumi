@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "自動",
   "promptRules.iconTerminal": "ターミナル",
   "promptRules.iconRobot": "ロボット",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "危険ゾーン",
   "settings.danger.reset": "デフォルトにリセット",
   "settings.danger.resetDesc": "すべての設定を元の値に復元します",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "節約時間 = コーヒー{count}杯分",
   "stats.fact.animeEpisodes": "節約時間 = アニメ{count}話分",
   "stats.fact.streak": "{count}回の音声入力を達成！",
-  "stats.fact.keepGoing": "音声入力を続けて楽しい統計をアンロック！"
+  "stats.fact.keepGoing": "音声入力を続けて楽しい統計をアンロック！",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

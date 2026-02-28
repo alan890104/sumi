@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Auto",
   "promptRules.iconTerminal": "Terminál",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Nebezpečná Zóna",
   "settings.danger.reset": "Obnovit Výchozí Hodnoty",
   "settings.danger.resetDesc": "Obnovte všechna nastavení na jejich původní hodnoty",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Ušetřený čas = {count} uvařených káv",
   "stats.fact.animeEpisodes": "Ušetřený čas = {count} anime epizod",
   "stats.fact.streak": "{count} diktátů a počítá se dál!",
-  "stats.fact.keepGoing": "Pokračujte v diktování a odemkněte zábavné statistiky!"
+  "stats.fact.keepGoing": "Pokračujte v diktování a odemkněte zábavné statistiky!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

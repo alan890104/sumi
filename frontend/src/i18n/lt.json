@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Automatinė",
   "promptRules.iconTerminal": "Terminalas",
   "promptRules.iconRobot": "Robotas",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Pavojaus zona",
   "settings.danger.reset": "Atstatyti numatytuosius nustatymus",
   "settings.danger.resetDesc": "Atkurkite visus nustatymus į jų pradines vertes",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Sutaupytas laikas = {count} kavos virimo",
   "stats.fact.animeEpisodes": "Sutaupytas laikas = {count} anime epizodų",
   "stats.fact.streak": "{count} diktavimų ir skaičiuojame!",
-  "stats.fact.keepGoing": "Tęskite diktavimą, kad atrakintumėte smagią statistiką!"
+  "stats.fact.keepGoing": "Tęskite diktavimą, kad atrakintumėte smagią statistiką!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

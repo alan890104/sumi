@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Auto",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Roboter",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Gefahrenzone",
   "settings.danger.reset": "Auf Standard zurücksetzen",
   "settings.danger.resetDesc": "Alle Einstellungen auf ihre ursprünglichen Werte wiederherstellen",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Eingesparte Zeit = {count} Kaffeebrühungen",
   "stats.fact.animeEpisodes": "Eingesparte Zeit = {count} Anime-Folgen",
   "stats.fact.streak": "{count} Diktate und es werden mehr!",
-  "stats.fact.keepGoing": "Diktieren Sie weiter, um lustige Statistiken freizuschalten!"
+  "stats.fact.keepGoing": "Diktieren Sie weiter, um lustige Statistiken freizuschalten!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

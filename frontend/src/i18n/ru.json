@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Авто",
   "promptRules.iconTerminal": "Терминал",
   "promptRules.iconRobot": "Робот",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Опасная Зона",
   "settings.danger.reset": "Сброс на Умолчание",
   "settings.danger.resetDesc": "Восстановить все параметры к исходным значениям",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Сэкономлено времени = {count} чашек кофе",
   "stats.fact.animeEpisodes": "Сэкономлено времени = {count} эпизодов аниме",
   "stats.fact.streak": "{count} диктовок и не останавливаемся!",
-  "stats.fact.keepGoing": "Продолжайте диктовать, чтобы разблокировать интересную статистику!"
+  "stats.fact.keepGoing": "Продолжайте диктовать, чтобы разблокировать интересную статистику!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

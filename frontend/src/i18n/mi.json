@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Aunoa",
   "promptRules.iconTerminal": "Tūhono",
   "promptRules.iconRobot": "Karetao",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Rohe Kino",
   "settings.danger.reset": "Whakatautuhi ki te Taunoa",
   "settings.danger.resetDesc": "Whakahoki i ngā tautuhinga katoa ki a ratau uara tuatahi",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Wā i penapenatia = {count} kawhe tunu",
   "stats.fact.animeEpisodes": "Wā i penapenatia = {count} wāhanga anime",
   "stats.fact.streak": "{count} whai kupu, me te tatau tonu!",
-  "stats.fact.keepGoing": "Haere tonu ki te whai kupu kia wātea ngā tauanga ngahau!"
+  "stats.fact.keepGoing": "Haere tonu ki te whai kupu kia wātea ngā tauanga ngahau!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

@@ -56,13 +56,22 @@
         return;
       }
 
-      // Merge missing defaults by match_type + match_value
-      const existing = new Set(
-        currentRules.map((r) => `${r.match_type}::${r.match_value}`)
-      );
-      const missing = defaults.filter(
-        (d) => !existing.has(`${d.match_type}::${d.match_value}`)
-      );
+      // Merge missing defaults by match_type + match_value (including alt_matches)
+      const existingKeys = new Set<string>();
+      for (const r of currentRules) {
+        existingKeys.add(`${r.match_type}::${r.match_value}`);
+        for (const alt of r.alt_matches || []) {
+          existingKeys.add(`${alt.match_type}::${alt.match_value}`);
+        }
+      }
+      const missing = defaults.filter((d) => {
+        // Check if primary or any alt match already exists
+        if (existingKeys.has(`${d.match_type}::${d.match_value}`)) return false;
+        for (const alt of d.alt_matches || []) {
+          if (existingKeys.has(`${alt.match_type}::${alt.match_value}`)) return false;
+        }
+        return true;
+      });
       if (missing.length > 0) {
         setCurrentRules([...currentRules, ...missing]);
         await savePolish();

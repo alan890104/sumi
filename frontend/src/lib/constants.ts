@@ -246,13 +246,14 @@ export const FALLBACK_ICON_SVG: Record<MatchType | string, string> = {
     '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.21 0-.41-.06-.57-.18l-7.9-4.44A.991.991 0 0 1 3 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18.21 0 .41.06.57.18l7.9 4.44c.32.17.53.5.53.88v9zM12 4.15L6.04 7.5 12 10.85l5.96-3.35L12 4.15zM5 15.91l6 3.38v-6.71L5 9.21v6.7zm14 0v-6.7l-6 3.37v6.71l6-3.38z"/></svg>',
 };
 
-export function getRuleIcon(rule: { name?: string; match_value?: string; match_type?: string; icon?: string }): string {
+export function getRuleIcon(rule: { name?: string; match_value?: string; match_type?: string; icon?: string; alt_matches?: { match_value: string }[] }): string {
   // Use explicit icon if set
   if (rule.icon && RULE_ICON_SVG[rule.icon]) {
     return RULE_ICON_SVG[rule.icon];
   }
-  // Auto-detect from name/match_value
-  const searchText = ((rule.name || '') + ' ' + (rule.match_value || '')).toLowerCase();
+  // Auto-detect from name/match_value/alt_matches
+  const altValues = (rule.alt_matches || []).map((a) => a.match_value || '').join(' ');
+  const searchText = ((rule.name || '') + ' ' + (rule.match_value || '') + ' ' + altValues).toLowerCase();
   for (const entry of RULE_ICON_KEYWORDS) {
     for (const key of entry.keys) {
       if (searchText.includes(key.toLowerCase())) {
@@ -263,9 +264,10 @@ export function getRuleIcon(rule: { name?: string; match_value?: string; match_t
   return FALLBACK_ICON_SVG[rule.match_type || 'app_name'] || FALLBACK_ICON_SVG.app_name;
 }
 
-/** Detect icon key from rule name/match_value, returns undefined if no match */
-export function detectRuleIconKey(rule: { name?: string; match_value?: string }): string | undefined {
-  const searchText = ((rule.name || '') + ' ' + (rule.match_value || '')).toLowerCase();
+/** Detect icon key from rule name/match_value/alt_matches, returns undefined if no match */
+export function detectRuleIconKey(rule: { name?: string; match_value?: string; alt_matches?: { match_value: string }[] }): string | undefined {
+  const altValues = (rule.alt_matches || []).map((a) => a.match_value || '').join(' ');
+  const searchText = ((rule.name || '') + ' ' + (rule.match_value || '') + ' ' + altValues).toLowerCase();
   for (const entry of RULE_ICON_KEYWORDS) {
     for (const key of entry.keys) {
       if (searchText.includes(key.toLowerCase())) {

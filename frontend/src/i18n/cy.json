@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Awtomatig",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Parth Perygl",
   "settings.danger.reset": "Ailosod i Ddiofyn",
   "settings.danger.resetDesc": "Adfer pob gosodiad i'w werthoedd gwreiddiol",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Amser a arbedwyd = {count} coffi wedi'u bragu",
   "stats.fact.animeEpisodes": "Amser a arbedwyd = {count} pennod anime",
   "stats.fact.streak": "{count} arddywediad a mwy!",
-  "stats.fact.keepGoing": "Daliwch ati i arddweud i ddatgloi ystadegau hwyl!"
+  "stats.fact.keepGoing": "Daliwch ati i arddweud i ddatgloi ystadegau hwyl!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

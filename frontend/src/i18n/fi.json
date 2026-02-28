@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Automaattinen",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robotti",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Vaarallinen alue",
   "settings.danger.reset": "Palauta oletuksiin",
   "settings.danger.resetDesc": "Palauta kaikki asetukset alkuperäisiin arvoihin",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Säästetty aika = {count} kahvinkeittiä",
   "stats.fact.animeEpisodes": "Säästetty aika = {count} anime-jaksoa",
   "stats.fact.streak": "{count} sanelua ja luku kasvaa!",
-  "stats.fact.keepGoing": "Jatka sanelua avataksesi hauskoja tilastoja!"
+  "stats.fact.keepGoing": "Jatka sanelua avataksesi hauskoja tilastoja!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

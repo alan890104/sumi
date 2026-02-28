@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "אוטומטי",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "רובוט",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "אזור סכנה",
   "settings.danger.reset": "אפס לברירות מחדל",
   "settings.danger.resetDesc": "שחזר את כל ההגדרות לערכיהם המקוריים",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "זמן שנחסך = {count} הכנות קפה",
   "stats.fact.animeEpisodes": "זמן שנחסך = {count} פרקי אנימה",
   "stats.fact.streak": "{count} הכתבות וממשיכים!",
-  "stats.fact.keepGoing": "המשך להכתיב כדי לפתוח סטטיסטיקות כיפיות!"
+  "stats.fact.keepGoing": "המשך להכתיב כדי לפתוח סטטיסטיקות כיפיות!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

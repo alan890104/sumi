@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "خودکار",
   "promptRules.iconTerminal": "ٹرمینل",
   "promptRules.iconRobot": "روبوٹ",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "خطرناک علاقہ",
   "settings.danger.reset": "ڈیفالٹ پر ری سیٹ کریں",
   "settings.danger.resetDesc": "تمام ترتیبات کو ان کی اصل قیمتوں میں بحال کریں",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "بچایا ہوا وقت = {count} کافی بنانے کے برابر",
   "stats.fact.animeEpisodes": "بچایا ہوا وقت = {count} اینیمی اقساط",
   "stats.fact.streak": "{count} بیانات اور جاری ہے!",
-  "stats.fact.keepGoing": "دلچسپ اعداد و شمار دیکھنے کے لیے بیان کرتے رہیں!"
+  "stats.fact.keepGoing": "دلچسپ اعداد و شمار دیکھنے کے لیے بیان کرتے رہیں!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

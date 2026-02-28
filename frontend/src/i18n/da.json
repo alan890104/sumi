@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Auto",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Farezone",
   "settings.danger.reset": "Nulstil til Standarder",
   "settings.danger.resetDesc": "Gendan alle indstillinger til deres oprindelige værdier",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Tid sparet = {count} kopper kaffe brygget",
   "stats.fact.animeEpisodes": "Tid sparet = {count} anime-episoder",
   "stats.fact.streak": "{count} dikteringer og tæller!",
-  "stats.fact.keepGoing": "Bliv ved med at diktere for at låse op for sjove statistikker!"
+  "stats.fact.keepGoing": "Bliv ved med at diktere for at låse op for sjove statistikker!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

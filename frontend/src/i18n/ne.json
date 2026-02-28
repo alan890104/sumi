@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "स्वचालित",
   "promptRules.iconTerminal": "टर्मिनल",
   "promptRules.iconRobot": "रोबोट",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "खतरे क्षेत्र",
   "settings.danger.reset": "पूर्वनिर्धारितमा रीसेट गर्नुहोस्",
   "settings.danger.resetDesc": "सबै सेटिङ्सहरू तिनीहरूको मूल मानहरूमा पुनरुद्धार गर्नुहोस्",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "बचत गरिएको समय = {count} कफी बनाउने",
   "stats.fact.animeEpisodes": "बचत गरिएको समय = {count} एनिमे एपिसोड",
   "stats.fact.streak": "{count} श्रुतलेख र गन्ती जारी!",
-  "stats.fact.keepGoing": "रमाइलो तथ्याङ्क अनलक गर्न श्रुतलेख जारी राख्नुहोस्!"
+  "stats.fact.keepGoing": "रमाइलो तथ्याङ्क अनलक गर्न श्रुतलेख जारी राख्नुहोस्!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

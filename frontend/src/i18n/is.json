@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Sjálfvirkt",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Vélmenni",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Hætta svæði",
   "settings.danger.reset": "Endurstilla sjálfgefnar",
   "settings.danger.resetDesc": "Endurheimta allar stillingar í upphaflegu gildi",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Tímasparnaður = {count} kaffisuður",
   "stats.fact.animeEpisodes": "Tímasparnaður = {count} anime þættir",
   "stats.fact.streak": "{count} setningar og fjölgar!",
-  "stats.fact.keepGoing": "Haltu áfram að setja til að opna skemmtilegar tölur!"
+  "stats.fact.keepGoing": "Haltu áfram að setja til að opna skemmtilegar tölur!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

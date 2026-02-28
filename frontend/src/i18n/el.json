@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Αυτόματο",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Ρομπότ",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Ζώνη κινδύνου",
   "settings.danger.reset": "Επαναφορά στις προεπιλογές",
   "settings.danger.resetDesc": "Επαναφορά όλων των ρυθμίσεων στις αρχικές τους τιμές",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Χρόνος που εξοικονομήθηκε = {count} καφέδες",
   "stats.fact.animeEpisodes": "Χρόνος που εξοικονομήθηκε = {count} επεισόδια anime",
   "stats.fact.streak": "{count} υπαγορεύσεις και συνεχίζονται!",
-  "stats.fact.keepGoing": "Συνεχίστε να υπαγορεύετε για να ξεκλειδώσετε διασκεδαστικά στατιστικά!"
+  "stats.fact.keepGoing": "Συνεχίστε να υπαγορεύετε για να ξεκλειδώσετε διασκεδαστικά στατιστικά!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

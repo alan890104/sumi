@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Automātiski",
   "promptRules.iconTerminal": "Terminālis",
   "promptRules.iconRobot": "Robots",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Bīstamā zona",
   "settings.danger.reset": "Atjaunot noklusējumus",
   "settings.danger.resetDesc": "Atjaunojiet visus iestatījumus to sākotnējās vērtībās",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Ietaupītais laiks = {count} kafijas pagatavošanas",
   "stats.fact.animeEpisodes": "Ietaupītais laiks = {count} anime epizodes",
   "stats.fact.streak": "{count} diktāti un skaitīšana turpinās!",
-  "stats.fact.keepGoing": "Turpiniet diktēt, lai atbloķētu jautru statistiku!"
+  "stats.fact.keepGoing": "Turpiniet diktēt, lai atbloķētu jautru statistiku!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

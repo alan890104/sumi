@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Ինքնաբերար",
   "promptRules.iconTerminal": "Տերմինալ",
   "promptRules.iconRobot": "Ռոբոտ",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Վտանգի Գոտի",
   "settings.danger.reset": "Վերակայել Կանխադրված արժեքներին",
   "settings.danger.resetDesc": "Վերականգնել բոլոր կարգավորումները դրանց սկզբնական արժեքներին",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Խնայված ժամանակ = {count} սուրճ եփում",
   "stats.fact.animeEpisodes": "Խնայված ժամանակ = {count} anime դրվագ",
   "stats.fact.streak": "{count} թելադրում և շարունակվում!",
-  "stats.fact.keepGoing": "Շարունակեք թելադրել՝ զվարճալի վիճակագրություններ բացելու համար!"
+  "stats.fact.keepGoing": "Շարունակեք թելադրել՝ զվարճալի վիճակագրություններ բացելու համար!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

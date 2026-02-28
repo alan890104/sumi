@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Auto",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Danger Zone",
   "settings.danger.reset": "Ibalik sa Default",
   "settings.danger.resetDesc": "Ibalik ang lahat ng mga setting sa kanilang orihinal na halaga",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Natipid na oras = {count} na pagtitimpla ng kape",
   "stats.fact.animeEpisodes": "Natipid na oras = {count} na episode ng anime",
   "stats.fact.streak": "{count} na diksyon at patuloy pa!",
-  "stats.fact.keepGoing": "Magpatuloy sa pagdidikta upang makita ang masasayang istatistika!"
+  "stats.fact.keepGoing": "Magpatuloy sa pagdidikta upang makita ang masasayang istatistika!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Samodejno",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Nevarna zona",
   "settings.danger.reset": "Ponastavi na privzeto",
   "settings.danger.resetDesc": "Obnovite vse nastavitve na originalne vrednosti",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Prihranjen čas = {count} skuhanih kav",
   "stats.fact.animeEpisodes": "Prihranjen čas = {count} epizod animeja",
   "stats.fact.streak": "{count} diktiranj in se nadaljuje!",
-  "stats.fact.keepGoing": "Nadaljujte z diktiranjem, da odklenete zabavno statistiko!"
+  "stats.fact.keepGoing": "Nadaljujte z diktiranjem, da odklenete zabavno statistiko!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

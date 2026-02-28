@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Otomatiki",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Roboti",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Eneo la hatari",
   "settings.danger.reset": "Rudisha kwa chaguo-msingi",
   "settings.danger.resetDesc": "Rejesha mipangilio yote kwa thamani za asili",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Muda uliokolewa = kahawa {count} zilizopikwa",
   "stats.fact.animeEpisodes": "Muda uliokolewa = vipindi {count} vya anime",
   "stats.fact.streak": "Maandishi {count} na inaendelea!",
-  "stats.fact.keepGoing": "Endelea kuamuru ili kufungua takwimu za kufurahisha!"
+  "stats.fact.keepGoing": "Endelea kuamuru ili kufungua takwimu za kufurahisha!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

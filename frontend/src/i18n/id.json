@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Otomatis",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Zona Berbahaya",
   "settings.danger.reset": "Atur Ulang ke Default",
   "settings.danger.resetDesc": "Kembalikan semua pengaturan ke nilai aslinya",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Waktu dihemat = {count} seduhan kopi",
   "stats.fact.animeEpisodes": "Waktu dihemat = {count} episode anime",
   "stats.fact.streak": "{count} dikte dan terus bertambah!",
-  "stats.fact.keepGoing": "Terus mendikte untuk membuka statistik menyenangkan!"
+  "stats.fact.keepGoing": "Terus mendikte untuk membuka statistik menyenangkan!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

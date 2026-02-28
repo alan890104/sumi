@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Auto",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Zon Berbahaya",
   "settings.danger.reset": "Tetapkan Semula ke Lalai",
   "settings.danger.resetDesc": "Pulihkan semua tetapan kepada nilai asal mereka",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Masa dijimatkan = {count} bancuhan kopi",
   "stats.fact.animeEpisodes": "Masa dijimatkan = {count} episod anime",
   "stats.fact.streak": "{count} diktat dan terus bertambah!",
-  "stats.fact.keepGoing": "Teruskan mendiktat untuk membuka statistik menarik!"
+  "stats.fact.keepGoing": "Teruskan mendiktat untuk membuka statistik menarik!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

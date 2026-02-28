@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Automatycznie",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Strefa niebezpieczna",
   "settings.danger.reset": "Przywróć domyślne ustawienia",
   "settings.danger.resetDesc": "Przywróć wszystkie ustawienia do ich pierwotnych wartości",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Zaoszczędzony czas = {count} parzonych kaw",
   "stats.fact.animeEpisodes": "Zaoszczędzony czas = {count} odcinków anime",
   "stats.fact.streak": "{count} dyktand i wciąż rośnie!",
-  "stats.fact.keepGoing": "Dyktuj dalej, aby odblokować ciekawe statystyki!"
+  "stats.fact.keepGoing": "Dyktuj dalej, aby odblokować ciekawe statystyki!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

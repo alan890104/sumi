@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Otomatik",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Danger Zone",
   "settings.danger.reset": "Varsayılana Sıfırla",
   "settings.danger.resetDesc": "Tüm ayarları orijinal değerlerine geri yükle",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Kazanılan zaman = {count} kahve demleme",
   "stats.fact.animeEpisodes": "Kazanılan zaman = {count} anime bölümü",
   "stats.fact.streak": "{count} dikte ve devam ediyor!",
-  "stats.fact.keepGoing": "Eğlenceli istatistiklerin kilidini açmak için dikte etmeye devam edin!"
+  "stats.fact.keepGoing": "Eğlenceli istatistiklerin kilidini açmak için dikte etmeye devam edin!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

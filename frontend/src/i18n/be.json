@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Аўта",
   "promptRules.iconTerminal": "Тэрмінал",
   "promptRules.iconRobot": "Робат",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Вобласць Небяспекі",
   "settings.danger.reset": "Скінуць да Стандартніх Наладаў",
   "settings.danger.resetDesc": "Вярніце ўсе налады да іх арыгінальных значэнняў",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Зэканомлены час = {count} завараных кавы",
   "stats.fact.animeEpisodes": "Зэканомлены час = {count} серый анімэ",
   "stats.fact.streak": "{count} дыктовак і лічба расце!",
-  "stats.fact.keepGoing": "Працягвайце дыктаваць, каб адкрыць цікавую статыстыку!"
+  "stats.fact.keepGoing": "Працягвайце дыктаваць, каб адкрыць цікавую статыстыку!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

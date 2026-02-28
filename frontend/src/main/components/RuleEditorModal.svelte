@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { PromptRule, MatchType } from '$lib/types';
+  import type { PromptRule, MatchType, MatchCondition } from '$lib/types';
   import { t } from '$lib/stores/i18n.svelte';
   import { getHotkey } from '$lib/stores/settings.svelte';
   import { formatHotkeyDisplay, RULE_ICON_SVG, ICON_PICKER_LIST, detectRuleIconKey } from '$lib/constants';
@@ -33,6 +33,7 @@
   let prompt = $state('');
   let iconKey = $state<string | undefined>(undefined);
   let showIconPicker = $state(false);
+  let altMatches = $state<MatchCondition[]>([]);
 
   // Voice rule state
   type VoiceState = 'idle' | 'recording' | 'processing';
@@ -67,6 +68,7 @@
           matchValue = rule.match_value || '';
           prompt = rule.prompt || '';
           iconKey = rule.icon || undefined;
+          altMatches = (rule.alt_matches || []).map((a) => ({ ...a }));
         }
       } else {
         name = '';
@@ -74,6 +76,7 @@
         matchValue = '';
         prompt = '';
         iconKey = undefined;
+        altMatches = [];
       }
       showIconPicker = false;
       voiceState = 'idle';
@@ -125,14 +128,14 @@
 
         try {
           const rule = await generateRuleFromDescription(transcript.trim());
-          fillFields(rule);
-        } catch {
-          fillFields({
-            name: '',
-            match_type: 'app_name',
-            match_value: '',
-            prompt: transcript.trim(),
-          });
+          if (editIndex >= 0) {
+            // Editing: only update the prompt, keep name/match/altMatches
+            prompt = rule.prompt || '';
+          } else {
+            fillFields(rule);
+          }
+        } catch (e) {
+          console.error('[Sumi] Voice rule generation failed:', e);
         }
 
         if (voiceModeActive) voiceState = 'idle';
@@ -160,6 +163,7 @@
     matchType = (data.match_type as MatchType) || 'app_name';
     matchValue = data.match_value || '';
     prompt = data.prompt || '';
+    altMatches = [];
   }
 
   // Waveform drawing
@@ -222,6 +226,14 @@
     voiceLevels = new Float32Array(20);
   }
 
+  function addAltMatch() {
+    altMatches = [...altMatches, { match_type: 'app_name', match_value: '' }];
+  }
+
+  function removeAltMatch(index: number) {
+    altMatches = altMatches.filter((_, i) => i !== index);
+  }
+
   function handleSave() {
     if (!matchValue.trim()) {
       matchValueInput?.focus();
@@ -232,6 +244,9 @@
       return;
     }
 
+    // Filter out alt matches with empty values
+    const filteredAltMatches = altMatches.filter((a) => a.match_value.trim());
+
     const rule: PromptRule = {
       name: name.trim() || t('settings.polish.untitledRule'),
       match_type: matchType,
@@ -239,6 +254,7 @@
       prompt: prompt.trim(),
       enabled: true,
       icon: iconKey,
+      alt_matches: filteredAltMatches.length > 0 ? filteredAltMatches : undefined,
     };
 
     // Preserve enabled state when editing
@@ -363,24 +379,53 @@
         />
       </div>
 
+      <!-- Match Conditions -->
       <div class="rule-editor-field">
-        <div class="rule-editor-label">{t('settings.polish.ruleMatchType')}</div>
-        <select class="rule-editor-select" bind:value={matchType}>
-          <option value="app_name">{t('settings.polish.matchAppName')}</option>
-          <option value="bundle_id">{t('settings.polish.matchBundleId')}</option>
-          <option value="url">{t('settings.polish.matchUrl')}</option>
-        </select>
-      </div>
+        <div class="rule-editor-label">{t('promptRules.matchConditions')}</div>
+        <div class="rule-editor-hint" style="margin-bottom: 8px; margin-top: 0;">{t('promptRules.altMatchHint')}</div>
 
-      <div class="rule-editor-field">
-        <div class="rule-editor-label">{t('settings.polish.ruleMatchValue')}</div>
-        <input
-          type="text"
-          class="rule-editor-input"
-          bind:this={matchValueInput}
-          bind:value={matchValue}
-          placeholder={t('settings.polish.ruleMatchValuePlaceholder')}
-        />
+        <!-- Primary condition -->
+        <div class="match-condition-row">
+          <select class="match-condition-select" bind:value={matchType}>
+            <option value="app_name">{t('settings.polish.matchAppName')}</option>
+            <option value="bundle_id">{t('settings.polish.matchBundleId')}</option>
+            <option value="url">{t('settings.polish.matchUrl')}</option>
+          </select>
+          <input
+            type="text"
+            class="match-condition-input"
+            bind:this={matchValueInput}
+            bind:value={matchValue}
+            placeholder={t('settings.polish.ruleMatchValuePlaceholder')}
+          />
+          <!-- no remove button for primary -->
+          <div class="match-condition-spacer"></div>
+        </div>
+
+        <!-- Alt conditions -->
+        {#each altMatches as alt, i}
+          <div class="match-condition-or">{t('promptRules.or')}</div>
+          <div class="match-condition-row">
+            <select class="match-condition-select" bind:value={alt.match_type}>
+              <option value="app_name">{t('settings.polish.matchAppName')}</option>
+              <option value="bundle_id">{t('settings.polish.matchBundleId')}</option>
+              <option value="url">{t('settings.polish.matchUrl')}</option>
+            </select>
+            <input
+              type="text"
+              class="match-condition-input"
+              bind:value={alt.match_value}
+              placeholder={t('settings.polish.ruleMatchValuePlaceholder')}
+            />
+            <button class="match-condition-remove" onclick={() => removeAltMatch(i)} title="Remove">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        {/each}
+
+        <button class="match-condition-add" onclick={addAltMatch}>
+          {t('promptRules.addAltMatch')}
+        </button>
       </div>
 
       <div class="rule-editor-field">
@@ -674,6 +719,109 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--text-secondary);
+  }
+
+  /* ── Match Conditions ── */
+  .match-condition-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+    align-items: center;
+  }
+
+  .match-condition-select {
+    width: 120px;
+    flex-shrink: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s ease;
+    box-sizing: border-box;
+  }
+
+  .match-condition-select:focus {
+    border-color: var(--accent-blue);
+  }
+
+  .match-condition-input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s ease;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .match-condition-input:focus {
+    border-color: var(--accent-blue);
+  }
+
+  .match-condition-spacer {
+    width: 26px;
+    flex-shrink: 0;
+  }
+
+  .match-condition-remove {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all 0.12s ease;
+    padding: 0;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .match-condition-remove:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: rgb(239, 68, 68);
+  }
+
+  .match-condition-or {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    padding: 2px 0;
+    margin-left: 4px;
+  }
+
+  .match-condition-add {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 4px 0;
+    border: none;
+    background: transparent;
+    color: var(--accent-blue);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.12s ease;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .match-condition-add:hover {
+    opacity: 0.7;
   }
 
   /* ── Icon Picker ── */

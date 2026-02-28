@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Auto",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Zona de Perill",
   "settings.danger.reset": "Restablir als Valors per Defecte",
   "settings.danger.resetDesc": "Restaura tota la configuració als seus valors originals",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Temps estalviat = {count} cafès preparats",
   "stats.fact.animeEpisodes": "Temps estalviat = {count} episodis d'anime",
   "stats.fact.streak": "{count} dictats i comptant!",
-  "stats.fact.keepGoing": "Continua dictant per desbloquejar estadístiques divertides!"
+  "stats.fact.keepGoing": "Continua dictant per desbloquejar estadístiques divertides!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

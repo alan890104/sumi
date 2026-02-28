@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "自动",
   "promptRules.iconTerminal": "终端",
   "promptRules.iconRobot": "机器人",
+  "promptRules.addAltMatch": "+ 添加条件",
+  "promptRules.altMatchHint": "任一条件匹配即触发此规则（例如原生应用或浏览器 URL）。",
   "settings.danger": "危险区域",
   "settings.danger.reset": "重置为默认值",
   "settings.danger.resetDesc": "将所有设置恢复为原始值",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "节省的时间够泡 {count} 杯咖啡",
   "stats.fact.animeEpisodes": "节省的时间约等于 {count} 集动漫",
   "stats.fact.streak": "已累计 {count} 次口述，继续保持！",
-  "stats.fact.keepGoing": "继续口述，解锁更多有趣数据！"
+  "stats.fact.keepGoing": "继续口述，解锁更多有趣数据！",
+  "promptRules.matchConditions": "匹配条件",
+  "promptRules.or": "或"
 }

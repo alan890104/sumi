@@ -77,6 +77,11 @@ export interface PolishModelInfo {
 
 export type MatchType = 'app_name' | 'bundle_id' | 'url';
 
+export interface MatchCondition {
+  match_type: MatchType;
+  match_value: string;
+}
+
 export interface PromptRule {
   name: string;
   match_type: MatchType;
@@ -84,6 +89,7 @@ export interface PromptRule {
   prompt: string;
   enabled: boolean;
   icon?: string;
+  alt_matches?: MatchCondition[];
 }
 
 export interface DictionaryEntry {

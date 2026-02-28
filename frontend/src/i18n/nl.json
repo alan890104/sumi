@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Automatisch",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Gevarenzone",
   "settings.danger.reset": "Herstellen naar Standaardwaarden",
   "settings.danger.resetDesc": "Herstel alle instellingen naar hun originele waarden",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Bespaarde tijd = {count} kopjes koffie zetten",
   "stats.fact.animeEpisodes": "Bespaarde tijd = {count} anime-afleveringen",
   "stats.fact.streak": "{count} dictaten en nog tellend!",
-  "stats.fact.keepGoing": "Blijf dicteren om leuke statistieken te ontgrendelen!"
+  "stats.fact.keepGoing": "Blijf dicteren om leuke statistieken te ontgrendelen!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

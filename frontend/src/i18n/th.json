@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "อัตโนมัติ",
   "promptRules.iconTerminal": "เทอร์มินัล",
   "promptRules.iconRobot": "หุ่นยนต์",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Danger Zone",
   "settings.danger.reset": "รีเซ็ตเป็นค่าเริ่มต้น",
   "settings.danger.resetDesc": "คืนค่าการตั้งค่าทั้งหมดเป็นค่าเดิม",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "เวลาที่ประหยัดได้ = {count} แก้วกาแฟ",
   "stats.fact.animeEpisodes": "เวลาที่ประหยัดได้ = {count} ตอนอนิเมะ",
   "stats.fact.streak": "{count} การบอกเขียนแล้ว!",
-  "stats.fact.keepGoing": "บอกเขียนต่อไปเพื่อปลดล็อกสถิติสนุกๆ!"
+  "stats.fact.keepGoing": "บอกเขียนต่อไปเพื่อปลดล็อกสถิติสนุกๆ!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

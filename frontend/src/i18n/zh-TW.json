@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "自動",
   "promptRules.iconTerminal": "終端機",
   "promptRules.iconRobot": "機器人",
+  "promptRules.addAltMatch": "+ 新增條件",
+  "promptRules.altMatchHint": "任一條件符合即觸發此規則（例如原生應用程式或瀏覽器 URL）。",
   "settings.danger": "危險區域",
   "settings.danger.reset": "重設為預設值",
   "settings.danger.resetDesc": "將所有設定還原為原始值",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "省下的時間夠泡 {count} 杯咖啡",
   "stats.fact.animeEpisodes": "省下的時間約等於 {count} 集動漫",
   "stats.fact.streak": "已累計 {count} 次口述，繼續保持！",
-  "stats.fact.keepGoing": "繼續口述，解鎖更多有趣數據！"
+  "stats.fact.keepGoing": "繼續口述，解鎖更多有趣數據！",
+  "promptRules.matchConditions": "匹配條件",
+  "promptRules.or": "或"
 }

@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "ಸ್ವಯಂ",
   "promptRules.iconTerminal": "ಟರ್ಮಿನಲ್",
   "promptRules.iconRobot": "ರೋಬೋಟ್",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "ಅಪಾಯ ವಲಯ",
   "settings.danger.reset": "ಪೂರ್ವನಿರ್ಧಾರಿತಕ್ಕೆ ಪುನರಾರಂಭಿಸಿ",
   "settings.danger.resetDesc": "ಎಲ್ಲಾ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಮೂಲ ಮೌಲ್ಯಗಳಿಗೆ ಪುನರುದ್ಧಾರ ಮಾಡಿ",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "ಉಳಿಸಿದ ಸಮಯ = {count} ಕಾಫಿ ತಯಾರಿಕೆ",
   "stats.fact.animeEpisodes": "ಉಳಿಸಿದ ಸಮಯ = {count} ಅನಿಮೆ ಎಪಿಸೋಡ್‌ಗಳು",
   "stats.fact.streak": "{count} ಶ್ರುತಲೇಖನಗಳು ಮತ್ತು ಮುಂದುವರಿಯುತ್ತಿದೆ!",
-  "stats.fact.keepGoing": "ಮಜಾ ಅಂಕಿಅಂಶಗಳನ್ನು ಅನ್‌ಲಾಕ್ ಮಾಡಲು ಶ್ರುತಲೇಖನ ಮುಂದುವರಿಸಿ!"
+  "stats.fact.keepGoing": "ಮಜಾ ಅಂಕಿಅಂಶಗಳನ್ನು ಅನ್‌ಲಾಕ್ ಮಾಡಲು ಶ್ರುತಲೇಖನ ಮುಂದುವರಿಸಿ!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

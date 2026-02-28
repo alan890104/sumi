@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Автоматты",
   "promptRules.iconTerminal": "Терминал",
   "promptRules.iconRobot": "Робот",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Қауіп аймағы",
   "settings.danger.reset": "Әдепкі мәндерге қайтару",
   "settings.danger.resetDesc": "Барлық параметрлерді бастапқы мәндеріне қайтарыңыз",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Үнемделген уақыт = {count} кофе дайындау",
   "stats.fact.animeEpisodes": "Үнемделген уақыт = {count} anime серия",
   "stats.fact.streak": "{count} диктант және жалғасуда!",
-  "stats.fact.keepGoing": "Қызықты статистиканы ашу үшін диктантты жалғастырыңыз!"
+  "stats.fact.keepGoing": "Қызықты статистиканы ашу үшін диктантты жалғастырыңыз!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Автоматски",
   "promptRules.iconTerminal": "Терминал",
   "promptRules.iconRobot": "Робот",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Опасна зона",
   "settings.danger.reset": "Врати ги стандардните поставки",
   "settings.danger.resetDesc": "Врати ги сите поставки на нивните первобитни вредности",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Заштедено време = {count} подготовки на кафе",
   "stats.fact.animeEpisodes": "Заштедено време = {count} аниме епизоди",
   "stats.fact.streak": "{count} диктирања и продолжува!",
-  "stats.fact.keepGoing": "Продолжете да диктирате за да отклучите забавна статистика!"
+  "stats.fact.keepGoing": "Продолжете да диктирате за да отклучите забавна статистика!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

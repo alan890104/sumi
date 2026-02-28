@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Automaatne",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Ohtlik ala",
   "settings.danger.reset": "Taasta vaikeväärtused",
   "settings.danger.resetDesc": "Taastage kõik seaded nende algväärtustele",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Säästetud aeg = {count} kohvikeetmist",
   "stats.fact.animeEpisodes": "Säästetud aeg = {count} anime episoodi",
   "stats.fact.streak": "{count} dikteerimist ja arv kasvab!",
-  "stats.fact.keepGoing": "Jätkake dikteerimist, et avada lõbusaid statistikaid!"
+  "stats.fact.keepGoing": "Jätkake dikteerimist, et avada lõbusaid statistikaid!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

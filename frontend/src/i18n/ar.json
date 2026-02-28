@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "تلقائي",
   "promptRules.iconTerminal": "طرفية",
   "promptRules.iconRobot": "روبوت",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "منطقة خطر",
   "settings.danger.reset": "إعادة تعيين إلى الافتراضيات",
   "settings.danger.resetDesc": "استعادة جميع الإعدادات إلى قيمها الأصلية",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "الوقت الموفر = {count} فنجان قهوة",
   "stats.fact.animeEpisodes": "الوقت الموفر = {count} حلقة أنمي",
   "stats.fact.streak": "{count} إملاء ومستمر!",
-  "stats.fact.keepGoing": "استمر في الإملاء لفتح إحصائيات ممتعة!"
+  "stats.fact.keepGoing": "استمر في الإملاء لفتح إحصائيات ممتعة!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

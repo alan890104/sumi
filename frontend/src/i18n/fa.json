@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "خودکار",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "ربات",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "منطقه خطر",
   "settings.danger.reset": "بازنشانی به پیش‌فرض",
   "settings.danger.resetDesc": "تمام تنظیمات را به مقادیر اصلی بازگردانید",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "زمان صرفه‌جویی‌شده = {count} قهوه دم‌شده",
   "stats.fact.animeEpisodes": "زمان صرفه‌جویی‌شده = {count} قسمت انیمه",
   "stats.fact.streak": "{count} دیکته و ادامه دارد!",
-  "stats.fact.keepGoing": "به دیکته ادامه دهید تا آمارهای جالب باز شوند!"
+  "stats.fact.keepGoing": "به دیکته ادامه دهید تا آمارهای جالب باز شوند!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

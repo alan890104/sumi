@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Auto",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Danger Zone",
   "settings.danger.reset": "Reset to Defaults",
   "settings.danger.resetDesc": "Restore all settings to their original values",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Time saved = {count} coffee brews",
   "stats.fact.animeEpisodes": "Time saved = {count} anime episodes",
   "stats.fact.streak": "{count} dictations and counting!",
-  "stats.fact.keepGoing": "Keep dictating to unlock fun stats!"
+  "stats.fact.keepGoing": "Keep dictating to unlock fun stats!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

@@ -79,7 +79,7 @@ pub enum CloudProvider {
 
 impl Default for CloudProvider {
     fn default() -> Self {
-        Self::GitHubModels
+        Self::Groq
     }
 }
 
@@ -128,7 +128,20 @@ impl Default for CloudConfig {
             provider: CloudProvider::default(),
             api_key: String::new(),
             endpoint: String::new(),
-            model_id: "openai/gpt-5-nano".to_string(),
+            model_id: String::new(),
+        }
+    }
+}
+
+impl CloudConfig {
+    /// Returns the default model ID for the given locale.
+    /// Chinese locales → Qwen 3 32B; others → GPT-oss 120B.
+    pub fn default_model_id_for_locale(locale: &str) -> &'static str {
+        let lower = locale.to_lowercase();
+        if lower.starts_with("zh") {
+            "qwen/qwen3-32b"
+        } else {
+            "openai/gpt-oss-120b"
         }
     }
 }
@@ -241,6 +254,12 @@ pub enum MatchType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchCondition {
+    pub match_type: MatchType,
+    pub match_value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptRule {
     pub name: String,
     pub match_type: MatchType,
@@ -251,6 +270,9 @@ pub struct PromptRule {
     /// Optional icon key for the frontend (e.g. "terminal", "slack"). Auto-detected if None.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
+    /// Alternative match conditions (OR logic). Rule triggers if primary OR any alt matches.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alt_matches: Vec<MatchCondition>,
 }
 
 fn default_true() -> bool {
@@ -351,6 +373,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
         (
             "使用者正在程式碼編輯器中工作（可能在寫程式碼、註解、commit 訊息，或與 AI 程式助手對話）。\n\
              完整保留所有程式碼、指令、路徑、變數名稱和技術術語。\n\
+             技術術語保留英文原文，不要翻譯（如 function、commit、merge、deploy）。\n\
              輸出簡潔精確的文字，不要額外解釋。".to_string(),
 
             "使用者正在終端機中對 AI 程式助手口述提示或訊息。\n\
@@ -362,6 +385,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             "使用者正在傳送聊天訊息。\n\
              保持輕鬆、自然、口語化的語氣。\n\
              修正語法和贅詞，但保留說話者的個性和語意。\n\
+             如果說話者語氣中帶有情緒表達，可以適當保留或加入 emoji。\n\
              只回覆整理後的訊息文字，不要附加任何其他內容。".to_string(),
 
             "將口述內容整理成正式的電子郵件格式（問候語、正文、結尾）。\n\
@@ -370,12 +394,13 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
 
             "使用者正在 Notion 中撰寫內容（筆記、文件或 Wiki）。\n\
              產出乾淨、結構良好的文字，適合用於文件。\n\
-             保留說話者所暗示的列表、標題或結構。\n\
+             適當將口述內容轉換為條列式、表格、標題等結構化格式，符合 Notion 的排版風格。\n\
              只回覆整理後的文字，不要附加任何其他內容。".to_string(),
 
             "使用者正在傳送 Slack 訊息。\n\
              保持專業但親切的語氣。\n\
              修正語法和贅詞，保持簡潔。\n\
+             適當使用 Slack 支援的格式：*粗體*、> 引用、`程式碼`、條列式等。\n\
              只回覆整理後的訊息文字，不要附加任何其他內容。".to_string(),
 
             "使用者正在 GitHub 上工作（如 PR 說明、Issue、Code Review 留言、Commit 訊息、README 或討論區）。\n\
@@ -387,6 +412,8 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
 
             "使用者正在 X（Twitter）上撰寫貼文或回覆。\n\
              保持簡潔有力，在短篇幅中追求清晰。\n\
+             注意控制文字長度，盡量精簡，適合社群貼文的篇幅。\n\
+             如果口述提到 hashtag，保留或整理為 #標籤 格式。\n\
              修正語法但保留說話者的語調和風格。\n\
              只回覆整理後的文字，不要附加任何其他內容。".to_string(),
         )
@@ -394,6 +421,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
         (
             "The user is working in a code editor (possibly writing code, comments, commit messages, or chatting with an AI coding assistant).\n\
              Preserve all code, commands, paths, variable names, and technical terms exactly as spoken.\n\
+             Never translate technical terms — keep them in English as spoken (e.g. function, commit, merge, deploy).\n\
              Output concise, precise text. No extra explanation.".to_string(),
 
             "The user is dictating a prompt or message to an AI coding assistant running in the terminal. \
@@ -405,6 +433,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             "The user is writing a chat message.\n\
              Keep a casual, natural, and conversational tone.\n\
              Fix grammar and filler words but preserve the speaker's personality and intent.\n\
+             If the speaker's tone conveys emotions, feel free to keep or add appropriate emoji.\n\
              Reply with ONLY the cleaned message text, nothing else.".to_string(),
 
             "Restructure the spoken content into proper email format (greeting, body, sign-off).\n\
@@ -413,12 +442,13 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
 
             "The user is writing in Notion (notes, docs, or wiki).\n\
              Produce clean, well-structured text suitable for documentation.\n\
-             Preserve any lists, headings, or structure implied by the speaker.\n\
+             Convert spoken content into structured formats where appropriate: bullet lists, tables, headings, and other Notion-style formatting.\n\
              Reply with ONLY the cleaned text, nothing else.".to_string(),
 
             "The user is writing a Slack message.\n\
              Keep a professional but approachable tone.\n\
              Fix grammar and filler words. Keep it concise.\n\
+             Use Slack-supported formatting where appropriate: *bold*, > quotes, `code`, and bullet lists.\n\
              Reply with ONLY the cleaned message text, nothing else.".to_string(),
 
             "The user is working on GitHub (e.g. PR description, issue, code review comment, commit message, README, or discussion).\n\
@@ -430,6 +460,8 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
 
             "The user is composing a post or reply on X (Twitter).\n\
              Keep it concise and punchy. Aim for clarity within a short format.\n\
+             Keep text short and suitable for social media.\n\
+             If the speaker mentions hashtags, preserve or format them as #hashtags.\n\
              Fix grammar but preserve the speaker's voice and tone.\n\
              Reply with ONLY the cleaned text, nothing else.".to_string(),
         )
@@ -444,6 +476,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: email_prompt,
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         // ── AI CLI tools (detected via terminal subprocess enrichment) ──
         PromptRule {
@@ -453,6 +486,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: ai_cli_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         PromptRule {
             name: "Gemini CLI".to_string(),
@@ -461,6 +495,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: ai_cli_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         PromptRule {
             name: "Codex CLI".to_string(),
@@ -469,6 +504,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: ai_cli_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         PromptRule {
             name: "Aider".to_string(),
@@ -477,6 +513,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: ai_cli_prompt,
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         // ── Code editors & terminals ──
         PromptRule {
@@ -486,6 +523,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: code_editor_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         PromptRule {
             name: "VSCode".to_string(),
@@ -494,6 +532,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: code_editor_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         PromptRule {
             name: "Cursor".to_string(),
@@ -502,6 +541,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: code_editor_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         PromptRule {
             name: "Antigravity".to_string(),
@@ -510,6 +550,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: code_editor_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         PromptRule {
             name: "iTerm2".to_string(),
@@ -518,6 +559,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: code_editor_prompt,
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         // ── Notes & docs ──
         PromptRule {
@@ -527,6 +569,10 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: notion_prompt,
             enabled: true,
             icon: None,
+            alt_matches: vec![MatchCondition {
+                match_type: MatchType::AppName,
+                match_value: "Notion".to_string(),
+            }],
         },
         // ── Chat & messaging ──
         PromptRule {
@@ -536,6 +582,10 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: chat_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![MatchCondition {
+                match_type: MatchType::Url,
+                match_value: "web.whatsapp.com".to_string(),
+            }],
         },
         PromptRule {
             name: "Telegram".to_string(),
@@ -544,6 +594,10 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: chat_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![MatchCondition {
+                match_type: MatchType::Url,
+                match_value: "web.telegram.org".to_string(),
+            }],
         },
         PromptRule {
             name: "Slack".to_string(),
@@ -552,6 +606,10 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: slack_prompt,
             enabled: true,
             icon: None,
+            alt_matches: vec![MatchCondition {
+                match_type: MatchType::Url,
+                match_value: "app.slack.com".to_string(),
+            }],
         },
         PromptRule {
             name: "Discord".to_string(),
@@ -560,6 +618,10 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: chat_prompt.clone(),
             enabled: true,
             icon: None,
+            alt_matches: vec![MatchCondition {
+                match_type: MatchType::Url,
+                match_value: "discord.com".to_string(),
+            }],
         },
         PromptRule {
             name: "LINE".to_string(),
@@ -568,6 +630,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: chat_prompt,
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         // ── Developer platforms ──
         PromptRule {
@@ -577,6 +640,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: github_prompt,
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
         // ── Social media ──
         PromptRule {
@@ -586,6 +650,7 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
             prompt: twitter_prompt,
             enabled: true,
             icon: None,
+            alt_matches: vec![],
         },
     ]
 }
@@ -639,20 +704,47 @@ fn format_app_context(context: &AppContext) -> String {
 }
 
 /// Find the first matching prompt rule for the given app context.
+fn matches_condition(
+    match_type: &MatchType,
+    match_value: &str,
+    app_lower: &str,
+    url_lower: &str,
+    bundle_id: &str,
+) -> bool {
+    if match_value.is_empty() {
+        return false;
+    }
+    let val_lower = match_value.to_lowercase();
+    match match_type {
+        MatchType::AppName => app_lower.contains(&val_lower),
+        MatchType::BundleId => bundle_id == match_value,
+        MatchType::Url => !url_lower.is_empty() && url_lower.contains(&val_lower),
+    }
+}
+
 fn find_matching_rule<'a>(rules: &[&'a PromptRule], context: &AppContext) -> Option<&'a str> {
     let app_lower = context.app_name.to_lowercase();
     let url_lower = context.url.to_lowercase();
 
     for rule in rules {
-        if !rule.enabled || rule.match_value.is_empty() {
+        if !rule.enabled {
             continue;
         }
-        let match_lower = rule.match_value.to_lowercase();
-        let matched = match rule.match_type {
-            MatchType::AppName => app_lower.contains(&match_lower),
-            MatchType::BundleId => context.bundle_id == rule.match_value,
-            MatchType::Url => !url_lower.is_empty() && url_lower.contains(&match_lower),
-        };
+        let matched = matches_condition(
+            &rule.match_type,
+            &rule.match_value,
+            &app_lower,
+            &url_lower,
+            &context.bundle_id,
+        ) || rule.alt_matches.iter().any(|alt| {
+            matches_condition(
+                &alt.match_type,
+                &alt.match_value,
+                &app_lower,
+                &url_lower,
+                &context.bundle_id,
+            )
+        });
         if matched {
             println!("[Sumi] Prompt rule matched: \"{}\"", rule.name);
             return Some(&rule.prompt);

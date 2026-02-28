@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Automatikus",
   "promptRules.iconTerminal": "Terminál",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Veszélyzóna",
   "settings.danger.reset": "Visszaállítás alapértelmezett értékekre",
   "settings.danger.resetDesc": "Állítsa vissza az összes beállítást az eredeti értékekre",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Megtakarított idő = {count} kávéfőzés",
   "stats.fact.animeEpisodes": "Megtakarított idő = {count} anime epizód",
   "stats.fact.streak": "{count} diktálás és egyre több!",
-  "stats.fact.keepGoing": "Folytassa a diktálást a szórakoztató statisztikák feloldásához!"
+  "stats.fact.keepGoing": "Folytassa a diktálást a szórakoztató statisztikák feloldásához!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }

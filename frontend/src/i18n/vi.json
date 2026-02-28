@@ -129,6 +129,8 @@
   "promptRules.autoIcon": "Tự động",
   "promptRules.iconTerminal": "Terminal",
   "promptRules.iconRobot": "Robot",
+  "promptRules.addAltMatch": "+ Add Condition",
+  "promptRules.altMatchHint": "Rule triggers if any condition matches (e.g. native app OR browser URL).",
   "settings.danger": "Vùng nguy hiểm",
   "settings.danger.reset": "Đặt lại về mặc định",
   "settings.danger.resetDesc": "Khôi phục tất cả cài đặt về các giá trị ban đầu",
@@ -333,5 +335,7 @@
   "stats.fact.coffeeBrews": "Thời gian tiết kiệm = {count} lần pha cà phê",
   "stats.fact.animeEpisodes": "Thời gian tiết kiệm = {count} tập anime",
   "stats.fact.streak": "{count} lần đọc và vẫn tiếp tục!",
-  "stats.fact.keepGoing": "Tiếp tục đọc chính tả để mở khóa thống kê thú vị!"
+  "stats.fact.keepGoing": "Tiếp tục đọc chính tả để mở khóa thống kê thú vị!",
+  "promptRules.matchConditions": "Match Conditions",
+  "promptRules.or": "OR"
 }
