@@ -66,6 +66,8 @@ pub enum PolishMode {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum CloudProvider {
+    #[serde(rename = "github_models")]
+    GitHubModels,
     Groq,
     OpenRouter,
     OpenAi,
@@ -76,7 +78,7 @@ pub enum CloudProvider {
 
 impl Default for CloudProvider {
     fn default() -> Self {
-        Self::Groq
+        Self::GitHubModels
     }
 }
 
@@ -84,6 +86,7 @@ impl CloudProvider {
     /// Returns the snake_case identifier matching the serde serialization.
     pub fn as_key(&self) -> &'static str {
         match self {
+            CloudProvider::GitHubModels => "github_models",
             CloudProvider::Groq => "groq",
             CloudProvider::OpenRouter => "open_router",
             CloudProvider::OpenAi => "open_ai",
@@ -95,6 +98,7 @@ impl CloudProvider {
 
     pub fn default_endpoint(&self) -> &'static str {
         match self {
+            CloudProvider::GitHubModels => "https://models.github.ai/inference/chat/completions",
             CloudProvider::Groq => "https://api.groq.com/openai/v1/chat/completions",
             CloudProvider::OpenRouter => "https://openrouter.ai/api/v1/chat/completions",
             CloudProvider::OpenAi => "https://api.openai.com/v1/chat/completions",
@@ -123,7 +127,7 @@ impl Default for CloudConfig {
             provider: CloudProvider::default(),
             api_key: String::new(),
             endpoint: String::new(),
-            model_id: "qwen/qwen3-32b".to_string(),
+            model_id: "openai/gpt-4o-mini".to_string(),
         }
     }
 }

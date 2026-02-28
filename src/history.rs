@@ -40,7 +40,16 @@ fn db_path(history_dir: &Path) -> PathBuf {
 }
 
 fn audio_path(audio_dir: &Path, id: &str) -> PathBuf {
+    // Caller must validate id before calling; this is a low-level helper.
     audio_dir.join(format!("{}.wav", id))
+}
+
+/// Validate that a history ID contains only safe characters (digits and underscores).
+fn validate_id(id: &str) -> Result<(), String> {
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit() || c == '_') {
+        return Err("Invalid history ID format".to_string());
+    }
+    Ok(())
 }
 
 fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
@@ -172,6 +181,28 @@ pub fn get_stats(history_dir: &Path) -> HistoryStats {
     .unwrap_or(zero)
 }
 
+/// Shared row mapper for HistoryEntry — used by all query functions.
+fn map_row(row: &rusqlite::Row) -> Result<HistoryEntry, rusqlite::Error> {
+    Ok(HistoryEntry {
+        id: row.get(0)?,
+        timestamp: row.get(1)?,
+        text: row.get(2)?,
+        raw_text: row.get(3)?,
+        reasoning: row.get(4)?,
+        stt_model: row.get(5)?,
+        polish_model: row.get(6)?,
+        duration_secs: row.get(7)?,
+        has_audio: row.get::<_, i32>(8)? != 0,
+        stt_elapsed_ms: row.get::<_, i64>(9).unwrap_or(0) as u64,
+        polish_elapsed_ms: row.get::<_, Option<i64>>(10).ok().flatten().map(|v| v as u64),
+        total_elapsed_ms: row.get::<_, i64>(11).unwrap_or(0) as u64,
+        app_name: row.get::<_, String>(12).unwrap_or_default(),
+        bundle_id: row.get::<_, String>(13).unwrap_or_default(),
+        chars_per_sec: row.get::<_, f64>(14).unwrap_or(0.0),
+        word_count: row.get::<_, i64>(15).unwrap_or(0) as u64,
+    })
+}
+
 pub fn load_history_page(
     history_dir: &Path,
     before_timestamp: Option<i64>,
@@ -185,26 +216,6 @@ pub fn load_history_page(
         }
     };
     let fetch_limit = limit as i64 + 1;
-    let row_mapper = |row: &rusqlite::Row| -> Result<HistoryEntry, rusqlite::Error> {
-        Ok(HistoryEntry {
-            id: row.get(0)?,
-            timestamp: row.get(1)?,
-            text: row.get(2)?,
-            raw_text: row.get(3)?,
-            reasoning: row.get(4)?,
-            stt_model: row.get(5)?,
-            polish_model: row.get(6)?,
-            duration_secs: row.get(7)?,
-            has_audio: row.get::<_, i32>(8)? != 0,
-            stt_elapsed_ms: row.get::<_, i64>(9).unwrap_or(0) as u64,
-            polish_elapsed_ms: row.get::<_, Option<i64>>(10).ok().flatten().map(|v| v as u64),
-            total_elapsed_ms: row.get::<_, i64>(11).unwrap_or(0) as u64,
-            app_name: row.get::<_, String>(12).unwrap_or_default(),
-            bundle_id: row.get::<_, String>(13).unwrap_or_default(),
-            chars_per_sec: row.get::<_, f64>(14).unwrap_or(0.0),
-            word_count: row.get::<_, i64>(15).unwrap_or(0) as u64,
-        })
-    };
     let mut entries: Vec<HistoryEntry> = if let Some(ts) = before_timestamp {
         let mut stmt = match conn.prepare(
             "SELECT id, timestamp, text, raw_text, reasoning, stt_model, polish_model,
@@ -218,7 +229,7 @@ pub fn load_history_page(
                 return (Vec::new(), false);
             }
         };
-        let result = stmt.query_map(params![ts, fetch_limit], row_mapper);
+        let result = stmt.query_map(params![ts, fetch_limit], map_row);
         match result {
             Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
             Err(e) => {
@@ -239,7 +250,7 @@ pub fn load_history_page(
                 return (Vec::new(), false);
             }
         };
-        let result = stmt.query_map(params![fetch_limit], row_mapper);
+        let result = stmt.query_map(params![fetch_limit], map_row);
         match result {
             Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
             Err(e) => {
@@ -275,26 +286,7 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
             return Vec::new();
         }
     };
-    let rows = stmt.query_map([], |row| {
-        Ok(HistoryEntry {
-            id: row.get(0)?,
-            timestamp: row.get(1)?,
-            text: row.get(2)?,
-            raw_text: row.get(3)?,
-            reasoning: row.get(4)?,
-            stt_model: row.get(5)?,
-            polish_model: row.get(6)?,
-            duration_secs: row.get(7)?,
-            has_audio: row.get::<_, i32>(8)? != 0,
-            stt_elapsed_ms: row.get::<_, i64>(9).unwrap_or(0) as u64,
-            polish_elapsed_ms: row.get::<_, Option<i64>>(10).ok().flatten().map(|v| v as u64),
-            total_elapsed_ms: row.get::<_, i64>(11).unwrap_or(0) as u64,
-            app_name: row.get::<_, String>(12).unwrap_or_default(),
-            bundle_id: row.get::<_, String>(13).unwrap_or_default(),
-            chars_per_sec: row.get::<_, f64>(14).unwrap_or(0.0),
-            word_count: row.get::<_, i64>(15).unwrap_or(0) as u64,
-        })
-    });
+    let rows = stmt.query_map([], map_row);
     match rows {
         Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
         Err(e) => {
@@ -376,6 +368,7 @@ fn cleanup_expired(conn: &Connection, audio_dir: &Path, retention_days: u32) {
 }
 
 pub fn delete_entry(history_dir: &Path, audio_dir: &Path, id: &str) {
+    if validate_id(id).is_err() { return; }
     if let Ok(conn) = open_db(history_dir) {
         let _ = conn.execute("DELETE FROM history WHERE id = ?1", params![id]);
     }
@@ -395,6 +388,7 @@ pub fn clear_all(history_dir: &Path, audio_dir: &Path) {
 }
 
 pub fn save_audio_wav(audio_dir: &Path, id: &str, samples_16k: &[f32]) -> bool {
+    if validate_id(id).is_err() { return false; }
     if std::fs::create_dir_all(audio_dir).is_err() {
         return false;
     }
@@ -421,6 +415,7 @@ pub fn save_audio_wav(audio_dir: &Path, id: &str, samples_16k: &[f32]) -> bool {
 }
 
 pub fn export_audio(audio_dir: &Path, id: &str) -> Result<PathBuf, String> {
+    validate_id(id)?;
     let src = audio_path(audio_dir, id);
     if !src.exists() {
         return Err("Audio file not found".to_string());

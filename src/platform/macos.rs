@@ -201,83 +201,35 @@ extern "C" {
     fn CFRelease(cf: *mut c_void);
 }
 
-/// Simulate Cmd+V via CGEvent.
-pub unsafe fn simulate_cmd_v() -> bool {
+/// Simulate Cmd+<key> via CGEvent.
+unsafe fn simulate_cmd_key(virtual_key: u16) -> bool {
     const COMBINED_STATE: i32 = 0;
     const HID_EVENT_TAP: u32 = 0;
     const FLAG_CMD: u64 = 0x100000;
-    const VK_V: u16 = 9;
 
     let source = CGEventSourceCreate(COMBINED_STATE);
     if source.is_null() {
         return false;
     }
 
-    let v_d = CGEventCreateKeyboardEvent(source, VK_V, true);
-    CGEventSetFlags(v_d, FLAG_CMD);
-    CGEventPost(HID_EVENT_TAP, v_d);
+    let key_down = CGEventCreateKeyboardEvent(source, virtual_key, true);
+    CGEventSetFlags(key_down, FLAG_CMD);
+    CGEventPost(HID_EVENT_TAP, key_down);
 
-    let v_u = CGEventCreateKeyboardEvent(source, VK_V, false);
-    CGEventSetFlags(v_u, FLAG_CMD);
-    CGEventPost(HID_EVENT_TAP, v_u);
+    let key_up = CGEventCreateKeyboardEvent(source, virtual_key, false);
+    CGEventSetFlags(key_up, FLAG_CMD);
+    CGEventPost(HID_EVENT_TAP, key_up);
 
-    CFRelease(v_d);
-    CFRelease(v_u);
+    CFRelease(key_down);
+    CFRelease(key_up);
     CFRelease(source);
 
     true
 }
 
-/// Simulate Cmd+C via CGEvent (copy).
-pub unsafe fn simulate_cmd_c() -> bool {
-    const COMBINED_STATE: i32 = 0;
-    const HID_EVENT_TAP: u32 = 0;
-    const FLAG_CMD: u64 = 0x100000;
-    const VK_C: u16 = 8;
-
-    let source = CGEventSourceCreate(COMBINED_STATE);
-    if source.is_null() {
-        return false;
-    }
-
-    let c_d = CGEventCreateKeyboardEvent(source, VK_C, true);
-    CGEventSetFlags(c_d, FLAG_CMD);
-    CGEventPost(HID_EVENT_TAP, c_d);
-
-    let c_u = CGEventCreateKeyboardEvent(source, VK_C, false);
-    CGEventSetFlags(c_u, FLAG_CMD);
-    CGEventPost(HID_EVENT_TAP, c_u);
-
-    CFRelease(c_d);
-    CFRelease(c_u);
-    CFRelease(source);
-
-    true
-}
-
-/// Simulate Cmd+Z via CGEvent (undo).
-pub unsafe fn simulate_cmd_z() -> bool {
-    const COMBINED_STATE: i32 = 0;
-    const HID_EVENT_TAP: u32 = 0;
-    const FLAG_CMD: u64 = 0x100000;
-    const VK_Z: u16 = 6;
-
-    let source = CGEventSourceCreate(COMBINED_STATE);
-    if source.is_null() {
-        return false;
-    }
-
-    let z_d = CGEventCreateKeyboardEvent(source, VK_Z, true);
-    CGEventSetFlags(z_d, FLAG_CMD);
-    CGEventPost(HID_EVENT_TAP, z_d);
-
-    let z_u = CGEventCreateKeyboardEvent(source, VK_Z, false);
-    CGEventSetFlags(z_u, FLAG_CMD);
-    CGEventPost(HID_EVENT_TAP, z_u);
-
-    CFRelease(z_d);
-    CFRelease(z_u);
-    CFRelease(source);
-
-    true
-}
+/// Simulate Cmd+V (paste).
+pub unsafe fn simulate_cmd_v() -> bool { simulate_cmd_key(9) }
+/// Simulate Cmd+C (copy).
+pub unsafe fn simulate_cmd_c() -> bool { simulate_cmd_key(8) }
+/// Simulate Cmd+Z (undo).
+pub unsafe fn simulate_cmd_z() -> bool { simulate_cmd_key(6) }

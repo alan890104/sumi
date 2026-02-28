@@ -37,6 +37,15 @@ export interface CloudProviderMeta {
 }
 
 export const CLOUD_PROVIDERS: Record<CloudProvider, CloudProviderMeta> = {
+  github_models: {
+    models: [
+      { id: 'openai/gpt-4o-mini', name: 'GPT-4o mini' },
+      { id: 'openai/gpt-4o', name: 'GPT-4o' },
+      { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B' },
+      { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1' },
+    ],
+    apiKeyUrl: 'https://github.com/settings/personal-access-tokens/new',
+  },
   groq: {
     models: [
       { id: 'qwen/qwen3-32b', name: 'Qwen 3 32B' },
@@ -104,6 +113,7 @@ export const STT_CLOUD_PROVIDERS: Record<SttProvider, SttProviderMeta> = {
 // ── Provider display names ──
 
 export const CLOUD_PROVIDER_LABELS: Record<CloudProvider, string> = {
+  github_models: 'GitHub Models',
   groq: 'Groq',
   open_router: 'OpenRouter',
   open_ai: 'OpenAI',

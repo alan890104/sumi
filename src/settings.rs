@@ -78,7 +78,13 @@ pub fn load_settings() -> Settings {
     let path = settings_path();
     let mut settings = if path.exists() {
         match std::fs::read_to_string(&path) {
-            Ok(contents) => serde_json::from_str(&contents).unwrap_or_default(),
+            Ok(contents) => match serde_json::from_str(&contents) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("[Sumi] Settings file corrupted ({}), using defaults", e);
+                    Settings::default()
+                }
+            },
             Err(_) => Settings::default(),
         }
     } else {

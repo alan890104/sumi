@@ -52,7 +52,15 @@ pub fn spawn_audio_thread(
                         if !rec.load(Ordering::Relaxed) {
                             return;
                         }
-                        let mut buf = buf.lock().unwrap();
+                        let mut buf = match buf.lock() {
+                            Ok(b) => b,
+                            Err(_) => return, // S-11: handle poisoned mutex
+                        };
+                        // S-08: safety cap — ~125s at 16 kHz mono
+                        if buf.len() > 2_000_000 {
+                            rec.store(false, Ordering::Relaxed);
+                            return;
+                        }
                         if channels == 1 {
                             buf.extend_from_slice(data);
                         } else {
@@ -73,7 +81,15 @@ pub fn spawn_audio_thread(
                             if !rec.load(Ordering::Relaxed) {
                                 return;
                             }
-                            let mut buf = buf.lock().unwrap();
+                            let mut buf = match buf.lock() {
+                                Ok(b) => b,
+                                Err(_) => return, // S-11: handle poisoned mutex
+                            };
+                            // S-08: safety cap
+                            if buf.len() > 2_000_000 {
+                                rec.store(false, Ordering::Relaxed);
+                                return;
+                            }
                             if channels == 1 {
                                 buf.extend(data.iter().map(|&s| s as f32 / i16::MAX as f32));
                             } else {
@@ -296,7 +312,7 @@ fn rms_trim_silence(samples_16k: &mut Vec<f32>) -> Result<(), String> {
             trim_start as f64 / 16.0,
             speech_onset as f64 / 16.0
         );
-        *samples_16k = samples_16k[trim_start..].to_vec();
+        samples_16k.drain(0..trim_start);
     }
 
     if samples_16k.len() > WINDOW {

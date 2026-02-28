@@ -55,6 +55,7 @@ export interface SttConfig {
 export type PolishMode = 'local' | 'cloud';
 
 export type CloudProvider =
+  | 'github_models'
   | 'groq'
   | 'open_router'
   | 'open_ai'
