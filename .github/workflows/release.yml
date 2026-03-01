@@ -99,10 +99,10 @@ jobs:
       matrix:
         include:
           - cuda-version: "12.6.3"
-            cuda-sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "cuda_crt", "nvrtc", "nvrtc_dev"]'
+            cuda-sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "nvrtc", "nvrtc_dev"]'
             artifact-suffix: cuda12
           - cuda-version: "13.1.0"
-            cuda-sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "cuda_crt", "nvrtc", "nvrtc_dev"]'
+            cuda-sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "nvrtc", "nvrtc_dev"]'
             artifact-suffix: cuda13
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
