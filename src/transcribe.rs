@@ -57,7 +57,7 @@ pub fn filter_with_vad(
         let load_start = Instant::now();
         println!("[Sumi] Loading Silero VAD model...");
         let mut ctx_params = WhisperVadContextParams::new();
-        ctx_params.set_use_gpu(true);
+        ctx_params.set_use_gpu(cfg!(target_os = "macos"));
         ctx_params.set_n_threads(num_cpus() as _);
         let ctx = WhisperVadContext::new(
             model_path.to_str().ok_or("Invalid VAD model path")?,

@@ -1002,6 +1002,10 @@ pub fn run() {
 
                                             const NUM_BARS: usize = 20;
                                             let samples_per_bar = sr / 20;
+                                            // Adaptive gain: track recent peak RMS so the waveform
+                                            // fills the full visual range regardless of platform
+                                            // mic level (macOS Core Audio vs Windows WASAPI).
+                                            let mut peak_rms: f32 = 0.01; // initial floor
 
                                             while state.is_recording.load(Ordering::SeqCst) {
                                                 if recording_start.elapsed().as_secs() >= MAX_RECORDING_SECS {
@@ -1019,14 +1023,24 @@ pub fn run() {
                                                     } else {
                                                         let total = NUM_BARS * samples_per_bar;
                                                         let start = buf.len().saturating_sub(total);
-                                                        let mut bars: Vec<f32> = buf[start..]
+                                                        let raw_rms: Vec<f32> = buf[start..]
                                                             .chunks(samples_per_bar)
                                                             .map(|chunk| {
-                                                                let rms = (chunk.iter().map(|&s| s * s).sum::<f32>()
+                                                                (chunk.iter().map(|&s| s * s).sum::<f32>()
                                                                     / chunk.len() as f32)
-                                                                    .sqrt();
-                                                                (rms * 6.0).min(1.0)
+                                                                    .sqrt()
                                                             })
+                                                            .collect();
+                                                        // Fast attack, slow decay (~3.5s to halve at 50ms tick)
+                                                        let frame_max = raw_rms.iter().cloned().fold(0.0f32, f32::max);
+                                                        if frame_max > peak_rms {
+                                                            peak_rms = frame_max;
+                                                        } else {
+                                                            peak_rms *= 0.99;
+                                                        }
+                                                        peak_rms = peak_rms.max(0.001);
+                                                        let mut bars: Vec<f32> = raw_rms.iter()
+                                                            .map(|&rms| (rms / peak_rms).min(1.0))
                                                             .collect();
                                                         while bars.len() < NUM_BARS {
                                                             bars.insert(0, 0.0);

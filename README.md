@@ -156,9 +156,9 @@ cd sumi
 cargo tauri dev --no-default-features
 cargo tauri build --no-default-features
 
-# With NVIDIA CUDA acceleration
-cargo tauri dev --no-default-features --features cuda
-cargo tauri build --no-default-features --features cuda
+# With NVIDIA CUDA acceleration (requires CUDA Toolkit, LLVM, Ninja, CMake)
+bash dev-cuda.sh            # dev mode
+bash dev-cuda.sh --release  # release mode
 ```
 
 ## Usage
