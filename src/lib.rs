@@ -553,6 +553,9 @@ fn stop_edit_and_replace(app: &AppHandle) {
 // ── App Entry ───────────────────────────────────────────────────────────────
 
 pub fn run() {
+    // Silence whisper.cpp and GGML logs (no log_backend/tracing_backend → noop)
+    whisper_rs::install_logging_hooks();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             show_settings_window(app);
