@@ -226,10 +226,14 @@ pub fn recommend_model(system: &SystemInfo, settings_language: Option<&str>) -> 
 
 // ── System language detection ─────────────────────────────────────────────────
 
-/// Detect the system language. On macOS, reads NSLocale.currentLocale via
-/// Objective-C FFI (requires Foundation / Cocoa to be loaded — call only
-/// after the AppKit runtime is initialised, e.g. inside Tauri `.setup()`).
-/// Falls back to LANG/LC_ALL on other platforms.
+/// Detect the system language. On macOS, reads `[NSLocale preferredLanguages]`
+/// via Objective-C FFI to get the user's **preferred UI language** in BCP-47
+/// format (e.g. `"zh-hant-tw"`, `"ja"`, `"en-us"`).
+///
+/// Requires the Cocoa runtime to be initialised — call only after AppKit is
+/// loaded (e.g. inside Tauri `.setup()`).
+///
+/// Falls back to `LANG`/`LC_ALL` on other platforms.
 pub fn detect_system_language() -> Option<String> {
     #[cfg(target_os = "macos")]
     {
@@ -245,9 +249,12 @@ pub fn detect_system_language() -> Option<String> {
         .map(|l| l.to_lowercase())
 }
 
-/// Read [[NSLocale currentLocale] localeIdentifier] via Objective-C FFI.
+/// Internal: read both `[NSLocale preferredLanguages][0]` and
+/// `[NSLocale currentLocale].localeIdentifier` for diagnostics.
+///
+/// Returns `(preferred_language, current_locale_identifier)`.
 #[cfg(target_os = "macos")]
-fn macos_locale_identifier() -> Option<String> {
+fn macos_locale_debug() -> (Option<String>, Option<String>) {
     use std::ffi::c_void;
 
     extern "C" {
@@ -256,31 +263,78 @@ fn macos_locale_identifier() -> Option<String> {
         fn objc_msgSend();
     }
 
+    let send: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void = unsafe {
+        std::mem::transmute(objc_msgSend as unsafe extern "C" fn())
+    };
+
     unsafe {
         let cls = objc_getClass(b"NSLocale\0".as_ptr());
         if cls.is_null() {
-            return None;
+            return (None, None);
         }
 
-        // [NSLocale currentLocale]
-        let sel_current = sel_registerName(b"currentLocale\0".as_ptr());
-        let send_cls: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
-            std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-        let locale = send_cls(cls, sel_current);
-        if locale.is_null() {
-            return None;
-        }
+        // ── preferred language: [NSLocale preferredLanguages][0] ──
+        let preferred = {
+            let sel_pref = sel_registerName(b"preferredLanguages\0".as_ptr());
+            let array = send(cls, sel_pref);
+            if !array.is_null() {
+                let sel_count = sel_registerName(b"count\0".as_ptr());
+                let send_count: unsafe extern "C" fn(*mut c_void, *mut c_void) -> usize =
+                    std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+                let count = send_count(array, sel_count);
+                if count > 0 {
+                    let sel_first = sel_registerName(b"firstObject\0".as_ptr());
+                    let ns_str = send(array, sel_first);
+                    if !ns_str.is_null() {
+                        let s = crate::platform::macos::nsstring_to_string(ns_str);
+                        if !s.is_empty() { Some(s) } else { None }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
 
-        // [locale localeIdentifier]
-        let sel_id = sel_registerName(b"localeIdentifier\0".as_ptr());
-        let ns_string = send_cls(locale, sel_id);
-        if ns_string.is_null() {
-            return None;
-        }
+        // ── current locale identifier: [NSLocale currentLocale].localeIdentifier ──
+        let current = {
+            let sel_current = sel_registerName(b"currentLocale\0".as_ptr());
+            let locale = send(cls, sel_current);
+            if !locale.is_null() {
+                let sel_id = sel_registerName(b"localeIdentifier\0".as_ptr());
+                let ns_str = send(locale, sel_id);
+                if !ns_str.is_null() {
+                    let s = crate::platform::macos::nsstring_to_string(ns_str);
+                    if !s.is_empty() { Some(s) } else { None }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
 
-        let s = crate::platform::macos::nsstring_to_string(ns_string).to_lowercase();
-        if s.is_empty() { None } else { Some(s) }
+        (preferred, current)
     }
+}
+
+/// Read the user's preferred UI language via `[NSLocale preferredLanguages][0]`.
+/// Falls back to `[NSLocale currentLocale].localeIdentifier` if
+/// `preferredLanguages` is empty.
+#[cfg(target_os = "macos")]
+fn macos_locale_identifier() -> Option<String> {
+    let (preferred, current) = macos_locale_debug();
+    preferred.or(current).map(|s| s.to_lowercase())
+}
+
+/// Returns both locale values for diagnostic purposes:
+/// `(preferred_language, current_locale_identifier)`.
+#[cfg(target_os = "macos")]
+pub fn macos_locale_both() -> (Option<String>, Option<String>) {
+    macos_locale_debug()
 }
 
 // ── Platform-specific system info helpers ─────────────────────────────────────

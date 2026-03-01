@@ -1688,3 +1688,36 @@ pub fn copy_image_to_clipboard(png_bytes: Vec<u8>) -> Result<(), String> {
 pub fn is_dev_mode() -> bool {
     crate::settings::is_debug()
 }
+
+// ── Locale debug ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LocaleDebugInfo {
+    pub preferred_language: Option<String>,
+    pub current_locale_identifier: Option<String>,
+    pub env_lang: Option<String>,
+    pub detected_language: Option<String>,
+    pub mapped_stt_language: String,
+}
+
+#[tauri::command]
+pub fn get_locale_debug() -> LocaleDebugInfo {
+    #[cfg(target_os = "macos")]
+    let (preferred_language, current_locale_identifier) = whisper_models::macos_locale_both();
+    #[cfg(not(target_os = "macos"))]
+    let (preferred_language, current_locale_identifier) = (None, None);
+
+    let env_lang = std::env::var("LANG").ok();
+    let detected_language = whisper_models::detect_system_language();
+    let mapped_stt_language = crate::stt::locale_to_stt_language(
+        detected_language.as_deref().unwrap_or("en"),
+    );
+
+    LocaleDebugInfo {
+        preferred_language,
+        current_locale_identifier,
+        env_lang,
+        detected_language,
+        mapped_stt_language,
+    }
+}

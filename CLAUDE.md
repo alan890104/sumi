@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Sumi is a macOS desktop app (Tauri 2) that provides system-wide speech-to-text via a global hotkey. It supports both local (Whisper via `whisper-rs` with Metal acceleration) and cloud STT APIs (Groq/OpenAI/Deepgram/Azure/Custom) for transcription, and pastes the result at the cursor. Optionally uses a local LLM (via `llama-cpp-2`) or cloud API (GitHubModels/Groq/OpenRouter/OpenAI/Gemini/SambaNova/Custom) to polish transcription output. Also supports an "Edit by Voice" mode that applies spoken instructions to selected text via LLM.
+Sumi is a macOS desktop app (Tauri 2) that provides system-wide speech-to-text via a global hotkey. It supports both local (Whisper via `whisper-rs` with Metal acceleration) and cloud STT APIs (Groq/OpenAI/Deepgram/Azure/Custom) for transcription, and pastes the result at the cursor. Optionally uses a local LLM (via `candle`) or cloud API (GitHubModels/Groq/OpenRouter/OpenAI/Gemini/SambaNova/Custom) to polish transcription output. Also supports an "Edit by Voice" mode that applies spoken instructions to selected text via LLM.
 
 ## Commands
 
@@ -74,7 +74,7 @@ All `#[tauri::command]` functions exposed to the frontend:
 - **`PolishConfig`** — fields: `enabled` (default false), `model` (PolishModel), `custom_prompt` (Option<String>), `mode` (PolishMode: Local or Cloud, default Cloud), `cloud` (CloudConfig), `prompt_rules` (HashMap<String, Vec<PromptRule>>, per-language map), `dictionary` (DictionaryConfig), `reasoning` (bool, default false).
 - **`CloudConfig`** — fields: `provider` (CloudProvider: GitHubModels/Groq/OpenRouter/OpenAi/Gemini/SambaNova/Custom), `api_key` (#[serde(skip)]), `endpoint`, `model_id` (default empty, locale-initialized on new install: Chinese locales → "qwen/qwen3-32b", others → "openai/gpt-oss-120b").
 - **`PolishModel`** variants: `LlamaTaiwan` (Llama 3 Taiwan 8B, ~4.9 GB), `Qwen25` (Qwen 2.5 7B, ~4.7 GB), `Qwen3` (Qwen 3 8B, ~5.0 GB).
-- **`polish_text`** — dispatches to `run_cloud_inference` (OpenAI-compatible HTTP) or `run_llm_inference` (local llama-cpp-2) based on `PolishMode`. Returns `PolishResult { text, reasoning }`.
+- **`polish_text`** — dispatches to `run_cloud_inference` (OpenAI-compatible HTTP) or `run_llm_inference` (local candle) based on `PolishMode`. Returns `PolishResult { text, reasoning }`.
 - **`edit_text_by_instruction`** — "Edit by Voice": takes selected text + spoken instruction, returns edited text via LLM.
 - **Prompt rules**: `PromptRule { name, match_type (AppName/BundleId/Url), match_value, prompt, enabled, icon (Option<String>), alt_matches (Vec<MatchCondition>) }`. `MatchCondition { match_type, match_value }` allows multi-match rules. The `icon` field is an optional key for the frontend (e.g. "terminal", "slack"); auto-detected if None. Built-in preset rules for Gmail, Claude Code, Gemini CLI, Codex CLI, Aider, Terminal, VSCode, Cursor, Antigravity, iTerm2, Notion, WhatsApp, Telegram, Slack, Discord, LINE, GitHub, X (Twitter).
 - **Dictionary**: `DictionaryConfig { enabled, entries: Vec<DictionaryEntry> }` for proper noun correction, injected into both Whisper initial prompt and LLM system prompt.
@@ -152,7 +152,7 @@ Hotkeys are stored as `"Modifier+…+KeyCode"`, e.g. `"Alt+KeyZ"`. Modifiers: `A
 Optional Silero VAD model (`ggml-silero-v6.2.0.bin`) downloaded separately. Filters out non-speech segments before Whisper transcription. Falls back to RMS-based silence trimming if not downloaded. Controlled by `stt.vad_enabled`.
 
 ### LLM Polish Model
-`llama-cpp-2` (with `metal` feature for GPU acceleration) downloads GGUF models from HuggingFace. Supported models: Llama 3 Taiwan 8B (Q4_K_M, ~4.9 GB), Qwen 2.5 7B (Q4_K_M, ~4.7 GB), and Qwen 3 8B (Q4_K_M, ~5.0 GB). Model download progress reported via `llm-model-download-progress` Tauri events. Multi-model management with per-model download/switch.
+`candle` (HuggingFace's pure Rust ML framework, with `metal` and `cuda` features for GPU acceleration) loads quantized GGUF models. Supported models: Llama 3 Taiwan 8B (Q4_K_M, ~4.9 GB), Qwen 2.5 7B (Q4_K_M, ~4.7 GB), and Qwen 3 8B (Q4_K_M, ~5.0 GB). Model download progress reported via `llm-model-download-progress` Tauri events. Multi-model management with per-model download/switch.
 
 ## macOS-Specific Requirements
 - `macOSPrivateApi: true` in `tauri.conf.json` is required for `ns_window()` access and transparent windows.

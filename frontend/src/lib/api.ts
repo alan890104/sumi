@@ -215,3 +215,18 @@ export const copyImageToClipboard = (pngBytes: number[]) =>
 // ── Dev Mode ──
 
 export const isDevMode = () => invoke<boolean>('is_dev_mode');
+
+// ── Locale Debug ──
+
+export interface LocaleDebugInfo {
+  preferred_language: string | null;
+  current_locale_identifier: string | null;
+  env_lang: string | null;
+  detected_language: string | null;
+  mapped_stt_language: string;
+}
+
+export const getLocaleDebug = () => invoke<LocaleDebugInfo>('get_locale_debug');
+
+// Expose to DevTools console for debugging: await window.getLocaleDebug()
+(window as any).getLocaleDebug = getLocaleDebug;

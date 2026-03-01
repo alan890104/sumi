@@ -7,8 +7,8 @@ license = "GPL-3.0-or-later"
 
 [features]
 default = ["metal"]
-metal = ["whisper-rs/metal", "llama-cpp-2/metal"]
-cuda = ["whisper-rs/cuda", "llama-cpp-2/cuda"]
+metal = ["whisper-rs/metal", "candle-core/metal", "candle-transformers/metal"]
+cuda = ["whisper-rs/cuda", "candle-core/cuda", "candle-transformers/cuda"]
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "macos-private-api", "image-png"] }
@@ -23,7 +23,9 @@ serde_json = "1"
 cpal = "0.15"
 whisper-rs = "0.15"
 reqwest = { version = "0.12", features = ["blocking", "multipart"] }
-llama-cpp-2 = { version = "0.1", default-features = false, features = ["sampler"] }
+candle-core = { git = "https://github.com/huggingface/candle.git", branch = "main" }
+candle-transformers = { git = "https://github.com/huggingface/candle.git", branch = "main" }
+tokenizers = { version = "0.22", features = ["onig"] }
 hound = "3"
 dirs = "6"
 rusqlite = { version = "0.32", features = ["bundled"] }

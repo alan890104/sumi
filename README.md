@@ -71,7 +71,7 @@ GPLv3 licensed. No subscription, no word limits, no account required. Bring your
 
 ### AI Polish
 
-- **Local LLM** — 3 models via `llama-cpp-2` with Metal acceleration: Llama 3 Taiwan 8B (~4.9 GB), Qwen 2.5 7B (~4.7 GB), Qwen 3 8B (~5.0 GB).
+- **Local LLM** — 3 models via `candle` with Metal/CUDA acceleration: Llama 3 Taiwan 8B (~4.9 GB), Qwen 2.5 7B (~4.7 GB), Qwen 3 8B (~5.0 GB).
 - **Cloud LLM** — Groq, OpenRouter, OpenAI, Gemini, GitHub Models, SambaNova, or any OpenAI-compatible endpoint.
 - **Reasoning toggle** — Enable/disable model thinking (e.g. Qwen 3 `<think>` blocks) per your preference.
 
@@ -160,7 +160,7 @@ Requires [Rust](https://rustup.rs/) and [Tauri CLI](https://v2.tauri.app/) (`car
 - **Frontend**: Svelte 5 + TypeScript + Vite
 - **Audio Capture**: `cpal`
 - **Speech Recognition**: `whisper-rs` (local, Metal-accelerated) or cloud API (Groq / OpenAI / Deepgram / Azure)
-- **AI Polishing**: `llama-cpp-2` (local, Metal-accelerated) or cloud API (OpenAI-compatible)
+- **AI Polishing**: `candle` (local, Metal/CUDA-accelerated) or cloud API (OpenAI-compatible)
 - **Voice Activity Detection**: Silero VAD
 
 ## License

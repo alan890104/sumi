@@ -1,17 +1,16 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use unicode_segmentation::UnicodeSegmentation;
 
-use llama_cpp_2::context::params::LlamaContextParams;
-use llama_cpp_2::llama_backend::LlamaBackend;
-use llama_cpp_2::llama_batch::LlamaBatch;
-use llama_cpp_2::model::params::LlamaModelParams;
-use llama_cpp_2::model::{LlamaChatMessage, LlamaChatTemplate, LlamaModel};
-use llama_cpp_2::sampling::LlamaSampler;
-use llama_cpp_2::token::LlamaToken;
+use candle_core::quantized::gguf_file;
+use candle_core::quantized::tokenizer::TokenizerFromGguf;
+use candle_core::{Device, Tensor};
+use candle_transformers::generation::{LogitsProcessor, Sampling};
+use candle_transformers::models::quantized_llama::ModelWeights as LlamaWeights;
+use candle_transformers::models::quantized_qwen2::ModelWeights as Qwen2Weights;
+use candle_transformers::models::quantized_qwen3::ModelWeights as Qwen3Weights;
 
 use crate::context_detect::AppContext;
 
@@ -153,6 +152,8 @@ pub enum PolishModel {
     LlamaTaiwan,
     Qwen25,
     Qwen3,
+    #[serde(rename = "qwen3_0_6b")]
+    Qwen3_4B,
 }
 
 impl PolishModel {
@@ -161,6 +162,7 @@ impl PolishModel {
             PolishModel::LlamaTaiwan => "Llama-3-Taiwan-8B-Instruct.Q4_K_M.gguf",
             PolishModel::Qwen25 => "qwen2.5-7b-instruct-q4_k_m.gguf",
             PolishModel::Qwen3 => "Qwen3-8B-Q4_K_M.gguf",
+            PolishModel::Qwen3_4B => "Qwen3-4B-Q4_K_M.gguf",
         }
     }
 
@@ -175,6 +177,9 @@ impl PolishModel {
             PolishModel::Qwen3 => {
                 "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf"
             }
+            PolishModel::Qwen3_4B => {
+                "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf"
+            }
         }
     }
 
@@ -183,6 +188,7 @@ impl PolishModel {
             PolishModel::LlamaTaiwan => "Llama 3 Taiwan 8B",
             PolishModel::Qwen25 => "Qwen 2.5 7B",
             PolishModel::Qwen3 => "Qwen 3 8B",
+            PolishModel::Qwen3_4B => "Qwen 3 4B (Demo)",
         }
     }
 
@@ -191,6 +197,7 @@ impl PolishModel {
             PolishModel::LlamaTaiwan => 4_920_000_000,
             PolishModel::Qwen25 => 4_680_000_000,
             PolishModel::Qwen3 => 5_030_000_000,
+            PolishModel::Qwen3_4B => 2_500_000_000,
         }
     }
 
@@ -199,19 +206,22 @@ impl PolishModel {
             PolishModel::LlamaTaiwan => "Best for Traditional Chinese",
             PolishModel::Qwen25 => "Multilingual",
             PolishModel::Qwen3 => "Latest multilingual, thinking/non-thinking",
+            PolishModel::Qwen3_4B => "Compact model for quick demo/testing",
         }
     }
 
     pub fn all() -> &'static [PolishModel] {
-        &[PolishModel::LlamaTaiwan, PolishModel::Qwen25, PolishModel::Qwen3]
+        if cfg!(debug_assertions) {
+            &[PolishModel::LlamaTaiwan, PolishModel::Qwen25, PolishModel::Qwen3, PolishModel::Qwen3_4B]
+        } else {
+            &[PolishModel::LlamaTaiwan, PolishModel::Qwen25, PolishModel::Qwen3]
+        }
     }
 
-    /// Chat template name recognized by llama.cpp
-    fn chat_template_name(&self) -> &'static str {
+    fn eos_token(&self) -> &'static str {
         match self {
-            PolishModel::LlamaTaiwan => "llama3",
-            PolishModel::Qwen25 => "chatml",
-            PolishModel::Qwen3 => "chatml",
+            PolishModel::LlamaTaiwan => "<|eot_id|>",
+            PolishModel::Qwen25 | PolishModel::Qwen3 | PolishModel::Qwen3_4B => "<|im_end|>",
         }
     }
 }
@@ -313,15 +323,58 @@ impl DictionaryConfig {
     }
 }
 
+/// Format a system+user prompt using the correct chat template.
+fn format_chat_prompt(model: &PolishModel, system: &str, user: &str) -> String {
+    match model {
+        PolishModel::LlamaTaiwan => format!(
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n\
+             {system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n\
+             {user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        ),
+        PolishModel::Qwen25 | PolishModel::Qwen3 | PolishModel::Qwen3_4B => format!(
+            "<|im_start|>system\n{system}<|im_end|>\n\
+             <|im_start|>user\n{user}<|im_end|>\n\
+             <|im_start|>assistant\n"
+        ),
+    }
+}
+
 // ── Cached model ────────────────────────────────────────────────────────────
 
+/// Wraps the three supported quantized model architectures with a unified interface.
+enum QuantizedModel {
+    Llama(LlamaWeights),
+    Qwen2(Qwen2Weights),
+    Qwen3(Qwen3Weights),
+}
+
+impl QuantizedModel {
+    fn forward(&mut self, input: &Tensor, index_pos: usize) -> candle_core::Result<Tensor> {
+        match self {
+            Self::Llama(m) => m.forward(input, index_pos),
+            Self::Qwen2(m) => m.forward(input, index_pos),
+            Self::Qwen3(m) => m.forward(input, index_pos),
+        }
+    }
+
+    fn clear_kv_cache(&mut self) {
+        match self {
+            Self::Llama(_) => {}
+            Self::Qwen2(_) => {}
+            Self::Qwen3(m) => m.clear_kv_cache(),
+        }
+    }
+}
+
 pub struct LlmModelCache {
-    backend: LlamaBackend,
-    model: LlamaModel,
+    model: QuantizedModel,
+    tokenizer: tokenizers::Tokenizer,
+    device: Device,
     loaded_path: PathBuf,
 }
 
-// LlamaBackend is Send+Sync, LlamaModel is Send+Sync
+// All candle types and tokenizers::Tokenizer are Send.
+// Safety: LlmModelCache is only accessed behind a Mutex.
 unsafe impl Send for LlmModelCache {}
 
 /// Returns a per-language map with built-in preset prompt rules.
@@ -987,124 +1040,116 @@ fn run_llm_inference(
         ));
     }
 
-    // Validate the GGUF file before loading to prevent SIGSEGV on corrupted files
+    // Validate the GGUF file before loading to prevent issues on corrupted files
     validate_gguf_file(&model_path, &config.model)?;
 
     // Ensure model is loaded (lazy init / reuse pre-warmed cache)
-    ensure_llm_loaded(llm_cache, &model_path, config.model.display_name())?;
+    ensure_llm_loaded(llm_cache, &model_path, config.model.display_name(), &config.model)?;
 
-    let user_prompt = raw_text.to_string();
+    // Mutable lock (candle forward() mutates internal KV cache)
+    let mut cache = llm_cache.lock().map_err(|e| e.to_string())?;
+    let cache_ref = cache.as_mut().ok_or("LLM not loaded")?;
 
-    let cache = llm_cache.lock().map_err(|e| e.to_string())?;
-    let cache_ref = cache.as_ref().ok_or("LLM not loaded")?;
+    // Format prompt
+    let formatted = format_chat_prompt(&config.model, system_prompt, raw_text);
 
-    let template_name = config.model.chat_template_name();
-    let template = LlamaChatTemplate::new(template_name)
-        .map_err(|e| format!("Chat template: {}", e))?;
-
-    let messages = vec![
-        LlamaChatMessage::new("system".to_string(), system_prompt.to_string())
-            .map_err(|e| format!("System message: {}", e))?,
-        LlamaChatMessage::new("user".to_string(), user_prompt)
-            .map_err(|e| format!("User message: {}", e))?,
-    ];
-
-    let formatted = cache_ref
-        .model
-        .apply_chat_template(&template, &messages, true)
-        .map_err(|e| format!("Apply template: {}", e))?;
-
-    // Create a new context for this request.
-    // Disable flash-attention to avoid GGML symbol collision between whisper-rs
-    // and llama-cpp-2 (both bundle their own ggml with Metal, causing assertion
-    // failures in the flash-attention kernel when symbols are resolved to the
-    // wrong library).
-    let ctx_params = LlamaContextParams::default()
-        .with_n_ctx(NonZeroU32::new(2048))
-        .with_n_batch(512)
-        .with_flash_attention_policy(0); // LLAMA_FLASH_ATTN_TYPE_DISABLED
-
-    let mut ctx = cache_ref
-        .model
-        .new_context(&cache_ref.backend, ctx_params)
-        .map_err(|e| format!("Context create: {}", e))?;
-
-    // Tokenize the formatted prompt
+    // Tokenize
     let tokenize_start = std::time::Instant::now();
-    let tokens = cache_ref
-        .model
-        .str_to_token(&formatted, llama_cpp_2::model::AddBos::Never)
+    let encoding = cache_ref
+        .tokenizer
+        .encode(formatted.as_str(), false)
         .map_err(|e| format!("Tokenize: {}", e))?;
-    println!("[Sumi] LLM tokenized: {} tokens ({:.0?})", tokens.len(), tokenize_start.elapsed());
+    let tokens: Vec<u32> = encoding.get_ids().to_vec();
+    println!(
+        "[Sumi] LLM tokenized: {} tokens ({:.0?})",
+        tokens.len(),
+        tokenize_start.elapsed()
+    );
 
     if tokens.is_empty() {
         return Err("Empty tokenization result".to_string());
     }
 
-    // Feed prompt tokens in a batch
+    // Resolve EOS token
+    let eos_token_id = cache_ref
+        .tokenizer
+        .token_to_id(config.model.eos_token())
+        .ok_or_else(|| format!("EOS token '{}' not found", config.model.eos_token()))?;
+
+    // Clear KV cache for fresh inference
+    cache_ref.model.clear_kv_cache();
+
+    // Prompt eval — feed all tokens at once
     let prompt_start = std::time::Instant::now();
-    let mut batch = LlamaBatch::new(ctx.n_ctx() as usize, 1);
-    let last_idx = tokens.len() - 1;
-    for (i, &token) in tokens.iter().enumerate() {
-        batch
-            .add(token, i as i32, &[0], i == last_idx)
-            .map_err(|e| format!("Batch add: {}", e))?;
-    }
+    let input = Tensor::new(tokens.as_slice(), &cache_ref.device)
+        .and_then(|t| t.unsqueeze(0))
+        .map_err(|e| format!("Input tensor: {}", e))?;
+    let logits = cache_ref
+        .model
+        .forward(&input, 0)
+        .map_err(|e| format!("Prompt eval: {}", e))?;
+    let logits = logits
+        .squeeze(0)
+        .map_err(|e| format!("Squeeze: {}", e))?;
+    println!(
+        "[Sumi] LLM prompt eval: {:.0?} ({} tokens, {:.1} t/s)",
+        prompt_start.elapsed(),
+        tokens.len(),
+        tokens.len() as f64 / prompt_start.elapsed().as_secs_f64()
+    );
 
-    ctx.decode(&mut batch)
-        .map_err(|e| format!("Decode prompt: {}", e))?;
-    println!("[Sumi] LLM prompt eval: {:.0?} ({} tokens, {:.1} t/s)", prompt_start.elapsed(), tokens.len(), tokens.len() as f64 / prompt_start.elapsed().as_secs_f64());
+    // Greedy sampling
+    let mut logits_processor = LogitsProcessor::from_sampling(42, Sampling::ArgMax);
+    let mut next_token = logits_processor
+        .sample(&logits)
+        .map_err(|e| format!("Sample: {}", e))?;
 
-    // Sample tokens
+    // Generation loop
     let max_tokens: usize = 512;
-    let mut sampler = LlamaSampler::chain_simple([
-        LlamaSampler::greedy(),
-    ]);
-
-    let mut output_tokens: Vec<LlamaToken> = Vec::new();
-    let mut n_decoded = tokens.len() as i32;
     let gen_start = std::time::Instant::now();
     let timeout = std::time::Duration::from_secs(15);
+    let mut output_token_ids: Vec<u32> = Vec::new();
 
-    for _ in 0..max_tokens {
-        // Timeout check
+    for i in 0..max_tokens {
         if gen_start.elapsed() > timeout {
             println!("[Sumi] Polish inference timeout (15s)");
             break;
         }
-
-        let new_token = sampler.sample(&ctx, -1);
-        sampler.accept(new_token);
-
-        // Check for end of generation
-        if cache_ref.model.is_eog_token(new_token) {
+        if next_token == eos_token_id {
             break;
         }
 
-        output_tokens.push(new_token);
+        output_token_ids.push(next_token);
 
-        // Decode next token
-        batch.clear();
-        batch
-            .add(new_token, n_decoded, &[0], true)
-            .map_err(|e| format!("Batch add: {}", e))?;
+        let input = Tensor::new(&[next_token], &cache_ref.device)
+            .and_then(|t| t.unsqueeze(0))
+            .map_err(|e| format!("Token tensor: {}", e))?;
+        let logits = cache_ref
+            .model
+            .forward(&input, tokens.len() + i)
+            .map_err(|e| format!("Decode step {}: {}", i, e))?;
+        let logits = logits
+            .squeeze(0)
+            .map_err(|e| format!("Squeeze: {}", e))?;
 
-        ctx.decode(&mut batch)
-            .map_err(|e| format!("Decode: {}", e))?;
-
-        n_decoded += 1;
+        next_token = logits_processor
+            .sample(&logits)
+            .map_err(|e| format!("Sample: {}", e))?;
     }
 
     let gen_elapsed = gen_start.elapsed();
-    println!("[Sumi] LLM generation: {} tokens in {:.0?} ({:.1} t/s)", output_tokens.len(), gen_elapsed, output_tokens.len() as f64 / gen_elapsed.as_secs_f64());
+    println!(
+        "[Sumi] LLM generation: {} tokens in {:.0?} ({:.1} t/s)",
+        output_token_ids.len(),
+        gen_elapsed,
+        output_token_ids.len() as f64 / gen_elapsed.as_secs_f64()
+    );
 
-    // Decode output tokens to string
-    let mut output = String::new();
-    for &token in &output_tokens {
-        if let Ok(bytes) = cache_ref.model.token_to_piece_bytes(token, 128, false, None) {
-            output.push_str(&String::from_utf8_lossy(&bytes));
-        }
-    }
+    // Decode to string
+    let output = cache_ref
+        .tokenizer
+        .decode(&output_token_ids, true)
+        .map_err(|e| format!("Decode output: {}", e))?;
 
     Ok(output.trim().to_string())
 }
@@ -1268,7 +1313,7 @@ pub fn warm_llm_cache(
         return Err(format!("Model file not found: {}", model_path.display()));
     }
     validate_gguf_file(&model_path, model)?;
-    ensure_llm_loaded(llm_cache, &model_path, model.display_name())?;
+    ensure_llm_loaded(llm_cache, &model_path, model.display_name(), model)?;
     Ok(())
 }
 
@@ -1278,6 +1323,7 @@ fn ensure_llm_loaded(
     llm_cache: &Mutex<Option<LlmModelCache>>,
     model_path: &std::path::Path,
     display_name: &str,
+    polish_model: &PolishModel,
 ) -> Result<(), String> {
     let mut cache = llm_cache.lock().map_err(|e| e.to_string())?;
     let needs_reload = match cache.as_ref() {
@@ -1288,15 +1334,39 @@ fn ensure_llm_loaded(
         let load_start = std::time::Instant::now();
         println!("[Sumi] Loading LLM: {} ...", display_name);
 
-        let mut backend = LlamaBackend::init().map_err(|e| format!("Backend init: {}", e))?;
-        backend.void_logs();
-        let model_params = LlamaModelParams::default().with_n_gpu_layers(99);
-        let loaded = LlamaModel::load_from_file(&backend, model_path, &model_params)
-            .map_err(|e| format!("Model load: {}", e))?;
+        let device = Device::new_metal(0)
+            .or_else(|_| Device::new_cuda(0))
+            .unwrap_or(Device::Cpu);
+
+        let mut file = std::fs::File::open(model_path)
+            .map_err(|e| format!("Cannot open model: {}", e))?;
+        let content = gguf_file::Content::read(&mut file)
+            .map_err(|e| format!("Read GGUF: {}", e))?;
+
+        // Extract tokenizer from GGUF metadata
+        let tokenizer = tokenizers::Tokenizer::from_gguf(&content)
+            .map_err(|e| format!("Load tokenizer from GGUF: {}", e))?;
+
+        // Load model weights (consumes content; file reader is positioned at tensor data)
+        let model = match polish_model {
+            PolishModel::LlamaTaiwan => QuantizedModel::Llama(
+                LlamaWeights::from_gguf(content, &mut file, &device)
+                    .map_err(|e| format!("Load Llama: {}", e))?,
+            ),
+            PolishModel::Qwen25 => QuantizedModel::Qwen2(
+                Qwen2Weights::from_gguf(content, &mut file, &device)
+                    .map_err(|e| format!("Load Qwen2: {}", e))?,
+            ),
+            PolishModel::Qwen3 | PolishModel::Qwen3_4B => QuantizedModel::Qwen3(
+                Qwen3Weights::from_gguf(content, &mut file, &device)
+                    .map_err(|e| format!("Load Qwen3: {}", e))?,
+            ),
+        };
 
         *cache = Some(LlmModelCache {
-            backend,
-            model: loaded,
+            model,
+            tokenizer,
+            device,
             loaded_path: model_path.to_path_buf(),
         });
         println!("[Sumi] LLM loaded (took {:.0?})", load_start.elapsed());

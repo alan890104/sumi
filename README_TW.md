@@ -69,7 +69,7 @@ GPLv3 授權。不用訂閱、不限字數、不需要帳號。想要更快可�
 
 ### AI 潤飾
 
-- **本地 LLM** — 透過 `llama-cpp-2` 搭配 Metal 加速，提供 3 種模型：Llama 3 Taiwan 8B（~4.9 GB）、Qwen 2.5 7B（~4.7 GB）、Qwen 3 8B（~5.0 GB）。
+- **本地 LLM** — 透過 `candle` 搭配 Metal/CUDA 加速，提供 3 種模型：Llama 3 Taiwan 8B（~4.9 GB）、Qwen 2.5 7B（~4.7 GB）、Qwen 3 8B（~5.0 GB）。
 - **雲端 LLM** — Groq、OpenRouter、OpenAI、Gemini、GitHub Models、SambaNova，或任何 OpenAI 相容端點。
 - **思考模式開關** — 可以開啟或關閉模型的推理過程（例如 Qwen 3 的 `<think>` 區塊）。
 
@@ -151,7 +151,7 @@ cargo tauri build
 - **前端**: Svelte 5 + TypeScript + Vite
 - **音訊擷取**: `cpal`
 - **語音辨識**: `whisper-rs`（本機, Metal 加速）或雲端 API（Groq / OpenAI / Deepgram / Azure）
-- **AI 潤飾**: `llama-cpp-2`（本機, Metal 加速）或雲端 API（相容 OpenAI 格式）
+- **AI 潤飾**: `candle`（本機, Metal/CUDA 加速）或雲端 API（相容 OpenAI 格式）
 - **語音活動偵測**: Silero VAD
 
 ## 授權條款
