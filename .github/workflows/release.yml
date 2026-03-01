@@ -99,10 +99,8 @@ jobs:
       matrix:
         include:
           - cuda-version: "12.6.3"
-            cuda-sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "nvrtc", "nvrtc_dev"]'
             artifact-suffix: cuda12
           - cuda-version: "13.1.0"
-            cuda-sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust", "nvrtc", "nvrtc_dev"]'
             artifact-suffix: cuda13
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -120,7 +118,7 @@ jobs:
         with:
           cuda: ${{ matrix.cuda-version }}
           method: network
-          sub-packages: ${{ matrix.cuda-sub-packages }}
+          non-cuda-sub-packages: '["visual_studio_integration"]'
 
       - name: Install Ninja
         run: choco install ninja -y
