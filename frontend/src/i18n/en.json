@@ -54,7 +54,7 @@
   "sttModel.belleZh.name": "Belle Simplified Chinese",
   "sttModel.belleZh.desc": "Best for Simplified Chinese",
   "sttModel.base.name": "Whisper Base",
-  "sttModel.base.desc": "Fastest, smallest footprint",
+  "sttModel.base.desc": "Fastest, English only",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "Best for Traditional Chinese",
   "setup.sttModelChoiceTitle": "Choose a Speech Recognition Model",

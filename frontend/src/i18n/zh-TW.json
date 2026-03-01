@@ -54,7 +54,7 @@
   "sttModel.belleZh.name": "Belle 簡體中文",
   "sttModel.belleZh.desc": "簡體中文辨識最佳",
   "sttModel.base.name": "Whisper Base",
-  "sttModel.base.desc": "速度最快，檔案最小",
+  "sttModel.base.desc": "速度最快，僅適合英文",
   "sttModel.largeV3TurboZhTw.name": "Whisper Turbo TW",
   "sttModel.largeV3TurboZhTw.desc": "繁體中文辨識最佳",
   "setup.sttModelChoiceTitle": "選擇語音辨識模型",
