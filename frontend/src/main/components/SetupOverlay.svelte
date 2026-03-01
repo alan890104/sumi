@@ -19,6 +19,7 @@
     setPolishCloudApiKey,
     setPolishCloudEndpoint,
     setPolishCloudModelId,
+    setPolishModel,
     markOnboardingComplete,
     buildPayload,
   } from '$lib/stores/settings.svelte';
@@ -39,15 +40,20 @@
     checkVadModelStatus,
     downloadVadModel,
     onVadModelDownloadProgress,
+    listPolishModels,
+    switchPolishModel,
+    downloadPolishModel,
+    onPolishModelDownloadProgress,
     saveApiKey,
     getApiKey,
     saveSettings as saveSettingsApi,
   } from '$lib/api';
-  import type { DownloadProgress, PermissionStatus, WhisperModelId } from '$lib/types';
+  import type { DownloadProgress, PermissionStatus, WhisperModelId, WhisperModelInfo, PolishModelInfo, PolishModel } from '$lib/types';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import CloudConfigPanel from '$lib/components/CloudConfigPanel.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import { isMac } from '$lib/constants';
+  import { camelCase } from '$lib/utils';
 
   // ── State machine ──
 
@@ -106,35 +112,32 @@
   async function onPermissionsContinue() {
     stopPermissionPolling();
     currentState = 'sttChoice';
-    // Check if STT model already exists
-    await checkSttModelExists();
+    await fetchSttModels();
   }
 
   // ── STT Choice ──
 
   let sttMode = $state<string>('local');
-  let sttModelAlreadyDownloaded = $state(false);
-  let recommendedModelId = $state<WhisperModelId>('large_v3_turbo');
-  let recommendedModelSize = $state('1.5 GB');
+  let sttModels = $state<WhisperModelInfo[]>([]);
+  let selectedSttModel = $state<WhisperModelId>('large_v3_turbo');
+  let recommendedSttModelId = $state<WhisperModelId>('large_v3_turbo');
 
-  async function fetchRecommendedModel() {
+  let selectedSttModelDownloaded = $derived(
+    sttModels.find(m => m.id === selectedSttModel)?.downloaded ?? false
+  );
+
+  async function fetchSttModels() {
     try {
-      const rec = await getWhisperModelRecommendation() as WhisperModelId;
-      recommendedModelId = rec;
-      // Find size from the model list
-      const models = await listWhisperModels();
-      const model = models.find(m => m.id === rec);
-      if (model) {
-        recommendedModelSize = formatBytes(model.size_bytes);
-        sttModelAlreadyDownloaded = model.downloaded;
-      }
+      const [models, rec] = await Promise.all([
+        listWhisperModels(),
+        getWhisperModelRecommendation() as Promise<WhisperModelId>,
+      ]);
+      sttModels = models;
+      recommendedSttModelId = rec;
+      selectedSttModel = rec;
     } catch {
       // Fallback to defaults
     }
-  }
-
-  async function checkSttModelExists() {
-    await fetchRecommendedModel();
   }
 
   // Cloud config bindings for STT
@@ -224,14 +227,14 @@
 
   async function onSttLocalDownload() {
     setSttMode('local');
-    setSttWhisperModel(recommendedModelId);
+    setSttWhisperModel(selectedSttModel);
     try {
-      await switchWhisperModel(recommendedModelId);
+      await switchWhisperModel(selectedSttModel);
     } catch (e) {
       console.error('Failed to switch whisper model:', e);
     }
 
-    if (sttModelAlreadyDownloaded) {
+    if (selectedSttModelDownloaded) {
       // Check if VAD model also exists — if both ready, skip download screen
       try {
         const vadStatus = await checkVadModelStatus();
@@ -312,7 +315,7 @@
     });
 
     try {
-      await downloadWhisperModel(recommendedModelId);
+      await downloadWhisperModel(selectedSttModel);
     } catch (e) {
       errorMessage = String(e);
       lastFailedDownload = 'stt';
@@ -323,7 +326,12 @@
   // ── Polish Choice ──
 
   let polishMode = $state<string>('local');
-  let llmModelAlreadyDownloaded = $state(false);
+  let polishModels = $state<PolishModelInfo[]>([]);
+  let selectedPolishModel = $state<PolishModel>('qwen3');
+
+  let selectedModelDownloaded = $derived(
+    polishModels.find(m => m.id === selectedPolishModel)?.downloaded ?? false
+  );
 
   // Cloud config bindings for Polish
   let polishProvider = $state('groq');
@@ -336,12 +344,15 @@
     { value: 'cloud', label: 'Cloud API' },
   ];
 
-  async function checkLlmModelExists() {
+  async function fetchPolishModels() {
     try {
-      const status = await checkLlmModelStatus();
-      llmModelAlreadyDownloaded = status.model_exists;
+      polishModels = await listPolishModels();
+      // Pre-select qwen3 if available, otherwise first model
+      if (!polishModels.find(m => m.id === selectedPolishModel)) {
+        selectedPolishModel = polishModels[0]?.id ?? 'qwen3';
+      }
     } catch {
-      llmModelAlreadyDownloaded = false;
+      polishModels = [];
     }
   }
 
@@ -406,8 +417,16 @@
     finishSetup();
   }
 
-  function onPolishLocalDownload() {
-    if (llmModelAlreadyDownloaded) {
+  async function onPolishLocalDownload() {
+    // Switch to selected model in backend + settings store
+    setPolishModel(selectedPolishModel);
+    try {
+      await switchPolishModel(selectedPolishModel);
+    } catch (e) {
+      console.error('Failed to switch polish model:', e);
+    }
+
+    if (selectedModelDownloaded) {
       setPolishMode('local');
       setPolishEnabled(true);
       finishSetup();
@@ -439,7 +458,7 @@
       llmDownloadUnlisten = null;
     }
 
-    llmDownloadUnlisten = await onLlmModelDownloadProgress((p: DownloadProgress) => {
+    llmDownloadUnlisten = await onPolishModelDownloadProgress((p: DownloadProgress) => {
       if (p.status === 'downloading') {
         const total = p.total || 1;
         const downloaded = p.downloaded || 0;
@@ -460,7 +479,7 @@
     });
 
     try {
-      await downloadLlmModel();
+      await downloadPolishModel(selectedPolishModel);
     } catch (e) {
       console.error('Failed to start LLM setup download:', e);
       finishSetup();
@@ -484,7 +503,7 @@
 
   async function goToPolishChoice() {
     currentState = 'polishChoice';
-    await checkLlmModelExists();
+    await fetchPolishModels();
   }
 
   async function finishSetup() {
@@ -658,13 +677,37 @@
           </div>
 
           {#if sttMode === 'local'}
-            <div class="setup-panel-desc">{t('setup.sttLocalDesc', { size: recommendedModelSize })}</div>
-            <button
-              class="setup-download-btn"
-              class:downloaded={sttModelAlreadyDownloaded}
-              onclick={onSttLocalDownload}
-            >
-              {sttModelAlreadyDownloaded ? t('settings.stt.downloaded') : t('setup.downloadBtn')}
+            <div class="setup-panel-desc">{t('setup.sttLocalDesc')}</div>
+
+            <div class="setup-model-list">
+              {#each sttModels as model (model.id)}
+                <button
+                  class="setup-model-row"
+                  class:selected={selectedSttModel === model.id}
+                  onclick={() => selectedSttModel = model.id}
+                >
+                  <div class="setup-model-radio">
+                    {#if selectedSttModel === model.id}
+                      <div class="setup-model-radio-dot"></div>
+                    {/if}
+                  </div>
+                  <div class="setup-model-info">
+                    <div class="setup-model-name">
+                      {t(`sttModel.${camelCase(model.id)}.name`)}
+                      {#if model.id === recommendedSttModelId}
+                        <span class="setup-model-badge">{t('setup.recommended')}</span>
+                      {/if}
+                    </div>
+                    <div class="setup-model-desc">
+                      {t(`sttModel.${camelCase(model.id)}.desc`)} · {formatBytes(model.size_bytes)}
+                    </div>
+                  </div>
+                </button>
+              {/each}
+            </div>
+
+            <button class="setup-download-btn" onclick={onSttLocalDownload}>
+              {selectedSttModelDownloaded ? t('setup.permContinue') : t('setup.sttModelDownloadBtn')}
             </button>
           {:else}
             <div class="setup-panel-desc">{t('setup.sttCloudDesc')}</div>
@@ -765,8 +808,36 @@
 
           {#if polishMode === 'local'}
             <div class="setup-panel-desc">{t('setup.polishLocalDesc')}</div>
+
+            <div class="setup-model-list">
+              {#each polishModels as model (model.id)}
+                <button
+                  class="setup-model-row"
+                  class:selected={selectedPolishModel === model.id}
+                  onclick={() => selectedPolishModel = model.id}
+                >
+                  <div class="setup-model-radio">
+                    {#if selectedPolishModel === model.id}
+                      <div class="setup-model-radio-dot"></div>
+                    {/if}
+                  </div>
+                  <div class="setup-model-info">
+                    <div class="setup-model-name">
+                      {t(`polishModel.${camelCase(model.id)}.name`)}
+                      {#if model.id === 'qwen3'}
+                        <span class="setup-model-badge">{t('setup.polishRecommended')}</span>
+                      {/if}
+                    </div>
+                    <div class="setup-model-desc">
+                      {t(`polishModel.${camelCase(model.id)}.desc`)} · {formatBytes(model.size_bytes)}
+                    </div>
+                  </div>
+                </button>
+              {/each}
+            </div>
+
             <button class="setup-download-btn" onclick={onPolishLocalDownload}>
-              {llmModelAlreadyDownloaded ? t('setup.permContinue') : t('setup.llmDownloadBtn')}
+              {selectedModelDownloaded ? t('setup.permContinue') : t('setup.llmDownloadBtn')}
             </button>
           {:else}
             <div class="setup-panel-desc">{t('setup.polishCloudDesc')}</div>
@@ -1091,14 +1162,6 @@
     cursor: not-allowed;
   }
 
-  .setup-download-btn.downloaded {
-    background: var(--accent-green);
-  }
-
-  .setup-download-btn.downloaded:hover {
-    background: var(--accent-green);
-  }
-
   .setup-retry-btn {
     display: inline-block;
     padding: 10px 28px;
@@ -1198,6 +1261,96 @@
   /* ── Shield icon ── */
   .setup-icon-shield {
     margin-bottom: 20px;
+  }
+
+  /* ── Model list (polish choice) ── */
+  .setup-model-list {
+    text-align: left;
+    margin: 0 auto 18px;
+    max-width: 360px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .setup-model-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg-secondary);
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    font-family: 'Inter', sans-serif;
+    text-align: left;
+  }
+
+  .setup-model-row:last-child {
+    border-bottom: none;
+  }
+
+  .setup-model-row:hover {
+    background: var(--bg-tertiary, var(--bg-secondary));
+  }
+
+  .setup-model-row.selected {
+    background: rgba(0, 122, 255, 0.06);
+  }
+
+  .setup-model-radio {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s ease;
+  }
+
+  .setup-model-row.selected .setup-model-radio {
+    border-color: var(--accent-blue);
+  }
+
+  .setup-model-radio-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+  }
+
+  .setup-model-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .setup-model-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .setup-model-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    background: rgba(0, 122, 255, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .setup-model-desc {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
   }
 
 </style>
