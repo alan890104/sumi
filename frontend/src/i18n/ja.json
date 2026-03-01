@@ -177,6 +177,7 @@
   "history.detailTitle": "文字起こしの詳細",
   "history.before": "前 (生)",
   "history.after": "後 (磨かれた)",
+  "history.transcription": "文字起こし",
   "history.close": "閉じる",
   "history.downloadAudio": "オーディオをダウンロード",
   "history.exporting": "保存中…",

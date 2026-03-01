@@ -21,6 +21,7 @@
   let exporting = $state(false);
   let exportDone = $state(false);
   let appIconUri = $derived(entry?.bundle_id ? iconUri(entry.bundle_id) : undefined);
+  let wasPolished = $derived(entry?.polish_elapsed_ms != null && entry.polish_elapsed_ms > 0);
 
   let formattedTime = $derived.by(() => {
     if (!entry) return '';
@@ -82,15 +83,22 @@
 
     <!-- Unified comparison card -->
     <div class="hd-card">
-      <div class="hd-cell">
-        <span class="hd-tag">{t('history.before')}</span>
-        <p class="hd-text">{entry.raw_text}</p>
-      </div>
-      <div class="hd-divider"></div>
-      <div class="hd-cell">
-        <span class="hd-tag polished">{t('history.after')}</span>
-        <p class="hd-text">{entry.text}</p>
-      </div>
+      {#if wasPolished}
+        <div class="hd-cell">
+          <span class="hd-tag">{t('history.before')}</span>
+          <p class="hd-text">{entry.raw_text}</p>
+        </div>
+        <div class="hd-divider"></div>
+        <div class="hd-cell">
+          <span class="hd-tag polished">{t('history.after')}</span>
+          <p class="hd-text">{entry.text}</p>
+        </div>
+      {:else}
+        <div class="hd-cell">
+          <span class="hd-tag">{t('history.transcription')}</span>
+          <p class="hd-text">{entry.text}</p>
+        </div>
+      {/if}
     </div>
 
     <!-- Meta -->
@@ -103,7 +111,7 @@
         <span class="hd-meta-label">{t('history.metaStt')}</span>
         <span class="hd-meta-value">{entry.stt_model}</span>
       </div>
-      {#if entry.polish_model !== 'None'}
+      {#if wasPolished}
         <div class="hd-meta-row">
           <span class="hd-meta-label">{t('history.metaPolish')}</span>
           <span class="hd-meta-value">{entry.polish_model}</span>

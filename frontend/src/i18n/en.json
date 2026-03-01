@@ -193,6 +193,7 @@
   "history.clearAll": "Delete All History",
   "history.clearAllDesc": "Permanently delete all history entries and audio files",
   "history.clearAllConfirm": "Are you sure you want to permanently delete all history and audio files? This action cannot be undone.",
+  "history.transcription": "Transcription",
   "history.loadMore": "Load more",
   "about.title": "About",
   "about.version": "Version {version}",

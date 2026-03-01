@@ -177,6 +177,7 @@
   "history.detailTitle": "Detalle de transcripción",
   "history.before": "Antes (sin procesar)",
   "history.after": "Después (pulido)",
+  "history.transcription": "Transcripción",
   "history.close": "Cerrar",
   "history.downloadAudio": "Descargar audio",
   "history.exporting": "Guardando...",

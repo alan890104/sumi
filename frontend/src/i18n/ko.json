@@ -177,6 +177,7 @@
   "history.detailTitle": "전사 상세 정보",
   "history.before": "전 (원본)",
   "history.after": "후 (다듬어짐)",
+  "history.transcription": "음성 기록",
   "history.close": "닫기",
   "history.downloadAudio": "오디오 다운로드",
   "history.exporting": "저장 중…",

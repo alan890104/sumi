@@ -177,8 +177,10 @@
 
   function detectSttLanguage(): string {
     const lang = (navigator.language || '').toLowerCase();
-    if (lang.startsWith('zh-tw') || lang === 'zh-hant') return 'zh-TW';
-    if (lang.startsWith('zh')) return 'zh-CN';
+    if (lang.startsWith('zh')) {
+      if (lang.includes('tw') || lang.includes('hant')) return 'zh-TW';
+      return 'zh-CN';
+    }
     if (lang.startsWith('ja')) return 'ja';
     if (lang.startsWith('ko')) return 'ko';
     if (lang.startsWith('en')) return 'en';

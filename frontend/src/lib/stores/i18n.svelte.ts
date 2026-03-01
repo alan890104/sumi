@@ -72,13 +72,14 @@ export function detectLocale(): string {
   const nav = navigator.language;
   // Exact match first
   if ((SUPPORTED as readonly string[]).includes(nav)) return nav;
-  // zh variants
-  if (nav.startsWith('zh')) {
-    if (nav.includes('CN') || nav.includes('Hans') || nav === 'zh-SG') return 'zh-CN';
+  // zh variants: use case-insensitive matching for BCP-47 tags like zh-Hant-TW
+  const lower = nav.toLowerCase();
+  if (lower.startsWith('zh')) {
+    if (lower.includes('cn') || lower.includes('hans') || lower === 'zh-sg') return 'zh-CN';
     return 'zh-TW';
   }
   // Match by primary language subtag
-  const primary = nav.split('-')[0];
+  const primary = lower.split('-')[0];
   if ((SUPPORTED as readonly string[]).includes(primary)) return primary;
   return 'en';
 }

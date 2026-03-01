@@ -193,6 +193,7 @@
   "history.clearAll": "删除所有历史记录",
   "history.clearAllDesc": "永久删除所有历史条目和音频文件",
   "history.clearAllConfirm": "您确定要永久删除所有历史记录和音频文件吗？此操作无法撤销。",
+  "history.transcription": "转录结果",
   "history.loadMore": "加载更多",
   "about.title": "关于",
   "about.version": "版本 {version}",

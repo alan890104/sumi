@@ -300,7 +300,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         }
                         SttMode::Local => stt_config.whisper_model.display_name().to_string(),
                     };
-                    let polish_model_name = if polish_config.enabled {
+                    let polish_model_name = if polish_elapsed_ms.is_some() {
                         match polish_config.mode {
                             polisher::PolishMode::Cloud => {
                                 format!("{} (Cloud/{})", polish_config.cloud.model_id, polish_config.cloud.provider.as_key())

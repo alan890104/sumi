@@ -337,8 +337,14 @@
                 {/if}
                 <span class="history-meta-item">{item.duration_secs.toFixed(1)}s</span>
                 <span class="history-meta-item">STT: {item.stt_model}</span>
-                {#if item.polish_model !== 'None'}
-                  <span class="history-meta-item">Polish: {item.polish_model}</span>
+                {#if item.polish_elapsed_ms != null && item.polish_elapsed_ms > 0}
+                  <span class="history-meta-item history-meta-polished">
+                    <svg class="polish-icon" width="10" height="10" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/>
+                    </svg>
+                    {item.polish_model}
+                  </span>
                 {/if}
               </div>
             </div>
@@ -576,6 +582,14 @@
 
   .history-app-icon {
     border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .history-meta-polished {
+    color: var(--accent-blue);
+  }
+
+  .polish-icon {
     flex-shrink: 0;
   }
 
