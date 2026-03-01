@@ -176,8 +176,8 @@ jobs:
           $bundleDir = "target/release/bundle"
           $uploads = @()
 
-          # MSI artifacts
-          foreach ($f in Get-ChildItem "$bundleDir/msi/*" -Include *.msi,*.msi.zip,*.msi.zip.sig -ErrorAction SilentlyContinue) {
+          # MSI artifacts (Tauri 2 generates .msi + .msi.sig for updater)
+          foreach ($f in Get-ChildItem "$bundleDir/msi/*" -Include *.msi,*.msi.sig,*.msi.zip,*.msi.zip.sig -ErrorAction SilentlyContinue) {
             $newName = $f.Name -replace '_x64', "_x64_$suffix"
             $newPath = Join-Path $f.DirectoryName $newName
             Move-Item $f.FullName $newPath
@@ -185,8 +185,8 @@ jobs:
             Write-Host "  $($f.Name) -> $newName"
           }
 
-          # NSIS artifacts
-          foreach ($f in Get-ChildItem "$bundleDir/nsis/*" -Include *-setup.exe,*.nsis.zip,*.nsis.zip.sig -ErrorAction SilentlyContinue) {
+          # NSIS artifacts (Tauri 2 generates -setup.exe + .exe.sig for updater)
+          foreach ($f in Get-ChildItem "$bundleDir/nsis/*" -Include *-setup.exe,*-setup.exe.sig,*.nsis.zip,*.nsis.zip.sig -ErrorAction SilentlyContinue) {
             $newName = $f.Name -replace '_x64', "_x64_$suffix"
             $newPath = Join-Path $f.DirectoryName $newName
             Move-Item $f.FullName $newPath
@@ -223,9 +223,10 @@ jobs:
             --pattern "*.app.tar.gz.sig"
 
           # Download Windows CUDA 12 MSI updater sig (used for auto-update)
+          # Tauri 2 generates .msi.sig (not .msi.zip.sig)
           gh release download "$TAG" \
             --repo "${{ github.repository }}" \
-            --pattern "*_cuda12.msi.zip.sig"
+            --pattern "*_cuda12*.msi.sig"
 
       - name: Assemble latest.json
         env:
@@ -248,12 +249,13 @@ jobs:
             break
           done
 
-          # Read Windows CUDA 12 MSI signature
+          # Read Windows CUDA 12 MSI signature (.msi.sig format)
           WIN_SIG=""
           WIN_ARCHIVE=""
-          for f in *_cuda12.msi.zip.sig; do
+          for f in *_cuda12*.msi.sig; do
             [ -f "$f" ] || continue
             WIN_SIG=$(cat "$f")
+            # The updater URL points to the .msi file (archive name = sig name minus .sig)
             WIN_ARCHIVE="${f%.sig}"
             break
           done
