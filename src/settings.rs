@@ -101,8 +101,8 @@ pub fn load_settings() -> Settings {
 }
 
 /// Fill in any missing locale-dependent fields (UI language, STT language,
-/// polish model_id) by detecting the system locale.  Call this once, AFTER
-/// the AppKit / Cocoa runtime is initialised so that the NSLocale FFI works.
+/// polish model_id) by detecting the system locale.  Call this once during
+/// app setup.
 pub fn apply_locale_defaults(settings: &mut Settings) {
     let mut changed = false;
     let is_new_install = settings.stt.language == "auto" || settings.stt.language.is_empty();

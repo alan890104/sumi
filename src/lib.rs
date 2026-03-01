@@ -560,6 +560,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_os::init())
         .invoke_handler(tauri::generate_handler![
             commands::start_recording,
             commands::stop_recording,
@@ -613,8 +614,6 @@ pub fn run() {
             platform::set_app_accessory_mode();
 
             // Load settings, then apply locale defaults.
-            // Locale detection uses NSLocale FFI which requires the Cocoa
-            // runtime to be initialised — by this point AppKit is loaded.
             let mut settings = load_settings();
             settings::apply_locale_defaults(&mut settings);
             let hotkey_str = settings.hotkey.clone();

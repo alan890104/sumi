@@ -87,8 +87,10 @@ export function detectLocale(): string {
 export async function initLocale(savedLocale?: string | null) {
   const locale = savedLocale || detectLocale();
   if ((SUPPORTED as readonly string[]).includes(locale)) {
-    await loadLocale(locale);
-    currentLocale = locale;
+    const translations = await loadLocale(locale);
+    if (translations) {
+      currentLocale = locale;
+    }
   }
 }
 

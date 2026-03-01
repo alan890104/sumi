@@ -376,7 +376,7 @@
       const s = await getSettings();
       await initLocale(s.language);
     } catch {
-      await initLocale();
+      await initLocale('en');
     }
 
     // Set initial state
