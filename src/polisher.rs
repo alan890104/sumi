@@ -418,11 +418,13 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
 /// Returns built-in preset prompt rules localised to `lang` (BCP-47).
 /// Falls back to English when a translation is not available.
 pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
-    let is_zh = lang
-        .map(|l| l.starts_with("zh"))
-        .unwrap_or(false);
+    let lower = lang.map(|l| l.to_lowercase());
+    let is_zh_tw = lower.as_deref().map_or(false, |l| {
+        l.starts_with("zh-tw") || l.starts_with("zh_tw") || l.starts_with("zh-hant")
+    });
+    let is_zh = lower.as_deref().map_or(false, |l| l.starts_with("zh"));
 
-    let (code_editor_prompt, ai_cli_prompt, chat_prompt, email_prompt, notion_prompt, slack_prompt, github_prompt, twitter_prompt) = if is_zh {
+    let (code_editor_prompt, ai_cli_prompt, chat_prompt, email_prompt, notion_prompt, slack_prompt, github_prompt, twitter_prompt) = if is_zh_tw {
         (
             "使用者正在程式碼編輯器中工作（可能在寫程式碼、註解、commit 訊息，或與 AI 程式助手對話）。\n\
              完整保留所有程式碼、指令、路徑、變數名稱和技術術語。\n\
@@ -469,6 +471,54 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
              如果口述提到 hashtag，保留或整理為 #標籤 格式。\n\
              修正語法但保留說話者的語調和風格。\n\
              只回覆整理後的文字，不要附加任何其他內容。".to_string(),
+        )
+    } else if is_zh {
+        (
+            "用户正在代码编辑器中工作（可能在写代码、注释、commit 消息，或与 AI 编程助手对话）。\n\
+             完整保留所有代码、指令、路径、变量名和技术术语。\n\
+             技术术语保留英文原文，不要翻译（如 function、commit、merge、deploy）。\n\
+             输出简洁精确的文字，不要额外解释。".to_string(),
+
+            "用户正在终端中对 AI 编程助手口述提示或消息。\n\
+             语音内容会直接作为 AI 的输入。\n\
+             完整保留所有技术术语、代码引用、文件路径、变量名和指令。\n\
+             输出清晰、结构良好的文字。\n\
+             只回复整理后的文字，不要附加任何其他内容。".to_string(),
+
+            "用户正在发送聊天消息。\n\
+             保持轻松、自然、口语化的语气。\n\
+             修正语法和赘词，但保留说话者的个性和语意。\n\
+             如果说话者语气中带有情绪表达，可以适当保留或加入 emoji。\n\
+             只回复整理后的消息文字，不要附加任何其他内容。".to_string(),
+
+            "将口述内容整理成正式的电子邮件格式（问候语、正文、结尾）。\n\
+             使用专业、清晰、有礼貌的语气。\n\
+             只回复邮件文字，不要附加任何其他内容。".to_string(),
+
+            "用户正在 Notion 中撰写内容（笔记、文档或 Wiki）。\n\
+             产出干净、结构良好的文字，适合用于文档。\n\
+             适当将口述内容转换为列表、表格、标题等结构化格式，符合 Notion 的排版风格。\n\
+             只回复整理后的文字，不要附加任何其他内容。".to_string(),
+
+            "用户正在发送 Slack 消息。\n\
+             保持专业但亲切的语气。\n\
+             修正语法和赘词，保持简洁。\n\
+             适当使用 Slack 支持的格式：*粗体*、> 引用、`代码`、列表等。\n\
+             只回复整理后的消息文字，不要附加任何其他内容。".to_string(),
+
+            "用户正在 GitHub 上工作（如 PR 描述、Issue、Code Review 评论、Commit 消息、README 或讨论区）。\n\
+             重要：无论口述使用什么语言，一律以英文输出。\n\
+             使用清晰、专业、简洁的语言，适合软件协作场景。\n\
+             完整保留所有技术术语、代码引用、文件路径和变量名。\n\
+             当内容暗示有结构时（列表、标题、代码块），使用 Markdown 格式。\n\
+             只回复整理后的文字，不要附加任何其他内容。".to_string(),
+
+            "用户正在 X（Twitter）上撰写帖子或回复。\n\
+             保持简洁有力，在短篇幅中追求清晰。\n\
+             注意控制文字长度，尽量精简，适合社交媒体帖子的篇幅。\n\
+             如果口述提到 hashtag，保留或整理为 #标签 格式。\n\
+             修正语法但保留说话者的语调和风格。\n\
+             只回复整理后的文字，不要附加任何其他内容。".to_string(),
         )
     } else {
         (
