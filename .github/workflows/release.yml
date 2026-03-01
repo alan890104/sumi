@@ -1,0 +1,286 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Create draft release ──────────────────────────────────────────
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - name: Extract tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ steps.tag.outputs.tag }}" \
+            --generate-notes \
+            --draft
+
+  # ── macOS (aarch64, Metal) ────────────────────────────────────────
+  build-macos:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: macos-aarch64
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          CMAKE_OSX_DEPLOYMENT_TARGET: "11.0"
+        with:
+          args: --target aarch64-apple-darwin
+
+      - name: Upload macOS artifacts to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.create-release.outputs.tag }}"
+          BUNDLE_DIR="target/aarch64-apple-darwin/release/bundle"
+
+          # Collect all release artifacts
+          ARTIFACTS=()
+          for f in "$BUNDLE_DIR"/macos/*.app.tar.gz "$BUNDLE_DIR"/macos/*.app.tar.gz.sig "$BUNDLE_DIR"/dmg/*.dmg; do
+            [ -f "$f" ] && ARTIFACTS+=("$f")
+          done
+
+          echo "Uploading ${#ARTIFACTS[@]} macOS artifacts..."
+          printf '  %s\n' "${ARTIFACTS[@]}"
+          gh release upload "$TAG" --repo "${{ github.repository }}" --clobber "${ARTIFACTS[@]}"
+
+  # ── Windows CUDA build (reusable) ─────────────────────────────────
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cuda-version: "12.6.3"
+            cuda-sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust"]'
+            artifact-suffix: cuda12
+          - cuda-version: "13.1.0"
+            cuda-sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "thrust"]'
+            artifact-suffix: cuda13
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: windows-${{ matrix.artifact-suffix }}
+
+      - name: Install CUDA Toolkit
+        uses: Jimver/cuda-toolkit@95b5a29a2823ef87666dcd45ec236fc4f82498d0 # v0.2.22
+        with:
+          cuda: ${{ matrix.cuda-version }}
+          method: network
+          sub-packages: ${{ matrix.cuda-sub-packages }}
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Detect MSVC cl.exe
+        id: msvc
+        shell: pwsh
+        run: |
+          $clExe = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\*\bin\HostX64\x64\cl.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName | Select-Object -Last 1
+          if (-not $clExe) {
+            Write-Error "cl.exe not found under VS 2022 Enterprise"
+            exit 1
+          }
+          Write-Host "Found cl.exe: $($clExe.FullName)"
+          echo "cl_path=$($clExe.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build Tauri app (CUDA)
+        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          LIBCLANG_PATH: "C:\\Program Files\\LLVM\\bin"
+          HOST_CMAKE_GENERATOR: Ninja
+          NVCC_CCBIN: ${{ steps.msvc.outputs.cl_path }}
+          CMAKE_CUDA_FLAGS: "--allow-unsupported-compiler -Xcompiler=-MT"
+          CMAKE_CUDA_FLAGS_RELWITHDEBINFO: '-Xcompiler="-MT -Zi -O2 -Ob1" -DNDEBUG'
+          RUSTFLAGS: "-C target-feature=+crt-static"
+          CMAKE_C_FLAGS_RELWITHDEBINFO: "-MT -Zi -O2 -Ob1 -DNDEBUG"
+          CMAKE_CXX_FLAGS_RELWITHDEBINFO: "-MT -Zi -O2 -Ob1 -DNDEBUG"
+          CMAKE_C_FLAGS_DEBUG: "-MT -Zi -Ob0 -Od"
+          CMAKE_CXX_FLAGS_DEBUG: "-MT -Zi -Ob0 -Od"
+          CMAKE_C_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
+          CMAKE_CXX_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
+        with:
+          args: --no-default-features --features cuda
+
+      - name: Rename artifacts with CUDA suffix and upload
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ needs.create-release.outputs.tag }}"
+          $suffix = "${{ matrix.artifact-suffix }}"
+          $bundleDir = "target/release/bundle"
+          $uploads = @()
+
+          # MSI artifacts
+          foreach ($f in Get-ChildItem "$bundleDir/msi/*" -Include *.msi,*.msi.zip,*.msi.zip.sig -ErrorAction SilentlyContinue) {
+            $newName = $f.Name -replace '_x64', "_x64_$suffix"
+            $newPath = Join-Path $f.DirectoryName $newName
+            Move-Item $f.FullName $newPath
+            $uploads += $newPath
+            Write-Host "  $($f.Name) -> $newName"
+          }
+
+          # NSIS artifacts
+          foreach ($f in Get-ChildItem "$bundleDir/nsis/*" -Include *-setup.exe,*.nsis.zip,*.nsis.zip.sig -ErrorAction SilentlyContinue) {
+            $newName = $f.Name -replace '_x64', "_x64_$suffix"
+            $newPath = Join-Path $f.DirectoryName $newName
+            Move-Item $f.FullName $newPath
+            $uploads += $newPath
+            Write-Host "  $($f.Name) -> $newName"
+          }
+
+          if ($uploads.Count -eq 0) {
+            Write-Error "No artifacts found to upload"
+            exit 1
+          }
+
+          Write-Host "`nUploading $($uploads.Count) Windows ($suffix) artifacts..."
+          gh release upload $tag --repo "${{ github.repository }}" --clobber @uploads
+
+  # ── Finalize: assemble latest.json & publish ──────────────────────
+  finalize:
+    needs: [create-release, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts for latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.create-release.outputs.tag }}"
+          VERSION="${{ needs.create-release.outputs.version }}"
+
+          mkdir -p artifacts
+          cd artifacts
+
+          # Download macOS updater artifacts
+          gh release download "$TAG" \
+            --repo "${{ github.repository }}" \
+            --pattern "*.app.tar.gz.sig"
+
+          # Download Windows CUDA 12 MSI updater sig (used for auto-update)
+          gh release download "$TAG" \
+            --repo "${{ github.repository }}" \
+            --pattern "*_cuda12.msi.zip.sig"
+
+      - name: Assemble latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.create-release.outputs.tag }}"
+          VERSION="${{ needs.create-release.outputs.version }}"
+          REPO="${{ github.repository }}"
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          cd artifacts
+
+          # Read macOS signature
+          MAC_SIG=""
+          MAC_ARCHIVE=""
+          for f in *.app.tar.gz.sig; do
+            [ -f "$f" ] || continue
+            MAC_SIG=$(cat "$f")
+            MAC_ARCHIVE="${f%.sig}"
+            break
+          done
+
+          # Read Windows CUDA 12 MSI signature
+          WIN_SIG=""
+          WIN_ARCHIVE=""
+          for f in *_cuda12.msi.zip.sig; do
+            [ -f "$f" ] || continue
+            WIN_SIG=$(cat "$f")
+            WIN_ARCHIVE="${f%.sig}"
+            break
+          done
+
+          # Build latest.json
+          cat > ../latest.json << ENDJSON
+          {
+            "version": "${VERSION}",
+            "pub_date": "${DATE}",
+            "platforms": {
+              "darwin-aarch64": {
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/${MAC_ARCHIVE}",
+                "signature": "${MAC_SIG}"
+              },
+              "windows-x86_64": {
+                "url": "https://github.com/${REPO}/releases/download/${TAG}/${WIN_ARCHIVE}",
+                "signature": "${WIN_SIG}"
+              }
+            }
+          }
+          ENDJSON
+
+          echo "latest.json:"
+          cat ../latest.json
+
+      - name: Upload latest.json and publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.create-release.outputs.tag }}"
+
+          gh release upload "$TAG" \
+            --repo "${{ github.repository }}" \
+            --clobber \
+            latest.json
+
+          gh release edit "$TAG" \
+            --repo "${{ github.repository }}" \
+            --draft=false

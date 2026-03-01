@@ -26,7 +26,8 @@
                 "center": true,
                 "decorations": true,
                 "titleBarStyle": "Overlay",
-                "hiddenTitle": true
+                "hiddenTitle": true,
+                "additionalBrowserArgs": "--disable-gpu-shader-disk-cache"
             },
             {
                 "label": "overlay",
@@ -40,7 +41,8 @@
                 "resizable": false,
                 "skipTaskbar": true,
                 "visible": false,
-                "focus": false
+                "focus": false,
+                "additionalBrowserArgs": "--disable-gpu-shader-disk-cache"
             }
         ],
         "security": {
