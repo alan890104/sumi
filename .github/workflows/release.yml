@@ -163,7 +163,7 @@ jobs:
           CMAKE_CXX_FLAGS_DEBUG: "-MT -Zi -Ob0 -Od"
           CMAKE_C_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
           CMAKE_CXX_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
-        run: cargo tauri build --no-default-features --features cuda
+        run: tauri build --no-default-features --features cuda
 
       - name: Rename artifacts with CUDA suffix and upload
         shell: pwsh
