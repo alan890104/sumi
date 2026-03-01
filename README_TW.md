@@ -120,6 +120,10 @@ GPLv3 授權。不用訂閱、不限字數、不需要帳號。想要更快可�
 
 ### 從原始碼編譯
 
+需要 [Rust](https://rustup.rs/) 和 [Tauri CLI](https://v2.tauri.app/)（`cargo install tauri-cli --version "^2"`）。
+
+**macOS：**
+
 ```bash
 git clone https://github.com/alan890104/sumi.git
 cd sumi
@@ -131,7 +135,22 @@ cargo tauri dev
 cargo tauri build
 ```
 
-需要 [Rust](https://rustup.rs/) 和 [Tauri CLI](https://v2.tauri.app/)（`cargo install tauri-cli --version "^2"`）。
+**Windows：**
+
+預設的 feature flag 會啟用 Metal（macOS 專屬 GPU 加速），在 Windows 上必須關閉：
+
+```bash
+git clone https://github.com/alan890104/sumi.git
+cd sumi
+
+# 純 CPU
+cargo tauri dev --no-default-features
+cargo tauri build --no-default-features
+
+# 搭配 NVIDIA CUDA 加速
+cargo tauri dev --no-default-features --features cuda
+cargo tauri build --no-default-features --features cuda
+```
 
 ## 使用方法
 

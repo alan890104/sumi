@@ -129,6 +129,10 @@ brew install --cask sumi
 
 ### Build from Source
 
+Requires [Rust](https://rustup.rs/) and [Tauri CLI](https://v2.tauri.app/) (`cargo install tauri-cli --version "^2"`).
+
+**macOS:**
+
 ```bash
 git clone https://github.com/alan890104/sumi.git
 cd sumi
@@ -140,7 +144,22 @@ cargo tauri dev
 cargo tauri build
 ```
 
-Requires [Rust](https://rustup.rs/) and [Tauri CLI](https://v2.tauri.app/) (`cargo install tauri-cli --version "^2"`).
+**Windows:**
+
+The default feature flag enables Metal (macOS-only GPU acceleration). On Windows you must disable it:
+
+```bash
+git clone https://github.com/alan890104/sumi.git
+cd sumi
+
+# CPU only
+cargo tauri dev --no-default-features
+cargo tauri build --no-default-features
+
+# With NVIDIA CUDA acceleration
+cargo tauri dev --no-default-features --features cuda
+cargo tauri build --no-default-features --features cuda
+```
 
 ## Usage
 
