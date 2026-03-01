@@ -114,7 +114,7 @@ jobs:
           shared-key: windows-${{ matrix.artifact-suffix }}
 
       - name: Install CUDA Toolkit
-        uses: Jimver/cuda-toolkit@95b5a29a2823ef87666dcd45ec236fc4f82498d0 # v0.2.22
+        uses: Jimver/cuda-toolkit@b6fc3a9f3f15256d9d94ffe1254f9c5a2565cde6 # v0.2.30
         with:
           cuda: ${{ matrix.cuda-version }}
           method: network
