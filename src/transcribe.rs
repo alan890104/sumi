@@ -173,17 +173,6 @@ pub fn transcribe_with_cached_whisper(
 ) -> Result<String, String> {
     use whisper_rs::{FullParams, SamplingStrategy};
 
-    // Suppress verbose C-level logs from whisper.cpp / ggml
-    unsafe extern "C" fn noop_log(
-        _level: u32,
-        _text: *const std::ffi::c_char,
-        _user_data: *mut std::ffi::c_void,
-    ) {
-    }
-    unsafe {
-        whisper_rs::set_log_callback(Some(noop_log), std::ptr::null_mut());
-    }
-
     let model_path = whisper_model_path_for(model)?;
 
     let mut cache_guard = whisper_cache

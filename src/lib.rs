@@ -708,14 +708,6 @@ pub fn run() {
                             let mut ctx_guard = state.whisper_ctx.lock().unwrap();
                             if ctx_guard.is_none() {
                                 println!("[Sumi] Pre-warming Whisper model: {}...", whisper_model.display_name());
-                                unsafe extern "C" fn noop_log(
-                                    _level: u32,
-                                    _text: *const std::ffi::c_char,
-                                    _user_data: *mut std::ffi::c_void,
-                                ) {}
-                                unsafe {
-                                    whisper_rs::set_log_callback(Some(noop_log), std::ptr::null_mut());
-                                }
                                 let mut ctx_params = WhisperContextParameters::new();
                                 ctx_params.use_gpu(true);
                                 match whisper_rs::WhisperContext::new_with_params(
