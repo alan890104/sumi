@@ -108,10 +108,16 @@ pub fn apply_locale_defaults(settings: &mut Settings) {
     let is_new_install = settings.stt.language == "auto" || settings.stt.language.is_empty();
 
     if let Some(locale) = crate::whisper_models::detect_system_language() {
-        // STT language
+        // STT language & prompt rules
         if is_new_install {
             let lang = crate::stt::locale_to_stt_language(&locale);
             if lang != "auto" {
+                // Regenerate prompt rules with detected locale
+                let localized_rules = polisher::default_prompt_rules_for_lang(Some(&lang));
+                let mut map = std::collections::HashMap::new();
+                map.insert("auto".to_string(), localized_rules);
+                settings.polish.prompt_rules = map;
+
                 settings.stt.language = lang.clone();
                 settings.stt.cloud.language = lang;
                 changed = true;
