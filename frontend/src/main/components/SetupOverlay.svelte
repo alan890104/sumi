@@ -791,9 +791,9 @@
             <div class="wave"></div>
             <div class="wave"></div>
             <svg class="setup-mic-icon floating" width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M32 8L35.5 24.5L52 28L35.5 31.5L32 48L28.5 31.5L12 28L28.5 24.5Z" fill="#007AFF"/>
-              <path d="M48 10L49.5 15.5L55 17L49.5 18.5L48 24L46.5 18.5L41 17L46.5 15.5Z" fill="#007AFF" opacity="0.7"/>
-              <path d="M50 38L51 42L55 43L51 44L50 48L49 44L45 43L49 42Z" fill="#007AFF" opacity="0.5"/>
+              <path d="M32 12L35.5 28.5L52 32L35.5 35.5L32 52L28.5 35.5L12 32L28.5 28.5Z" fill="#007AFF"/>
+              <path d="M48 14L49.5 19.5L55 21L49.5 22.5L48 28L46.5 22.5L41 21L46.5 19.5Z" fill="#007AFF" opacity="0.7"/>
+              <path d="M50 42L51 46L55 47L51 48L50 52L49 48L45 47L49 46Z" fill="#007AFF" opacity="0.5"/>
             </svg>
           </div>
 
@@ -878,8 +878,9 @@
             <div class="wave"></div>
             <div class="wave"></div>
             <svg class="setup-mic-icon pulsing" width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="32" cy="32" r="28" fill="none" stroke="#007AFF" stroke-width="2"/>
-              <text x="32" y="40" text-anchor="middle" font-size="28" fill="#007AFF">AI</text>
+              <path d="M32 12L35.5 28.5L52 32L35.5 35.5L32 52L28.5 35.5L12 32L28.5 28.5Z" fill="#007AFF"/>
+              <path d="M48 14L49.5 19.5L55 21L49.5 22.5L48 28L46.5 22.5L41 21L46.5 19.5Z" fill="#007AFF" opacity="0.7"/>
+              <path d="M50 42L51 46L55 47L51 48L50 52L49 48L45 47L49 46Z" fill="#007AFF" opacity="0.5"/>
             </svg>
           </div>
 

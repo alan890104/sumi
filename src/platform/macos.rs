@@ -146,6 +146,7 @@ pub unsafe fn setup_overlay(ns_window: *mut c_void) {
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel);
+
 }
 
 /// Show without activating the application.
