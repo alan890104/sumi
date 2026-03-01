@@ -330,13 +330,6 @@ fn macos_locale_identifier() -> Option<String> {
     preferred.or(current).map(|s| s.to_lowercase())
 }
 
-/// Returns both locale values for diagnostic purposes:
-/// `(preferred_language, current_locale_identifier)`.
-#[cfg(target_os = "macos")]
-pub fn macos_locale_both() -> (Option<String>, Option<String>) {
-    macos_locale_debug()
-}
-
 // ── Platform-specific system info helpers ─────────────────────────────────────
 
 #[cfg(unix)]

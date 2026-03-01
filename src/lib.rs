@@ -607,7 +607,6 @@ pub fn run() {
             commands::download_vad_model,
             commands::copy_image_to_clipboard,
             commands::is_dev_mode,
-            commands::get_locale_debug,
         ])
         .setup(|app| {
             // Hide Dock icon (macOS) / equivalent
