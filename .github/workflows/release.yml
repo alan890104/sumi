@@ -140,8 +140,11 @@ jobs:
         run: npm ci
         working-directory: frontend
 
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@latest
+
       - name: Build Tauri app (CUDA)
-        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
+        shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -149,7 +152,9 @@ jobs:
           CUDA_COMPUTE_CAP: "80"
           HOST_CMAKE_GENERATOR: Ninja
           NVCC_CCBIN: ${{ steps.msvc.outputs.cl_path }}
+          CUDAFLAGS: "--allow-unsupported-compiler -Xcompiler=-MT"
           CMAKE_CUDA_FLAGS: "--allow-unsupported-compiler -Xcompiler=-MT"
+          CMAKE_CUDA_FLAGS_RELEASE: '-Xcompiler="-MT -O2 -Ob2" -DNDEBUG'
           CMAKE_CUDA_FLAGS_RELWITHDEBINFO: '-Xcompiler="-MT -Zi -O2 -Ob1" -DNDEBUG'
           RUSTFLAGS: "-C target-feature=+crt-static"
           CMAKE_C_FLAGS_RELWITHDEBINFO: "-MT -Zi -O2 -Ob1 -DNDEBUG"
@@ -158,8 +163,7 @@ jobs:
           CMAKE_CXX_FLAGS_DEBUG: "-MT -Zi -Ob0 -Od"
           CMAKE_C_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
           CMAKE_CXX_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
-        with:
-          args: -- --no-default-features --features cuda
+        run: cargo tauri build --no-default-features --features cuda
 
       - name: Rename artifacts with CUDA suffix and upload
         shell: pwsh
