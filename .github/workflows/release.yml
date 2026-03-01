@@ -148,6 +148,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           LIBCLANG_PATH: "C:\\Program Files\\LLVM\\bin"
+          CUDA_COMPUTE_CAP: "80"
           HOST_CMAKE_GENERATOR: Ninja
           NVCC_CCBIN: ${{ steps.msvc.outputs.cl_path }}
           CMAKE_CUDA_FLAGS: "--allow-unsupported-compiler -Xcompiler=-MT"
