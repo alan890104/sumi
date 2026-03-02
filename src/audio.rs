@@ -12,6 +12,8 @@ use crate::transcribe::{transcribe_with_cached_whisper, WhisperContextCache, Vad
 pub struct AudioThreadControl {
     thread: std::thread::Thread,
     stop_signal: Arc<AtomicBool>,
+    /// False when the cpal stream has emitted an error and is no longer delivering data.
+    pub stream_alive: Arc<AtomicBool>,
 }
 
 impl AudioThreadControl {
@@ -19,6 +21,10 @@ impl AudioThreadControl {
     pub fn stop(&self) {
         self.stop_signal.store(true, Ordering::Relaxed);
         self.thread.unpark();
+    }
+
+    pub fn is_alive(&self) -> bool {
+        self.stream_alive.load(Ordering::Relaxed)
     }
 }
 
@@ -35,6 +41,10 @@ pub fn spawn_audio_thread(
 ) -> Result<(u32, AudioThreadControl), String> {
     let stop = Arc::new(AtomicBool::new(false));
     let stop_for_thread = Arc::clone(&stop);
+
+    // Shared flag: set to false by the error callback when the stream dies.
+    let stream_alive = Arc::new(AtomicBool::new(true));
+    let alive_for_thread = Arc::clone(&stream_alive);
 
     let (init_tx, init_rx) = mpsc::channel::<Result<u32, String>>();
 
@@ -87,35 +97,45 @@ pub fn spawn_audio_thread(
             let buf = Arc::clone(&buf_for_thread);
             let rec = Arc::clone(&rec_for_thread);
             match config.sample_format() {
-                cpal::SampleFormat::F32 => device.build_input_stream(
-                    &config.into(),
-                    move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                        if !rec.load(Ordering::Relaxed) {
-                            return;
-                        }
-                        let mut buf = match buf.lock() {
-                            Ok(b) => b,
-                            Err(_) => return, // S-11: handle poisoned mutex
-                        };
-                        // S-08: safety cap — ~40 MB / 4 bytes = 10M samples
-                        if buf.len() > 10_000_000 {
-                            rec.store(false, Ordering::Relaxed);
-                            return;
-                        }
-                        if channels == 1 {
-                            buf.extend_from_slice(data);
-                        } else {
-                            for chunk in data.chunks(channels) {
-                                buf.push(chunk.iter().sum::<f32>() / channels as f32);
+                cpal::SampleFormat::F32 => {
+                    let rec_err = Arc::clone(&rec_for_thread);
+                    let alive_err = Arc::clone(&alive_for_thread);
+                    device.build_input_stream(
+                        &config.into(),
+                        move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                            if !rec.load(Ordering::Relaxed) {
+                                return;
                             }
-                        }
-                    },
-                    |err| eprintln!("[Sumi] audio stream error: {}", err),
-                    None,
-                ),
+                            let mut buf = match buf.lock() {
+                                Ok(b) => b,
+                                Err(_) => return,
+                            };
+                            // S-08: safety cap — ~40 MB / 4 bytes = 10M samples
+                            if buf.len() > 10_000_000 {
+                                rec.store(false, Ordering::Relaxed);
+                                return;
+                            }
+                            if channels == 1 {
+                                buf.extend_from_slice(data);
+                            } else {
+                                for chunk in data.chunks(channels) {
+                                    buf.push(chunk.iter().sum::<f32>() / channels as f32);
+                                }
+                            }
+                        },
+                        move |err| {
+                            eprintln!("[Sumi] audio stream error: {}", err);
+                            alive_err.store(false, Ordering::Relaxed);
+                            rec_err.store(false, Ordering::Relaxed);
+                        },
+                        None,
+                    )
+                }
                 cpal::SampleFormat::I16 => {
                     let buf = Arc::clone(&buf_for_thread);
                     let rec = Arc::clone(&rec_for_thread);
+                    let rec_err = Arc::clone(&rec_for_thread);
+                    let alive_err = Arc::clone(&alive_for_thread);
                     device.build_input_stream(
                         &config.into(),
                         move |data: &[i16], _: &cpal::InputCallbackInfo| {
@@ -124,7 +144,7 @@ pub fn spawn_audio_thread(
                             }
                             let mut buf = match buf.lock() {
                                 Ok(b) => b,
-                                Err(_) => return, // S-11: handle poisoned mutex
+                                Err(_) => return,
                             };
                             // S-08: safety cap
                             if buf.len() > 2_000_000 {
@@ -145,7 +165,11 @@ pub fn spawn_audio_thread(
                                 }
                             }
                         },
-                        |err| eprintln!("[Sumi] audio stream error: {}", err),
+                        move |err| {
+                            eprintln!("[Sumi] audio stream error: {}", err);
+                            alive_err.store(false, Ordering::Relaxed);
+                            rec_err.store(false, Ordering::Relaxed);
+                        },
                         None,
                     )
                 }
@@ -192,7 +216,7 @@ pub fn spawn_audio_thread(
         .recv_timeout(std::time::Duration::from_secs(5))
         .map_err(|_| "音訊執行緒初始化逾時".to_string())??;
 
-    Ok((sample_rate, AudioThreadControl { thread, stop_signal: stop }))
+    Ok((sample_rate, AudioThreadControl { thread, stop_signal: stop, stream_alive }))
 }
 
 /// Attempt to reconnect the microphone when `mic_available` is false.
@@ -227,7 +251,16 @@ pub fn do_start_recording(
     audio_thread: &Mutex<Option<AudioThreadControl>>,
     device_name: Option<String>,
 ) -> Result<(), String> {
-    if !mic_available.load(Ordering::SeqCst) {
+    // Reconnect if mic was unavailable OR if the stream has died since last use.
+    let stream_dead = audio_thread.lock().ok()
+        .and_then(|at| at.as_ref().map(|c| !c.is_alive()))
+        .unwrap_or(false);
+
+    if !mic_available.load(Ordering::SeqCst) || stream_dead {
+        if stream_dead {
+            println!("[Sumi] Audio stream was dead, reconnecting before recording");
+            mic_available.store(false, Ordering::SeqCst);
+        }
         try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name)?;
     }
 

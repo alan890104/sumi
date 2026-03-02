@@ -1059,6 +1059,23 @@ pub fn run() {
                                             let mut peak_rms: f32 = 0.01; // initial floor
 
                                             while state.is_recording.load(Ordering::SeqCst) {
+                                                // Dead-stream guard: if buffer is still empty after
+                                                // 1.5 s the cpal callback is not running at all.
+                                                if recording_start.elapsed().as_millis() >= 1500 {
+                                                    let buf_empty = state.buffer.lock()
+                                                        .map(|b| b.is_empty())
+                                                        .unwrap_or(false);
+                                                    if buf_empty {
+                                                        println!("[Sumi] ⚠️ No audio data after 1.5s — stream dead, aborting recording");
+                                                        state.is_recording.store(false, Ordering::SeqCst);
+                                                        state.mic_available.store(false, Ordering::SeqCst);
+                                                        if let Some(ov) = app_for_monitor.get_webview_window("overlay") {
+                                                            let _ = ov.emit("recording-status", "error");
+                                                        }
+                                                        return;
+                                                    }
+                                                }
+
                                                 if recording_start.elapsed().as_secs() >= MAX_RECORDING_SECS {
                                                     println!("[Sumi] ⏱️ Max recording duration reached ({}s)", MAX_RECORDING_SECS);
                                                     if state.edit_mode.load(Ordering::SeqCst) {
