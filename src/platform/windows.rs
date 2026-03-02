@@ -1,3 +1,4 @@
+use windows::Win32::System::DataExchange::GetClipboardSequenceNumber;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VIRTUAL_KEY,
 };
@@ -48,6 +49,12 @@ pub unsafe fn simulate_copy() -> bool {
 /// Simulate Ctrl+Z (undo) via SendInput.
 pub unsafe fn simulate_undo() -> bool {
     send_key_combo(VK_CONTROL, VK_Z)
+}
+
+/// Returns the clipboard sequence number, which increments each time the clipboard is written.
+/// Used to detect whether a Ctrl+C actually updated the clipboard.
+pub fn clipboard_change_count() -> Option<u32> {
+    Some(unsafe { GetClipboardSequenceNumber() })
 }
 
 /// Send a modifier+key combo via SendInput (4 events: mod↓ key↓ key↑ mod↑).

@@ -253,3 +253,23 @@ pub unsafe fn simulate_cmd_v() -> bool { simulate_cmd_key(9) }
 pub unsafe fn simulate_cmd_c() -> bool { simulate_cmd_key(8) }
 /// Simulate Cmd+Z (undo).
 pub unsafe fn simulate_cmd_z() -> bool { simulate_cmd_key(6) }
+
+/// Returns the NSPasteboard changeCount, which increments each time the clipboard is written.
+/// Used to detect whether a Cmd+C actually updated the clipboard (avoids false negatives
+/// when the selected text is identical to the previously saved clipboard content).
+pub fn clipboard_change_count() -> Option<u32> {
+    unsafe {
+        let cls = objc_getClass(b"NSPasteboard\0".as_ptr());
+        if cls.is_null() { return None; }
+
+        let sel_general = sel_registerName(b"generalPasteboard\0".as_ptr());
+        type MsgSendPb = unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void;
+        let pb = std::mem::transmute::<_, MsgSendPb>(objc_msgSend as *const ())(cls, sel_general);
+        if pb.is_null() { return None; }
+
+        let sel_count = sel_registerName(b"changeCount\0".as_ptr());
+        type MsgSendCount = unsafe extern "C" fn(*mut c_void, *mut c_void) -> i64;
+        let count = std::mem::transmute::<_, MsgSendCount>(objc_msgSend as *const ())(pb, sel_count);
+        Some(count as u32)
+    }
+}

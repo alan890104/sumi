@@ -106,3 +106,15 @@ pub fn simulate_undo() -> bool {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     { false }
 }
+
+/// Returns the clipboard change sequence number if the platform supports it.
+/// macOS: NSPasteboard.changeCount, Windows: GetClipboardSequenceNumber.
+/// Returns None on Linux/other (caller falls back to sentinel approach).
+pub fn clipboard_change_count() -> Option<u32> {
+    #[cfg(target_os = "macos")]
+    { macos::clipboard_change_count() }
+    #[cfg(target_os = "windows")]
+    { windows::clipboard_change_count() }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    { None }
+}

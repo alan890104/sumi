@@ -916,29 +916,69 @@ pub fn run() {
                                         state.edit_mode.store(true, Ordering::SeqCst);
                                         println!("[Sumi] ✏️ Edit-by-voice (override): captured {} graphemes", grapheme_count);
                                     } else {
+                                        // Save original clipboard for later restoration
                                         let original_clipboard = arboard::Clipboard::new()
                                             .ok()
                                             .and_then(|mut cb| cb.get_text().ok());
-
                                         if let Ok(mut saved) = state.saved_clipboard.lock() {
                                             *saved = original_clipboard;
                                         }
 
+                                        // Record change count before copy (macOS/Windows)
+                                        let change_count_before = platform::clipboard_change_count();
+
+                                        // On platforms without change count (Linux), write a sentinel
+                                        // so we can detect whether Ctrl+C actually fired
+                                        let sentinel_str: Option<String> = if change_count_before.is_none() {
+                                            let s = format!("__sumi_sentinel_{}__",
+                                                std::time::SystemTime::now()
+                                                    .duration_since(std::time::UNIX_EPOCH)
+                                                    .unwrap_or_default()
+                                                    .as_nanos());
+                                            if let Ok(mut cb) = arboard::Clipboard::new() {
+                                                let _ = cb.set_text(&s);
+                                            }
+                                            std::thread::sleep(std::time::Duration::from_millis(30));
+                                            Some(s)
+                                        } else {
+                                            None
+                                        };
+
                                         platform::simulate_copy();
                                         std::thread::sleep(std::time::Duration::from_millis(100));
+
+                                        // Determine whether the clipboard was actually updated
+                                        let clipboard_changed = match change_count_before {
+                                            Some(before) => {
+                                                // macOS / Windows: compare sequence numbers
+                                                platform::clipboard_change_count()
+                                                    .map(|after| after != before)
+                                                    .unwrap_or(false)
+                                            }
+                                            None => {
+                                                // Linux / fallback: check the clipboard differs from sentinel
+                                                let current = arboard::Clipboard::new()
+                                                    .ok()
+                                                    .and_then(|mut cb| cb.get_text().ok())
+                                                    .unwrap_or_default();
+                                                let sentinel = sentinel_str.as_deref().unwrap_or("");
+                                                !current.is_empty() && current != sentinel
+                                            }
+                                        };
+
+                                        if !clipboard_changed {
+                                            println!("[Sumi] Edit-by-voice: no text selected, aborting");
+                                            restore_clipboard(&state);
+                                            return;
+                                        }
 
                                         let selected = arboard::Clipboard::new()
                                             .ok()
                                             .and_then(|mut cb| cb.get_text().ok())
                                             .unwrap_or_default();
 
-                                        let saved_text = state.saved_clipboard.lock()
-                                            .ok()
-                                            .and_then(|s| s.clone())
-                                            .unwrap_or_default();
-
-                                        if selected.is_empty() || selected == saved_text {
-                                            println!("[Sumi] Edit-by-voice: no text selected, aborting");
+                                        if selected.is_empty() {
+                                            println!("[Sumi] Edit-by-voice: clipboard empty after copy, aborting");
                                             restore_clipboard(&state);
                                             return;
                                         }
