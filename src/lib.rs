@@ -30,7 +30,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use commands::get_cached_api_key;
 use hotkey::{hotkey_display_label, parse_hotkey_string};
-use settings::{load_settings, models_dir, history_dir, audio_dir, Settings};
+use settings::{load_settings, models_dir, history_dir, audio_dir, logs_dir, Settings};
 use stt::{SttConfig, SttMode};
 
 const MAX_RECORDING_SECS: u64 = 120;
@@ -98,7 +98,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
-        println!("[Sumi] stop_transcribe_and_paste: already processing, skipping");
+        tracing::info!("stop_transcribe_and_paste: already processing, skipping");
         return;
     }
 
@@ -114,7 +114,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         }
     }
 
-    println!("[Sumi] ⏹️ Stopping recording...");
+    tracing::info!("⏹️ Stopping recording...");
 
     let app_handle = app.clone();
     std::thread::spawn(move || {
@@ -158,11 +158,11 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         ) {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
-                println!("[Sumi] [timing] stop→transcribed: {:.0?} | len: {} graphemes", transcribe_elapsed, text.graphemes(true).count());
+                tracing::info!("[timing] stop→transcribed: {:.0?} | len: {} graphemes", transcribe_elapsed, text.graphemes(true).count());
 
                 // Voice Rule Mode
                 if state.voice_rule_mode.compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
-                    println!("[Sumi] Voice rule mode: emitting transcript to main window");
+                    tracing::info!("Voice rule mode: emitting transcript to main window");
                     if let Some(main_win) = app_handle.get_webview_window("main") {
                         let _ = main_win.emit("voice-rule-transcript", &text);
                     }
@@ -186,8 +186,8 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 } else {
                     0.0
                 };
-                println!(
-                    "[Sumi] [stats] STT output: {} graphemes in {:.2}s = {:.1} graphemes/sec",
+                tracing::info!(
+                    "[stats] STT output: {} graphemes in {:.2}s = {:.1} graphemes/sec",
                     grapheme_count, stt_secs, chars_per_sec
                 );
 
@@ -235,10 +235,10 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                             &state.http_client,
                         );
                         let p_elapsed = polish_start.elapsed().as_millis() as u64;
-                        println!("[Sumi] [timing] polish ({}): {:.0?} | len: {} graphemes", mode_label, polish_start.elapsed(), result.text.graphemes(true).count());
+                        tracing::info!("[timing] polish ({}): {:.0?} | len: {} graphemes", mode_label, polish_start.elapsed(), result.text.graphemes(true).count());
                         (result.text, result.reasoning, Some(p_elapsed))
                     } else {
-                        println!("[Sumi] Polish enabled but not ready (model missing or no API key), skipping");
+                        tracing::warn!("Polish enabled but not ready (model missing or no API key), skipping");
                         (text, None, None)
                     }
                 } else {
@@ -253,14 +253,14 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 let clipboard_ok = match arboard::Clipboard::new() {
                     Ok(mut clipboard) => {
                         if let Err(e) = clipboard.set_text(&text) {
-                            eprintln!("[Sumi] Clipboard error: {}", e);
+                            tracing::error!("Clipboard error: {}", e);
                             false
                         } else {
                             true
                         }
                     }
                     Err(e) => {
-                        eprintln!("[Sumi] Clipboard init error: {}", e);
+                        tracing::error!("Clipboard init error: {}", e);
                         false
                     }
                 };
@@ -271,18 +271,18 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                     if auto_paste {
                         let pasted = platform::simulate_paste();
                         if pasted {
-                            println!("[Sumi] 📋 Auto-pasted at cursor");
+                            tracing::info!("📋 Auto-pasted at cursor");
                             if let Some(overlay) = app_handle.get_webview_window("overlay") {
                                 let _ = overlay.emit("recording-status", "pasted");
                             }
                         } else {
-                            println!("[Sumi] 📋 Copied to clipboard (paste simulation failed)");
+                            tracing::info!("📋 Copied to clipboard (paste simulation failed)");
                             if let Some(overlay) = app_handle.get_webview_window("overlay") {
                                 let _ = overlay.emit("recording-status", "copied");
                             }
                         }
                     } else {
-                        println!("[Sumi] 📋 Copied to clipboard (auto-paste disabled)");
+                        tracing::info!("📋 Copied to clipboard (auto-paste disabled)");
                         if let Some(overlay) = app_handle.get_webview_window("overlay") {
                             let _ = overlay.emit("recording-status", "copied");
                         }
@@ -290,7 +290,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 }
 
                 let total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
-                println!("[Sumi] [timing] total pipeline: {:.0?}", pipeline_start.elapsed());
+                tracing::info!("[timing] total pipeline: {:.0?}", pipeline_start.elapsed());
 
                 // Save to history
                 {
@@ -337,11 +337,11 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         word_count,
                     };
                     history::add_entry(&history_dir(), &audio_dir(), entry, retention_days);
-                    println!("[Sumi] 📝 History entry saved (audio={})", has_audio);
+                    tracing::info!("📝 History entry saved (audio={})", has_audio);
                 }
             }
             Err(ref e) if e == "no_speech" => {
-                println!("[Sumi] No speech detected, skipping (took {:.0?})", pipeline_start.elapsed());
+                tracing::info!("No speech detected, skipping (took {:.0?})", pipeline_start.elapsed());
                 if state.voice_rule_mode.compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
                     if let Some(main_win) = app_handle.get_webview_window("main") {
                         let _ = main_win.emit("voice-rule-transcript", "");
@@ -358,7 +358,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 return;
             }
             Err(e) => {
-                eprintln!("[Sumi] Transcription error: {} (after {:.0?})", e, pipeline_start.elapsed());
+                tracing::error!("Transcription error: {} (after {:.0?})", e, pipeline_start.elapsed());
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "error");
                 }
@@ -386,7 +386,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
-        println!("[Sumi] stop_edit_and_replace: already processing, skipping");
+        tracing::info!("stop_edit_and_replace: already processing, skipping");
         return;
     }
 
@@ -396,7 +396,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
         let _ = overlay.emit("recording-status", "transcribing");
     }
 
-    println!("[Sumi] ⏹️ Stopping edit-by-voice recording...");
+    tracing::info!("⏹️ Stopping edit-by-voice recording...");
 
     let app_handle = app.clone();
     std::thread::spawn(move || {
@@ -424,7 +424,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
             .unwrap_or_default();
 
         if selected_text.is_empty() {
-            eprintln!("[Sumi] Edit-by-voice: no selected text");
+            tracing::warn!("Edit-by-voice: no selected text");
             if let Some(overlay) = app_handle.get_webview_window("overlay") {
                 let _ = overlay.emit("recording-status", "error");
             }
@@ -457,7 +457,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
             stt_config.vad_enabled,
         ) {
             Ok((instruction, _samples)) => {
-                println!("[Sumi] Edit instruction received: {} graphemes", instruction.graphemes(true).count());
+                tracing::info!("Edit instruction received: {} graphemes", instruction.graphemes(true).count());
 
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "polishing");
@@ -476,7 +476,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
 
                 let model_dir = models_dir();
                 if !polisher::is_polish_ready(&model_dir, &polish_config) {
-                    eprintln!("[Sumi] Edit-by-voice: LLM not configured");
+                    tracing::warn!("Edit-by-voice: LLM not configured");
                     if let Some(overlay) = app_handle.get_webview_window("overlay") {
                         let _ = overlay.emit("recording-status", "error");
                     }
@@ -495,8 +495,8 @@ fn stop_edit_and_replace(app: &AppHandle) {
                     &state.http_client,
                 ) {
                     Ok(edited_text) => {
-                        println!(
-                            "[Sumi] Edit result: {} graphemes (took {:.0?})",
+                        tracing::info!(
+                            "Edit result: {} graphemes (took {:.0?})",
                             edited_text.graphemes(true).count(),
                             pipeline_start.elapsed()
                         );
@@ -509,7 +509,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
                         if clipboard_ok {
                             std::thread::sleep(std::time::Duration::from_millis(100));
                             platform::simulate_paste();
-                            println!("[Sumi] ✏️ Edited text pasted");
+                            tracing::info!("✏️ Edited text pasted");
                         }
 
                         restore_clipboard(&state);
@@ -522,7 +522,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
                         hide_overlay_delayed(&app_handle, 5500);
                     }
                     Err(e) => {
-                        eprintln!("[Sumi] Edit-by-voice LLM error: {}", e);
+                        tracing::error!("Edit-by-voice LLM error: {}", e);
                         if let Some(overlay) = app_handle.get_webview_window("overlay") {
                             let _ = overlay.emit("recording-status", "error");
                         }
@@ -533,13 +533,13 @@ fn stop_edit_and_replace(app: &AppHandle) {
                 }
             }
             Err(ref e) if e == "no_speech" => {
-                println!("[Sumi] Edit-by-voice: no speech detected");
+                tracing::info!("Edit-by-voice: no speech detected");
                 state.is_processing.store(false, Ordering::SeqCst);
                 restore_clipboard(&state);
                 hide_overlay_delayed(&app_handle, 0);
             }
             Err(e) => {
-                eprintln!("[Sumi] Edit-by-voice transcription error: {}", e);
+                tracing::error!("Edit-by-voice transcription error: {}", e);
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "error");
                 }
@@ -549,6 +549,40 @@ fn stop_edit_and_replace(app: &AppHandle) {
             }
         }
     });
+}
+
+// ── Logging helpers ──────────────────────────────────────────────────────────
+
+/// Holds the WorkerGuard for the non-blocking file appender so it lives until process exit.
+/// Dropping the guard shuts down the background writer thread and flushes any buffered logs.
+#[cfg(not(debug_assertions))]
+static LOG_GUARD: std::sync::Mutex<Option<tracing_appender::non_blocking::WorkerGuard>> =
+    std::sync::Mutex::new(None);
+
+/// Delete `sumi.log*` files in `log_dir` that have not been written to within `keep_days` days.
+/// Also removes the legacy non-rotating `sumi.log` (written by older app versions).
+#[cfg(not(debug_assertions))]
+fn cleanup_old_logs(log_dir: &std::path::Path, keep_days: u64) {
+    let cutoff = std::time::SystemTime::now()
+        .checked_sub(std::time::Duration::from_secs(keep_days * 24 * 3600))
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+
+    let Ok(entries) = std::fs::read_dir(log_dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_log = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.starts_with("sumi.log"))
+            .unwrap_or(false);
+        if !is_log { continue; }
+        let mtime = std::fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+        if mtime < cutoff {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
 }
 
 // ── App Entry ───────────────────────────────────────────────────────────────
@@ -613,8 +647,57 @@ pub fn run() {
             commands::copy_image_to_clipboard,
             commands::is_dev_mode,
             commands::set_mic_device,
+            commands::export_diagnostic_log,
         ])
         .setup(|app| {
+            // Initialize logger
+            {
+                let log_dir = logs_dir();
+                let _ = std::fs::create_dir_all(&log_dir);
+
+                #[cfg(debug_assertions)]
+                {
+                    // Dev: write to stderr so `cargo tauri dev` shows logs in the terminal.
+                    if let Err(e) = tracing_subscriber::fmt()
+                        .with_writer(std::io::stderr)
+                        .with_ansi(true)
+                        .with_target(false)
+                        .try_init()
+                    {
+                        eprintln!("[Sumi] Logger init failed: {}", e);
+                    }
+                }
+
+                #[cfg(not(debug_assertions))]
+                {
+                    // Release: daily-rotating file, keep 7 days, non-blocking writer.
+                    cleanup_old_logs(&log_dir, 7);
+                    let file_appender = tracing_appender::rolling::daily(&log_dir, "sumi.log");
+                    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+                    match tracing_subscriber::fmt()
+                        .with_writer(non_blocking)
+                        .with_ansi(false)
+                        .with_target(false)
+                        .try_init()
+                    {
+                        Ok(()) => {
+                            // Guard must stay alive until process exit so the background
+                            // writer thread keeps running and flushes all logs on drop.
+                            *LOG_GUARD.lock().unwrap_or_else(|e| e.into_inner()) = Some(guard);
+                        }
+                        Err(e) => {
+                            eprintln!("[Sumi] File logger init failed: {}", e);
+                            // guard dropped here — background thread exits cleanly.
+                        }
+                    }
+                }
+
+                std::panic::set_hook(Box::new(|info| {
+                    tracing::error!("PANIC: {}", info);
+                    eprintln!("[Sumi] PANIC: {}", info);
+                }));
+            }
+
             // Hide Dock icon (macOS) / equivalent
             platform::set_app_accessory_mode();
 
@@ -633,7 +716,7 @@ pub fn run() {
                 match audio::spawn_audio_thread(Arc::clone(&buffer), Arc::clone(&is_recording), settings.mic_device.clone()) {
                     Ok((sr, control)) => (true, Some(sr), Some(control)),
                     Err(e) => {
-                        eprintln!("[Sumi] Audio init failed: {}", e);
+                        tracing::error!("Audio init failed: {}", e);
                         (false, None, None)
                     }
                 };
@@ -641,7 +724,7 @@ pub fn run() {
             let http_client = reqwest::blocking::Client::builder()
                 .timeout(std::time::Duration::from_secs(60))
                 .build()
-                .expect("Failed to create shared HTTP client");
+                .unwrap_or_else(|_| reqwest::blocking::Client::new());
 
             app.manage(AppState {
                 is_recording,
@@ -679,7 +762,7 @@ pub fn run() {
                     let default_path = models_dir().join(whisper_models::WhisperModel::LargeV3Turbo.filename());
                     let legacy_path = models_dir().join("ggml-large-v3-turbo-zh-TW.bin");
                     if !default_path.exists() && legacy_path.exists() {
-                        println!("[Sumi] Migrating whisper model setting: LargeV3Turbo → LargeV3TurboZhTw (legacy file exists)");
+                        tracing::info!("Migrating whisper model setting: LargeV3Turbo → LargeV3TurboZhTw (legacy file exists)");
                         if let Ok(mut guard) = state.settings.lock() {
                             guard.stt.whisper_model = whisper_models::WhisperModel::LargeV3TurboZhTw;
                             settings::save_settings_to_disk(&guard);
@@ -710,9 +793,15 @@ pub fn run() {
                         .unwrap_or_default();
                     if stt_mode == SttMode::Local {
                         if let Ok(model_path) = transcribe::whisper_model_path_for(&whisper_model) {
-                            let mut ctx_guard = state.whisper_ctx.lock().unwrap();
+                            let mut ctx_guard = match state.whisper_ctx.lock() {
+                            Ok(g) => g,
+                            Err(_) => {
+                                tracing::error!("whisper_ctx mutex poisoned, skipping pre-warm");
+                                return;
+                            }
+                        };
                             if ctx_guard.is_none() {
-                                println!("[Sumi] Pre-warming Whisper model: {}...", whisper_model.display_name());
+                                tracing::info!("Pre-warming Whisper model: {}...", whisper_model.display_name());
                                 let mut ctx_params = WhisperContextParameters::new();
                                 ctx_params.use_gpu(true);
                                 match whisper_rs::WhisperContext::new_with_params(
@@ -724,10 +813,10 @@ pub fn run() {
                                             ctx,
                                             loaded_path: model_path.clone(),
                                         });
-                                        println!("[Sumi] Whisper model pre-warmed ({:.0?})", warmup_start.elapsed());
+                                        tracing::info!("Whisper model pre-warmed ({:.0?})", warmup_start.elapsed());
                                     }
                                     Err(e) => {
-                                        eprintln!("[Sumi] Whisper pre-warm failed: {}", e);
+                                        tracing::error!("Whisper pre-warm failed: {}", e);
                                     }
                                 }
                             }
@@ -744,12 +833,12 @@ pub fn run() {
                         let model_dir = models_dir();
                         if model_dir.join(polish_model.filename()).exists() {
                             if let Err(e) = polisher::warm_llm_cache(&state.llm_model, &model_dir, &polish_model) {
-                                eprintln!("[Sumi] LLM pre-warm failed: {}", e);
+                                tracing::error!("LLM pre-warm failed: {}", e);
                             }
                         }
                     }
 
-                    println!("[Sumi] All models pre-warmed ({:.0?} total)", warmup_start.elapsed());
+                    tracing::info!("All models pre-warmed ({:.0?} total)", warmup_start.elapsed());
                 });
             }
 
@@ -763,7 +852,8 @@ pub fn run() {
 
             let tooltip_label = hotkey_display_label(&hotkey_str);
             let _tray = TrayIconBuilder::with_id("main-tray")
-                .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png")).unwrap())
+                .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png"))
+                    .expect("tray-icon.png is compile-time embedded and must be a valid PNG"))
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .tooltip(if settings::is_debug() {
@@ -877,7 +967,7 @@ pub fn run() {
                                     }
                                     let model_dir = models_dir();
                                     if !polish_config.enabled || !polisher::is_polish_ready(&model_dir, &polish_config) {
-                                        println!("[Sumi] Edit-by-voice: polish not ready, showing overlay hint");
+                                        tracing::info!("Edit-by-voice: polish not ready, showing overlay hint");
                                         if let Some(overlay) = app.get_webview_window("overlay") {
                                             let _ = overlay.emit("recording-status", "edit_requires_polish");
                                             if let Ok(Some(monitor)) = overlay.current_monitor() {
@@ -906,7 +996,7 @@ pub fn run() {
 
                                     if let Some(text) = override_text {
                                         if text.is_empty() {
-                                            println!("[Sumi] Edit-by-voice: override text is empty, aborting");
+                                            tracing::warn!("Edit-by-voice: override text is empty, aborting");
                                             return;
                                         }
                                         let grapheme_count = text.graphemes(true).count();
@@ -914,7 +1004,7 @@ pub fn run() {
                                             *et = Some(text);
                                         }
                                         state.edit_mode.store(true, Ordering::SeqCst);
-                                        println!("[Sumi] ✏️ Edit-by-voice (override): captured {} graphemes", grapheme_count);
+                                        tracing::info!("✏️ Edit-by-voice (override): captured {} graphemes", grapheme_count);
                                     } else {
                                         // Save original clipboard for later restoration
                                         let original_clipboard = arboard::Clipboard::new()
@@ -967,7 +1057,7 @@ pub fn run() {
                                         };
 
                                         if !clipboard_changed {
-                                            println!("[Sumi] Edit-by-voice: no text selected, aborting");
+                                            tracing::info!("Edit-by-voice: no text selected, aborting");
                                             restore_clipboard(&state);
                                             return;
                                         }
@@ -978,7 +1068,7 @@ pub fn run() {
                                             .unwrap_or_default();
 
                                         if selected.is_empty() {
-                                            println!("[Sumi] Edit-by-voice: clipboard empty after copy, aborting");
+                                            tracing::warn!("Edit-by-voice: clipboard empty after copy, aborting");
                                             restore_clipboard(&state);
                                             return;
                                         }
@@ -988,7 +1078,7 @@ pub fn run() {
                                             *et = Some(selected);
                                         }
                                         state.edit_mode.store(true, Ordering::SeqCst);
-                                        println!("[Sumi] ✏️ Edit-by-voice: captured {} graphemes", grapheme_count);
+                                        tracing::info!("✏️ Edit-by-voice: captured {} graphemes", grapheme_count);
                                     }
                                 }
 
@@ -1010,7 +1100,7 @@ pub fn run() {
                                     preferred_device,
                                 ) {
                                     Ok(()) => {
-                                        println!("[Sumi] 🎙️ Recording started (app: {:?}, bundle: {:?}, url: {:?})",
+                                        tracing::info!("🎙️ Recording started (app: {:?}, bundle: {:?}, url: {:?})",
                                             captured_ctx.app_name, captured_ctx.bundle_id, captured_ctx.url);
 
                                         if let Ok(mut ctx) = state.captured_context.lock() {
@@ -1066,7 +1156,7 @@ pub fn run() {
                                                         .map(|b| b.is_empty())
                                                         .unwrap_or(false);
                                                     if buf_empty {
-                                                        println!("[Sumi] ⚠️ No audio data after 1.5s — stream dead, aborting recording");
+                                                        tracing::warn!("⚠️ No audio data after 1.5s — stream dead, aborting recording");
                                                         state.is_recording.store(false, Ordering::SeqCst);
                                                         state.mic_available.store(false, Ordering::SeqCst);
                                                         if let Some(ov) = app_for_monitor.get_webview_window("overlay") {
@@ -1077,7 +1167,7 @@ pub fn run() {
                                                 }
 
                                                 if recording_start.elapsed().as_secs() >= MAX_RECORDING_SECS {
-                                                    println!("[Sumi] ⏱️ Max recording duration reached ({}s)", MAX_RECORDING_SECS);
+                                                    tracing::info!("⏱️ Max recording duration reached ({}s)", MAX_RECORDING_SECS);
                                                     if state.edit_mode.load(Ordering::SeqCst) {
                                                         stop_edit_and_replace(&app_for_monitor);
                                                     } else {
@@ -1132,7 +1222,7 @@ pub fn run() {
                                         });
                                     }
                                     Err(e) => {
-                                        eprintln!("[Sumi] Failed to start recording: {}", e);
+                                        tracing::error!("Failed to start recording: {}", e);
                                         if is_edit_hotkey {
                                             state.edit_mode.store(false, Ordering::SeqCst);
                                             restore_clipboard(&state);
@@ -1156,12 +1246,12 @@ pub fn run() {
 
                 app.global_shortcut().register(primary_shortcut)?;
                 let label = hotkey_display_label(&hotkey_str);
-                println!("[Sumi] {} global shortcut registered", label);
+                tracing::info!("{} global shortcut registered", label);
 
                 if let Some(edit_sc) = edit_shortcut {
                     app.global_shortcut().register(edit_sc)?;
                     if let Some(ref edit_hk) = settings.edit_hotkey {
-                        println!("[Sumi] {} edit shortcut registered", hotkey_display_label(edit_hk));
+                        tracing::info!("{} edit shortcut registered", hotkey_display_label(edit_hk));
                     }
                 }
             }

@@ -24,8 +24,8 @@ serde_json = "1"
 cpal = "0.15"
 whisper-rs = "0.15"
 reqwest = { version = "0.12", features = ["blocking", "multipart"] }
-candle-core = { git = "https://github.com/huggingface/candle.git", branch = "main" }
-candle-transformers = { git = "https://github.com/huggingface/candle.git", branch = "main" }
+candle-core = { git = "https://github.com/huggingface/candle.git", rev = "38e7202145a8d264cf78e824edf2c31f6a438cdf" }
+candle-transformers = { git = "https://github.com/huggingface/candle.git", rev = "38e7202145a8d264cf78e824edf2c31f6a438cdf" }
 tokenizers = { version = "0.22", features = ["onig"] }
 hound = "3"
 dirs = "6"
@@ -35,6 +35,9 @@ keyring = { version = "3", features = ["windows-native"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 unicode-segmentation = "1.12.0"
 url = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt"] }
+tracing-appender = "0.2"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

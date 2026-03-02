@@ -777,10 +777,12 @@ pub fn resolve_prompt(template: &str) -> String {
 fn extract_think_tags(text: &str) -> (String, Option<String>) {
     if let Some(start) = text.find("<think>") {
         if let Some(end) = text.find("</think>") {
-            let reasoning = text[start + "<think>".len()..end].trim().to_string();
-            let cleaned = text[end + "</think>".len()..].to_string();
-            let reasoning = if reasoning.is_empty() { None } else { Some(reasoning) };
-            return (cleaned, reasoning);
+            if start < end {
+                let reasoning = text[start + "<think>".len()..end].trim().to_string();
+                let cleaned = text[end + "</think>".len()..].to_string();
+                let reasoning = if reasoning.is_empty() { None } else { Some(reasoning) };
+                return (cleaned, reasoning);
+            }
         }
     }
     (text.to_string(), None)
@@ -849,11 +851,11 @@ fn find_matching_rule<'a>(rules: &[&'a PromptRule], context: &AppContext) -> Opt
             )
         });
         if matched {
-            println!("[Sumi] Prompt rule matched: \"{}\"", rule.name);
+            tracing::info!("Prompt rule matched: \"{}\"", rule.name);
             return Some(&rule.prompt);
         }
     }
-    println!("[Sumi] No prompt rule matched (app: {:?}, url: {:?})", context.app_name, context.url);
+    tracing::info!("No prompt rule matched (app: {:?}, url: {:?})", context.app_name, context.url);
     None
 }
 
@@ -943,14 +945,14 @@ pub fn polish_text(
 
             // Safety: if output is empty or suspiciously long, use original
             if polished.is_empty() {
-                println!("[Sumi] Polish returned empty, using original");
+                tracing::warn!("Polish returned empty, using original");
                 return PolishResult { text: raw_text.to_string(), reasoning };
             }
             let raw_chars = raw_text.graphemes(true).count();
             let polished_chars = polished.graphemes(true).count();
             if polished_chars > raw_chars * 3 + 200 {
-                println!(
-                    "[Sumi] Polish output too long ({} vs {} graphemes), likely hallucination — using original",
+                tracing::warn!(
+                    "Polish output too long ({} vs {} graphemes), likely hallucination — using original",
                     polished_chars,
                     raw_chars
                 );
@@ -959,7 +961,7 @@ pub fn polish_text(
             PolishResult { text: polished, reasoning }
         }
         Err(e) => {
-            eprintln!("[Sumi] Polish error: {} — using original text", e);
+            tracing::error!("Polish error: {} — using original text", e);
             PolishResult { text: raw_text.to_string(), reasoning: None }
         }
     }
@@ -1033,7 +1035,7 @@ fn run_cloud_inference(
         body["temperature"] = serde_json::json!(0.1);
     }
 
-    println!("[Sumi] Cloud polish: {} via {}", model_id, sanitize_url_for_log(&endpoint));
+    tracing::info!("Cloud polish: {} via {}", model_id, sanitize_url_for_log(&endpoint));
     let start = std::time::Instant::now();
 
     let body_str = serde_json::to_string(&body).map_err(|e| format!("Serialize body: {}", e))?;
@@ -1064,8 +1066,8 @@ fn run_cloud_inference(
             format!("Unexpected response format: {}", preview)
         })?;
 
-    println!(
-        "[Sumi] Cloud polish done: {:.0?}, {} graphemes",
+    tracing::info!(
+        "Cloud polish done: {:.0?}, {} graphemes",
         start.elapsed(),
         content.graphemes(true).count()
     );
@@ -1110,8 +1112,8 @@ fn run_llm_inference(
         .encode(formatted.as_str(), false)
         .map_err(|e| format!("Tokenize: {}", e))?;
     let tokens: Vec<u32> = encoding.get_ids().to_vec();
-    println!(
-        "[Sumi] LLM tokenized: {} tokens ({:.0?})",
+    tracing::info!(
+        "LLM tokenized: {} tokens ({:.0?})",
         tokens.len(),
         tokenize_start.elapsed()
     );
@@ -1141,8 +1143,8 @@ fn run_llm_inference(
     let logits = logits
         .squeeze(0)
         .map_err(|e| format!("Squeeze: {}", e))?;
-    println!(
-        "[Sumi] LLM prompt eval: {:.0?} ({} tokens, {:.1} t/s)",
+    tracing::info!(
+        "LLM prompt eval: {:.0?} ({} tokens, {:.1} t/s)",
         prompt_start.elapsed(),
         tokens.len(),
         tokens.len() as f64 / prompt_start.elapsed().as_secs_f64()
@@ -1162,7 +1164,7 @@ fn run_llm_inference(
 
     for i in 0..max_tokens {
         if gen_start.elapsed() > timeout {
-            println!("[Sumi] Polish inference timeout (15s)");
+            tracing::warn!("Polish inference timeout (15s)");
             break;
         }
         if next_token == eos_token_id {
@@ -1188,8 +1190,8 @@ fn run_llm_inference(
     }
 
     let gen_elapsed = gen_start.elapsed();
-    println!(
-        "[Sumi] LLM generation: {} tokens in {:.0?} ({:.1} t/s)",
+    tracing::info!(
+        "LLM generation: {} tokens in {:.0?} ({:.1} t/s)",
         output_token_ids.len(),
         gen_elapsed,
         output_token_ids.len() as f64 / gen_elapsed.as_secs_f64()
@@ -1348,7 +1350,7 @@ pub fn model_file_status(model_dir: &std::path::Path, model: &PolishModel) -> (b
 pub fn invalidate_cache(llm_cache: &Mutex<Option<LlmModelCache>>) {
     if let Ok(mut cache) = llm_cache.lock() {
         *cache = None;
-        println!("[Sumi] LLM model cache invalidated");
+        tracing::info!("LLM model cache invalidated");
     }
 }
 
@@ -1382,7 +1384,7 @@ fn ensure_llm_loaded(
     };
     if needs_reload {
         let load_start = std::time::Instant::now();
-        println!("[Sumi] Loading LLM: {} ...", display_name);
+        tracing::info!("Loading LLM: {} ...", display_name);
 
         let device = Device::new_metal(0)
             .or_else(|_| Device::new_cuda(0))
@@ -1419,7 +1421,7 @@ fn ensure_llm_loaded(
             device,
             loaded_path: model_path.to_path_buf(),
         });
-        println!("[Sumi] LLM loaded (took {:.0?})", load_start.elapsed());
+        tracing::info!("LLM loaded (took {:.0?})", load_start.elapsed());
     }
     Ok(())
 }
@@ -1499,8 +1501,8 @@ pub fn validate_custom_endpoint(url_str: &str) -> Result<(), String> {
             || host == "0.0.0.0"
             || host.parse::<std::net::Ipv4Addr>().map_or(false, |ip| ip.is_private());
         if !is_local {
-            eprintln!(
-                "[Sumi] Warning: custom endpoint uses plain HTTP to remote host ({}). Data will be sent unencrypted.",
+            tracing::warn!(
+                "Warning: custom endpoint uses plain HTTP to remote host ({}). Data will be sent unencrypted.",
                 host
             );
         }

@@ -5,6 +5,7 @@
   import { check } from '@tauri-apps/plugin-updater';
   import { relaunch } from '@tauri-apps/plugin-process';
   import { isMac } from '$lib/constants';
+  import { exportDiagnosticLog } from '$lib/api';
 
   type UpdateState = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'upToDate';
 
@@ -117,6 +118,22 @@
   let buttonDisabled = $derived(updateState === 'checking' || updateState === 'downloading');
   let buttonPrimary = $derived(updateState === 'available' || updateState === 'ready');
   let showButton = $derived(updateState !== 'downloading');
+
+  type DiagState = 'idle' | 'exporting' | 'done' | 'error';
+  let diagState = $state<DiagState>('idle');
+
+  async function handleExportDiag() {
+    if (diagState === 'exporting') return;
+    diagState = 'exporting';
+    try {
+      await exportDiagnosticLog();
+      diagState = 'done';
+      setTimeout(() => { diagState = 'idle'; }, 3000);
+    } catch {
+      diagState = 'error';
+      setTimeout(() => { diagState = 'idle'; }, 3000);
+    }
+  }
 </script>
 
 <div class="page">
@@ -162,6 +179,25 @@
         <div class="about-update-status error">{t('about.updateError')}</div>
       {:else if updateState === 'upToDate'}
         <div class="about-update-status">{t('about.upToDate')}</div>
+      {/if}
+    </div>
+
+    <div class="about-diag">
+      <button
+        class="about-update-btn"
+        disabled={diagState === 'exporting'}
+        onclick={handleExportDiag}
+      >
+        {#if diagState === 'exporting'}
+          {t('about.exportDiagnosticExporting')}
+        {:else if diagState === 'done'}
+          {t('about.exportDiagnosticDone')}
+        {:else}
+          {t('about.exportDiagnostic')}
+        {/if}
+      </button>
+      {#if diagState === 'error'}
+        <div class="about-update-status error">{t('about.exportDiagnosticError')}</div>
       {/if}
     </div>
   </div>
@@ -294,5 +330,13 @@
     max-width: 300px;
     text-align: center;
     line-height: 1.4;
+  }
+
+  .about-diag {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
 </style>

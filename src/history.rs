@@ -69,8 +69,13 @@ fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
             |row| row.get(0),
         )?;
         if col_count < 2 {
-            println!("[Sumi] Schema mismatch — dropping and recreating history table");
-            conn.execute_batch("DROP TABLE history;")?;
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let backup_name = format!("history_bak_{}", ts);
+            tracing::warn!("Schema mismatch — preserving data in '{}', recreating table", backup_name);
+            conn.execute_batch(&format!("ALTER TABLE history RENAME TO {};", backup_name))?;
         }
     }
     conn.execute_batch(
@@ -133,7 +138,7 @@ fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
 pub fn migrate_from_json(history_dir: &Path, audio_dir: &Path) {
     let json_path = history_dir.join("history.json");
     if json_path.exists() {
-        println!("[Sumi] Migrating: removing legacy history.json");
+        tracing::info!("Migrating: removing legacy history.json");
         let _ = std::fs::remove_file(&json_path);
         if audio_dir.exists() {
             let _ = std::fs::remove_dir_all(audio_dir);
@@ -156,7 +161,7 @@ pub fn get_stats(history_dir: &Path) -> HistoryStats {
     let conn = match open_db(history_dir) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[Sumi] Failed to open history DB for stats: {}", e);
+            tracing::error!("Failed to open history DB for stats: {}", e);
             return zero;
         }
     };
@@ -211,7 +216,7 @@ pub fn load_history_page(
     let conn = match open_db(history_dir) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[Sumi] Failed to open history DB: {}", e);
+            tracing::error!("Failed to open history DB: {}", e);
             return (Vec::new(), false);
         }
     };
@@ -225,7 +230,7 @@ pub fn load_history_page(
         ) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("[Sumi] Failed to prepare history page query: {}", e);
+                tracing::error!("Failed to prepare history page query: {}", e);
                 return (Vec::new(), false);
             }
         };
@@ -233,7 +238,7 @@ pub fn load_history_page(
         match result {
             Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
             Err(e) => {
-                eprintln!("[Sumi] Failed to query history page: {}", e);
+                tracing::error!("Failed to query history page: {}", e);
                 return (Vec::new(), false);
             }
         }
@@ -246,7 +251,7 @@ pub fn load_history_page(
         ) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("[Sumi] Failed to prepare history page query: {}", e);
+                tracing::error!("Failed to prepare history page query: {}", e);
                 return (Vec::new(), false);
             }
         };
@@ -254,7 +259,7 @@ pub fn load_history_page(
         match result {
             Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
             Err(e) => {
-                eprintln!("[Sumi] Failed to query history page: {}", e);
+                tracing::error!("Failed to query history page: {}", e);
                 return (Vec::new(), false);
             }
         }
@@ -270,7 +275,7 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
     let conn = match open_db(history_dir) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[Sumi] Failed to open history DB: {}", e);
+            tracing::error!("Failed to open history DB: {}", e);
             return Vec::new();
         }
     };
@@ -282,7 +287,7 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
     ) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("[Sumi] Failed to prepare history query: {}", e);
+            tracing::error!("Failed to prepare history query: {}", e);
             return Vec::new();
         }
     };
@@ -290,7 +295,7 @@ pub fn load_history(history_dir: &Path) -> Vec<HistoryEntry> {
     match rows {
         Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
         Err(e) => {
-            eprintln!("[Sumi] Failed to query history: {}", e);
+            tracing::error!("Failed to query history: {}", e);
             Vec::new()
         }
     }
@@ -300,7 +305,7 @@ pub fn add_entry(history_dir: &Path, audio_dir: &Path, entry: HistoryEntry, rete
     let conn = match open_db(history_dir) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[Sumi] Failed to open history DB for insert: {}", e);
+            tracing::error!("Failed to open history DB for insert: {}", e);
             return;
         }
     };
@@ -331,7 +336,7 @@ pub fn add_entry(history_dir: &Path, audio_dir: &Path, entry: HistoryEntry, rete
             entry.word_count as i64,
         ],
     ) {
-        eprintln!("[Sumi] Failed to insert history entry: {}", e);
+        tracing::error!("Failed to insert history entry: {}", e);
     }
     if retention_days > 0 {
         cleanup_expired(&conn, audio_dir, retention_days);

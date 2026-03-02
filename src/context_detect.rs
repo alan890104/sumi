@@ -214,7 +214,7 @@ fn detect_terminal_subprocess(bundle_id: &str, _terminal_name: &str) -> Option<S
             );
             if !output.is_empty() {
                 if let Some(tool) = match_cli_tool_by_processes(&output) {
-                    println!("[Sumi] Terminal subprocess detected: {} (processes: {})", tool, output);
+                    tracing::info!("Terminal subprocess detected: {} (processes: {})", tool, output);
                     return Some(tool.to_string());
                 }
             }
@@ -226,7 +226,7 @@ fn detect_terminal_subprocess(bundle_id: &str, _terminal_name: &str) -> Option<S
             );
             if !output.is_empty() {
                 if let Some(tool) = match_cli_tool_by_title(&output) {
-                    println!("[Sumi] iTerm2 subprocess detected: {} (title: {})", tool, output);
+                    tracing::info!("iTerm2 subprocess detected: {} (title: {})", tool, output);
                     return Some(tool.to_string());
                 }
             }
@@ -240,7 +240,7 @@ fn detect_terminal_subprocess(bundle_id: &str, _terminal_name: &str) -> Option<S
     );
     if !output.is_empty() {
         if let Some(tool) = match_cli_tool_by_title(&output) {
-            println!("[Sumi] Terminal subprocess detected via window title: {} (title: {})", tool, output);
+            tracing::info!("Terminal subprocess detected via window title: {} (title: {})", tool, output);
             return Some(tool.to_string());
         }
     }

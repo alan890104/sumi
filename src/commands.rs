@@ -35,7 +35,9 @@ pub fn get_cached_api_key(cache: &Mutex<HashMap<String, String>>, provider: &str
 
 #[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Settings {
-    state.settings.lock().unwrap().clone()
+    state.settings.lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
 }
 
 #[tauri::command]
@@ -96,8 +98,8 @@ pub fn update_hotkey(
         let _ = tray.set_tooltip(Some(&tooltip));
     }
 
-    println!(
-        "[Sumi] Hotkey updated to: {} ({})",
+    tracing::info!(
+        "Hotkey updated to: {} ({})",
         new_hotkey, label
     );
     Ok(())
@@ -136,12 +138,12 @@ pub fn update_edit_hotkey(
             app.global_shortcut()
                 .register(shortcut)
                 .map_err(|e| format!("Failed to register edit shortcut: {}", e))?;
-            println!("[Sumi] Edit hotkey registered: {}", edit_hk);
+            tracing::info!("Edit hotkey registered: {}", edit_hk);
         }
     }
 
     settings::save_settings_to_disk(&settings);
-    println!("[Sumi] Edit hotkey updated to: {:?}", settings.edit_hotkey);
+    tracing::info!("Edit hotkey updated to: {:?}", settings.edit_hotkey);
     Ok(())
 }
 
@@ -150,7 +152,7 @@ pub fn trigger_undo(app: AppHandle) -> Result<(), String> {
     let app_handle = app.clone();
     std::thread::spawn(move || {
         platform::simulate_undo();
-        println!("[Sumi] ↩️ Undo triggered from overlay");
+        tracing::info!("↩️ Undo triggered from overlay");
         let app_for_hide = app_handle.clone();
         let _ = app_handle.run_on_main_thread(move || {
             if let Some(overlay) = app_for_hide.get_webview_window("overlay") {
@@ -197,7 +199,7 @@ pub fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
         let _ = tray.set_tooltip(Some(&tooltip));
     }
 
-    println!("[Sumi] Settings reset to defaults (hotkey: {})", label);
+    tracing::info!("Settings reset to defaults (hotkey: {})", label);
     Ok(())
 }
 
@@ -923,7 +925,7 @@ pub fn download_model(app: AppHandle) -> Result<(), String> {
         if let Some(app_state) = app.try_state::<AppState>() {
             if let Ok(mut ctx) = app_state.whisper_ctx.lock() {
                 *ctx = None;
-                println!("[Sumi] Whisper context cache invalidated after model download");
+                tracing::info!("Whisper context cache invalidated after model download");
             }
         }
 
@@ -933,7 +935,7 @@ pub fn download_model(app: AppHandle) -> Result<(), String> {
             "total": total,
             "percent": 100.0
         }));
-        println!("[Sumi] Whisper model downloaded: {:?}", model_path);
+        tracing::info!("Whisper model downloaded: {:?}", model_path);
         })();
         if let Some(state) = app.try_state::<AppState>() {
             state.downloading.store(false, Ordering::SeqCst);
@@ -954,7 +956,8 @@ pub struct LlmModelStatus {
 
 #[tauri::command]
 pub fn check_llm_model_status(state: State<'_, AppState>) -> LlmModelStatus {
-    let settings = state.settings.lock().unwrap();
+    let settings = state.settings.lock()
+        .unwrap_or_else(|e| e.into_inner());
     let model = &settings.polish.model;
     let dir = settings::models_dir();
     let (exists, size) = polisher::model_file_status(&dir, model);
@@ -1100,7 +1103,7 @@ pub fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<
 
         if let Some(app_state) = app.try_state::<AppState>() {
             if let Err(e) = polisher::warm_llm_cache(&app_state.llm_model, &settings::models_dir(), &downloaded_model) {
-                eprintln!("[Sumi] Failed to pre-warm LLM after download: {}", e);
+                tracing::error!("Failed to pre-warm LLM after download: {}", e);
                 polisher::invalidate_cache(&app_state.llm_model); // fallback to lazy load
             }
         }
@@ -1111,7 +1114,7 @@ pub fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<
             "total": total,
             "percent": 100.0
         }));
-        println!("[Sumi] LLM model downloaded: {:?}", model_path);
+        tracing::info!("LLM model downloaded: {:?}", model_path);
         })();
         if let Some(state) = app.try_state::<AppState>() {
             state.downloading.store(false, Ordering::SeqCst);
@@ -1149,11 +1152,11 @@ pub fn switch_polish_model(state: State<'_, AppState>, model: polisher::PolishMo
     let model_dir = settings::models_dir();
     if model_dir.join(model.filename()).exists() {
         if let Err(e) = polisher::warm_llm_cache(&state.llm_model, &model_dir, &model) {
-            eprintln!("[Sumi] Failed to pre-warm LLM: {}", e);
+            tracing::error!("Failed to pre-warm LLM: {}", e);
         }
     }
-    println!(
-        "[Sumi] Polish model switched to {}",
+    tracing::info!(
+        "Polish model switched to {}",
         model.display_name()
     );
 
@@ -1301,7 +1304,7 @@ pub fn download_polish_model(app: AppHandle, model: polisher::PolishModel) -> Re
             "total": total,
             "percent": 100.0
         }));
-        println!("[Sumi] Polish model downloaded: {:?}", model_path);
+        tracing::info!("Polish model downloaded: {:?}", model_path);
         })();
         if let Some(state) = app.try_state::<AppState>() {
             state.downloading.store(false, Ordering::SeqCst);
@@ -1358,8 +1361,9 @@ pub fn switch_whisper_model(state: State<'_, AppState>, model: WhisperModel) -> 
     }
 
     // Pre-warm the new model so the first transcription is instant
-    crate::transcribe::warm_whisper_cache(&state.whisper_ctx, &model)
-        .unwrap_or_else(|e| eprintln!("[Sumi] Failed to pre-warm whisper model: {}", e));
+    if let Err(e) = crate::transcribe::warm_whisper_cache(&state.whisper_ctx, &model) {
+        tracing::error!("Failed to pre-warm whisper model: {}", e);
+    }
 
     Ok(())
 }
@@ -1533,7 +1537,7 @@ pub fn download_whisper_model(app: AppHandle, model: WhisperModel) -> Result<(),
         if let Some(app_state) = app.try_state::<AppState>() {
             if let Ok(mut ctx) = app_state.whisper_ctx.lock() {
                 *ctx = None;
-                println!("[Sumi] Whisper context cache invalidated after model download");
+                tracing::info!("Whisper context cache invalidated after model download");
             }
         }
 
@@ -1546,7 +1550,7 @@ pub fn download_whisper_model(app: AppHandle, model: WhisperModel) -> Result<(),
                 "percent": 100.0
             }),
         );
-        println!("[Sumi] Whisper model downloaded: {:?}", model_path);
+        tracing::info!("Whisper model downloaded: {:?}", model_path);
         })();
         if let Some(state) = app.try_state::<AppState>() {
             state.downloading.store(false, Ordering::SeqCst);
@@ -1693,7 +1697,7 @@ pub fn download_vad_model(app: AppHandle) -> Result<(), String> {
         if let Some(app_state) = app.try_state::<AppState>() {
             if let Ok(mut ctx) = app_state.vad_ctx.lock() {
                 *ctx = None;
-                println!("[Sumi] VAD context cache invalidated after model download");
+                tracing::info!("VAD context cache invalidated after model download");
             }
         }
 
@@ -1705,7 +1709,7 @@ pub fn download_vad_model(app: AppHandle) -> Result<(), String> {
                 "total": total
             }),
         );
-        println!("[Sumi] VAD model downloaded: {:?}", model_path);
+        tracing::info!("VAD model downloaded: {:?}", model_path);
     });
 
     Ok(())
@@ -1733,4 +1737,100 @@ pub fn copy_image_to_clipboard(png_bytes: Vec<u8>) -> Result<(), String> {
 #[tauri::command]
 pub fn is_dev_mode() -> bool {
     crate::settings::is_debug()
+}
+
+// ── Diagnostic log export ────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn export_diagnostic_log(state: State<'_, AppState>) -> Result<String, String> {
+    use std::fmt::Write as _;
+    use std::path::PathBuf;
+    let mut report = String::new();
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    writeln!(report, "=== Sumi Diagnostic Report ===").ok();
+    writeln!(report, "Version: {}", env!("CARGO_PKG_VERSION")).ok();
+    writeln!(report, "Build: {}", if settings::is_debug() { "Dev" } else { "Release" }).ok();
+    writeln!(report, "Timestamp (unix): {}", ts).ok();
+    writeln!(report).ok();
+
+    let sys = get_system_info();
+    writeln!(report, "--- System ---").ok();
+    writeln!(report, "OS: {} ({})", sys.os, sys.arch).ok();
+    writeln!(report, "Apple Silicon: {}", sys.is_apple_silicon).ok();
+    writeln!(report, "RAM: {} MB", sys.total_ram_bytes / 1024 / 1024).ok();
+    writeln!(report, "Disk Free: {} MB", sys.available_disk_bytes / 1024 / 1024).ok();
+    writeln!(report).ok();
+
+    let s = state.settings.lock().unwrap_or_else(|e| e.into_inner());
+    writeln!(report, "--- Settings ---").ok();
+    writeln!(report, "STT Mode: {:?}", s.stt.mode).ok();
+    writeln!(report, "Whisper Model: {}", s.stt.whisper_model.display_name()).ok();
+    writeln!(report, "Language: {}", s.stt.language).ok();
+    writeln!(report, "VAD: {}", s.stt.vad_enabled).ok();
+    writeln!(report, "Polish: {}", s.polish.enabled).ok();
+    writeln!(report, "Polish Mode: {:?}", s.polish.mode).ok();
+    writeln!(report, "Auto Paste: {}", s.auto_paste).ok();
+    drop(s);
+    writeln!(report).ok();
+
+    // Collect sumi.log.* files (daily rotation), sort by mtime, take 2 most recent
+    // in chronological order so context is preserved across the midnight rollover.
+    let log_dir = settings::logs_dir();
+    let mut log_files: Vec<(std::time::SystemTime, std::path::PathBuf)> =
+        std::fs::read_dir(&log_dir)
+            .ok()
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|e| {
+                e.path()
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| n.starts_with("sumi.log"))
+                    .unwrap_or(false)
+            })
+            .filter_map(|e| {
+                let path = e.path();
+                let mtime = std::fs::metadata(&path).ok()?.modified().ok()?;
+                Some((mtime, path))
+            })
+            .collect();
+
+    // Sort ascending then take last 2 (most recent), reversing back to chronological order.
+    log_files.sort_by_key(|(m, _)| *m);
+    let recent: Vec<_> = log_files.into_iter().rev().take(2).rev().collect();
+
+    let mut all_lines: Vec<String> = Vec::new();
+    for (_, path) in &recent {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            all_lines.extend(content.lines().map(|l| l.to_string()));
+        }
+    }
+
+    if all_lines.is_empty() {
+        writeln!(report, "--- App Log ---\n(no log file yet)").ok();
+    } else {
+        let start = all_lines.len().saturating_sub(200);
+        writeln!(report, "--- App Log (last {} lines) ---", all_lines.len() - start).ok();
+        for line in &all_lines[start..] {
+            writeln!(report, "{}", line).ok();
+        }
+    }
+
+    let downloads = dirs::download_dir()
+        .unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("/tmp"))
+                .join("Downloads")
+        });
+    let _ = std::fs::create_dir_all(&downloads);
+    let dest = downloads.join(format!("sumi-diagnostic-{}.txt", ts));
+    std::fs::write(&dest, &report).map_err(|e| format!("Failed to write: {}", e))?;
+    tracing::info!("Diagnostic report saved to {:?}", dest);
+    Ok(dest.to_string_lossy().to_string())
 }

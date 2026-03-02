@@ -62,7 +62,7 @@ pub fn spawn_audio_thread(
             match found {
                 Some(d) => d,
                 None => {
-                    eprintln!("[Sumi] Device '{}' not found, falling back to default", name);
+                    tracing::warn!("Device '{}' not found, falling back to default", name);
                     match host.default_input_device() {
                         Some(d) => d,
                         None => {
@@ -124,7 +124,7 @@ pub fn spawn_audio_thread(
                             }
                         },
                         move |err| {
-                            eprintln!("[Sumi] audio stream error: {}", err);
+                            tracing::error!("audio stream error: {}", err);
                             alive_err.store(false, Ordering::Relaxed);
                             rec_err.store(false, Ordering::Relaxed);
                         },
@@ -166,7 +166,7 @@ pub fn spawn_audio_thread(
                             }
                         },
                         move |err| {
-                            eprintln!("[Sumi] audio stream error: {}", err);
+                            tracing::error!("audio stream error: {}", err);
                             alive_err.store(false, Ordering::Relaxed);
                             rec_err.store(false, Ordering::Relaxed);
                         },
@@ -193,8 +193,8 @@ pub fn spawn_audio_thread(
             return;
         }
 
-        println!(
-            "[Sumi] Audio stream always-on: {} Hz, {} ch",
+        tracing::info!(
+            "Audio stream always-on: {} Hz, {} ch",
             sample_rate, channels
         );
         let _ = init_tx.send(Ok(sample_rate));
@@ -202,7 +202,7 @@ pub fn spawn_audio_thread(
         // Park the thread until signalled to stop, keeping `stream` alive.
         loop {
             if stop_for_thread.load(Ordering::Relaxed) {
-                println!("[Sumi] Audio thread stopping");
+                tracing::info!("Audio thread stopping");
                 break;
             }
             std::thread::park();
@@ -237,7 +237,7 @@ pub fn try_reconnect_audio(
         *at = Some(control);
     }
     mic_available.store(true, Ordering::SeqCst);
-    println!("[Sumi] Microphone reconnected: {} Hz", sr);
+    tracing::info!("Microphone reconnected: {} Hz", sr);
     Ok(())
 }
 
@@ -258,7 +258,7 @@ pub fn do_start_recording(
 
     if !mic_available.load(Ordering::SeqCst) || stream_dead {
         if stream_dead {
-            println!("[Sumi] Audio stream was dead, reconnecting before recording");
+            tracing::warn!("Audio stream was dead, reconnecting before recording");
             mic_available.store(false, Ordering::SeqCst);
         }
         try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name)?;
@@ -313,8 +313,8 @@ pub fn do_stop_recording(
         return Err("沒有錄到任何聲音".to_string());
     }
 
-    println!(
-        "[Sumi] [timing] recording: {:.2}s ({} samples @ {} Hz)",
+    tracing::info!(
+        "[timing] recording: {:.2}s ({} samples @ {} Hz)",
         samples.len() as f64 / sample_rate as f64,
         samples.len(),
         sample_rate,
@@ -323,7 +323,7 @@ pub fn do_stop_recording(
     let t0 = Instant::now();
     let mut samples_16k = if sample_rate != 16000 {
         let resampled = resample(&samples, sample_rate, 16000);
-        println!("[Sumi] [timing] resample {} Hz → 16 kHz: {:.0?}", sample_rate, t0.elapsed());
+        tracing::info!("[timing] resample {} Hz → 16 kHz: {:.0?}", sample_rate, t0.elapsed());
         resampled
     } else {
         samples
@@ -335,25 +335,25 @@ pub fn do_stop_recording(
         // Use Silero VAD to extract speech segments
         match crate::transcribe::filter_with_vad(vad_ctx, &samples_16k) {
             Ok(speech) if speech.is_empty() => {
-                println!("[Sumi] VAD: no speech segments found");
+                tracing::info!("VAD: no speech segments found");
                 return Err("no_speech".to_string());
             }
             Ok(speech) => {
-                println!(
-                    "[Sumi] VAD filtered: {:.2}s → {:.2}s",
+                tracing::info!(
+                    "VAD filtered: {:.2}s → {:.2}s",
                     samples_16k.len() as f64 / 16000.0,
                     speech.len() as f64 / 16000.0,
                 );
                 samples_16k = speech;
             }
             Err(e) => {
-                println!("[Sumi] VAD failed ({}), falling back to RMS trimming", e);
+                tracing::warn!("VAD failed ({}), falling back to RMS trimming", e);
                 rms_trim_silence(&mut samples_16k)?;
             }
         }
     } else {
         if vad_enabled && !vad_model_exists {
-            println!("[Sumi] VAD enabled but model not downloaded, using RMS trimming");
+            tracing::warn!("VAD enabled but model not downloaded, using RMS trimming");
         }
         rms_trim_silence(&mut samples_16k)?;
     }
@@ -362,12 +362,12 @@ pub fn do_stop_recording(
     let text = match stt_config.mode {
         SttMode::Local => {
             let result = transcribe_with_cached_whisper(whisper_ctx, &samples_16k, &stt_config.whisper_model, language, app_name, dictionary_terms)?;
-            println!("[Sumi] [timing] STT (local whisper): {:.0?}", stt_start.elapsed());
+            tracing::info!("[timing] STT (local whisper): {:.0?}", stt_start.elapsed());
             result
         }
         SttMode::Cloud => {
             let result = crate::stt::run_cloud_stt(&stt_config.cloud, &samples_16k, http_client)?;
-            println!("[Sumi] [timing] STT (cloud {}): {:.0?}", stt_config.cloud.provider.as_key(), stt_start.elapsed());
+            tracing::info!("[timing] STT (cloud {}): {:.0?}", stt_config.cloud.provider.as_key(), stt_start.elapsed());
             result
         }
     };
@@ -398,8 +398,8 @@ fn rms_trim_silence(samples_16k: &mut Vec<f32>) -> Result<(), String> {
 
     let trim_start = speech_onset.saturating_sub(LOOKBACK);
     if trim_start > 0 {
-        println!(
-            "[Sumi] Trimmed {:.0} ms of leading silence (onset at {:.0} ms)",
+        tracing::info!(
+            "Trimmed {:.0} ms of leading silence (onset at {:.0} ms)",
             trim_start as f64 / 16.0,
             speech_onset as f64 / 16.0
         );
@@ -416,8 +416,8 @@ fn rms_trim_silence(samples_16k: &mut Vec<f32>) -> Result<(), String> {
 
         let trim_end = (last_speech + LOOKBACK).min(total);
         if trim_end < total {
-            println!(
-                "[Sumi] Trimmed {:.0} ms of trailing silence",
+            tracing::info!(
+                "Trimmed {:.0} ms of trailing silence",
                 (total - trim_end) as f64 / 16.0
             );
             samples_16k.truncate(trim_end);
@@ -427,10 +427,10 @@ fn rms_trim_silence(samples_16k: &mut Vec<f32>) -> Result<(), String> {
     // Pre-check: if the entire audio is near-silent, skip Whisper entirely
     let overall_rms = rms(samples_16k);
     if overall_rms < 0.005 {
-        println!("[Sumi] Audio RMS {:.5} below threshold — no speech detected", overall_rms);
+        tracing::info!("Audio RMS {:.5} below threshold — no speech detected", overall_rms);
         return Err("no_speech".to_string());
     }
-    println!("[Sumi] Audio RMS: {:.5}", overall_rms);
+    tracing::info!("Audio RMS: {:.5}", overall_rms);
 
     Ok(())
 }

@@ -59,7 +59,10 @@ pub const fn is_debug() -> bool {
 pub fn base_dir() -> PathBuf {
     let dir_name = if is_debug() { ".sumi-dev" } else { ".sumi" };
     dirs::home_dir()
-        .expect("no home dir")
+        .unwrap_or_else(|| {
+            tracing::warn!("Home directory not found, using /tmp as fallback");
+            PathBuf::from("/tmp")
+        })
         .join(dir_name)
 }
 
@@ -79,6 +82,10 @@ pub fn audio_dir() -> PathBuf {
     base_dir().join("audio")
 }
 
+pub fn logs_dir() -> PathBuf {
+    base_dir().join("logs")
+}
+
 pub fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }
@@ -91,7 +98,7 @@ pub fn load_settings() -> Settings {
             Ok(contents) => match serde_json::from_str(&contents) {
                 Ok(s) => s,
                 Err(e) => {
-                    eprintln!("[Sumi] Settings file corrupted ({}), using defaults", e);
+                    tracing::warn!("Settings file corrupted ({}), using defaults", e);
                     Settings::default()
                 }
             },

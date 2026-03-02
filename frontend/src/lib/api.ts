@@ -218,3 +218,7 @@ export const copyImageToClipboard = (pngBytes: number[]) =>
 // ── Dev Mode ──
 
 export const isDevMode = () => invoke<boolean>('is_dev_mode');
+
+// ── Diagnostics ──
+
+export const exportDiagnosticLog = () => invoke<string>('export_diagnostic_log');

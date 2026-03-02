@@ -512,7 +512,7 @@ dependencies = [
 [[package]]
 name = "candle-core"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git?branch=main#38e7202145a8d264cf78e824edf2c31f6a438cdf"
+source = "git+https://github.com/huggingface/candle.git?rev=38e7202145a8d264cf78e824edf2c31f6a438cdf#38e7202145a8d264cf78e824edf2c31f6a438cdf"
 dependencies = [
  "byteorder",
  "candle-kernels",
@@ -541,7 +541,7 @@ dependencies = [
 [[package]]
 name = "candle-kernels"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git?branch=main#38e7202145a8d264cf78e824edf2c31f6a438cdf"
+source = "git+https://github.com/huggingface/candle.git?rev=38e7202145a8d264cf78e824edf2c31f6a438cdf#38e7202145a8d264cf78e824edf2c31f6a438cdf"
 dependencies = [
  "cudaforge",
 ]
@@ -549,7 +549,7 @@ dependencies = [
 [[package]]
 name = "candle-metal-kernels"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git?branch=main#38e7202145a8d264cf78e824edf2c31f6a438cdf"
+source = "git+https://github.com/huggingface/candle.git?rev=38e7202145a8d264cf78e824edf2c31f6a438cdf#38e7202145a8d264cf78e824edf2c31f6a438cdf"
 dependencies = [
  "half",
  "objc2",
@@ -563,7 +563,7 @@ dependencies = [
 [[package]]
 name = "candle-nn"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git?branch=main#38e7202145a8d264cf78e824edf2c31f6a438cdf"
+source = "git+https://github.com/huggingface/candle.git?rev=38e7202145a8d264cf78e824edf2c31f6a438cdf#38e7202145a8d264cf78e824edf2c31f6a438cdf"
 dependencies = [
  "candle-core",
  "candle-metal-kernels",
@@ -580,7 +580,7 @@ dependencies = [
 [[package]]
 name = "candle-transformers"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git?branch=main#38e7202145a8d264cf78e824edf2c31f6a438cdf"
+source = "git+https://github.com/huggingface/candle.git?rev=38e7202145a8d264cf78e824edf2c31f6a438cdf#38e7202145a8d264cf78e824edf2c31f6a438cdf"
 dependencies = [
  "byteorder",
  "candle-core",
@@ -598,7 +598,7 @@ dependencies = [
 [[package]]
 name = "candle-ug"
 version = "0.9.2"
-source = "git+https://github.com/huggingface/candle.git?branch=main#38e7202145a8d264cf78e824edf2c31f6a438cdf"
+source = "git+https://github.com/huggingface/candle.git?rev=38e7202145a8d264cf78e824edf2c31f6a438cdf#38e7202145a8d264cf78e824edf2c31f6a438cdf"
 dependencies = [
  "ug",
  "ug-cuda",
@@ -3431,6 +3431,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nu-ansi-term"
+version = "0.50.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
+dependencies = [
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "num"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5278,6 +5287,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sharded-slab"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
+dependencies = [
+ "lazy_static",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5469,6 +5487,9 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tokenizers",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
  "unicode-segmentation",
  "url",
  "whisper-rs",
@@ -6064,6 +6085,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "thread_local"
+version = "1.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f60246a4944f24f6e018aa17cdeffb7818b76356965d03b07d6a9886e8962185"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "tiff"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6352,6 +6382,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-appender"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "786d480bce6247ab75f005b14ae1624ad978d3029d9113f0a22fa1ac773faeaf"
+dependencies = [
+ "crossbeam-channel",
+ "thiserror 2.0.18",
+ "time",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "tracing-attributes"
 version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6369,6 +6411,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 dependencies = [
  "once_cell",
+ "valuable",
+]
+
+[[package]]
+name = "tracing-log"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee855f1f400bd0e5c02d150ae5de3840039a3f54b025156404e34c23c03f47c3"
+dependencies = [
+ "log",
+ "once_cell",
+ "tracing-core",
+]
+
+[[package]]
+name = "tracing-subscriber"
+version = "0.3.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f30143827ddab0d256fd843b7a66d164e9f271cfa0dde49142c5ca0ca291f1e"
+dependencies = [
+ "nu-ansi-term",
+ "sharded-slab",
+ "smallvec",
+ "thread_local",
+ "tracing-core",
+ "tracing-log",
 ]
 
 [[package]]
@@ -6622,6 +6690,12 @@ dependencies = [
  "serde_core",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "valuable"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "vcpkg"

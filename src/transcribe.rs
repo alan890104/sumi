@@ -55,7 +55,7 @@ pub fn filter_with_vad(
 
     if needs_reload {
         let load_start = Instant::now();
-        println!("[Sumi] Loading Silero VAD model...");
+        tracing::info!("Loading Silero VAD model...");
         let mut ctx_params = WhisperVadContextParams::new();
         ctx_params.set_use_gpu(cfg!(target_os = "macos"));
         ctx_params.set_n_threads(num_cpus() as _);
@@ -69,13 +69,13 @@ pub fn filter_with_vad(
             ctx,
             model_path: model_path.clone(),
         });
-        println!(
-            "[Sumi] Silero VAD model loaded (took {:.0?})",
+        tracing::info!(
+            "Silero VAD model loaded (took {:.0?})",
             load_start.elapsed()
         );
     }
 
-    let cache = cache_guard.as_mut().unwrap();
+    let cache = cache_guard.as_mut().expect("VAD context was just initialized above");
 
     let vad_start = Instant::now();
     // Use generous VAD params (matching faster-whisper defaults) so that
@@ -90,7 +90,7 @@ pub fn filter_with_vad(
         .map_err(|e| format!("VAD segmentation failed: {:?}", e))?;
 
     let n = segments.num_segments();
-    println!("[Sumi] VAD found {} speech segment(s) (took {:.0?})", n, vad_start.elapsed());
+    tracing::info!("VAD found {} speech segment(s) (took {:.0?})", n, vad_start.elapsed());
 
     let mut speech_samples = Vec::new();
     for seg in segments {
@@ -98,8 +98,8 @@ pub fn filter_with_vad(
         let start_sample = ((seg.start / 100.0) * 16000.0) as usize;
         let end_sample = (((seg.end / 100.0) * 16000.0) as usize).min(samples_16k.len());
         if start_sample < end_sample {
-            println!(
-                "[Sumi]   segment: {:.2}s – {:.2}s ({} samples)",
+            tracing::info!(
+                "  segment: {:.2}s – {:.2}s ({} samples)",
                 seg.start / 100.0,
                 seg.end / 100.0,
                 end_sample - start_sample,
@@ -138,7 +138,7 @@ pub fn warm_whisper_cache(
         .map_err(|e| format!("Failed to lock whisper context: {}", e))?;
 
     let load_start = Instant::now();
-    println!("[Sumi] Pre-warming Whisper model: {} ...", model.display_name());
+    tracing::info!("Pre-warming Whisper model: {} ...", model.display_name());
 
     let mut ctx_params = WhisperContextParameters::new();
     ctx_params.use_gpu(true);
@@ -152,8 +152,8 @@ pub fn warm_whisper_cache(
         ctx,
         loaded_path: model_path,
     });
-    println!(
-        "[Sumi] Whisper model pre-warmed with GPU enabled (took {:.0?})",
+    tracing::info!(
+        "Whisper model pre-warmed with GPU enabled (took {:.0?})",
         load_start.elapsed()
     );
 
@@ -187,8 +187,8 @@ pub fn transcribe_with_cached_whisper(
 
     if needs_reload {
         let load_start = Instant::now();
-        println!(
-            "[Sumi] Loading Whisper model: {} ...",
+        tracing::info!(
+            "Loading Whisper model: {} ...",
             model.display_name()
         );
         let mut ctx_params = WhisperContextParameters::new();
@@ -203,21 +203,21 @@ pub fn transcribe_with_cached_whisper(
             ctx,
             loaded_path: model_path.clone(),
         });
-        println!(
-            "[Sumi] Whisper model loaded with GPU enabled (took {:.0?})",
+        tracing::info!(
+            "Whisper model loaded with GPU enabled (took {:.0?})",
             load_start.elapsed()
         );
     }
 
-    let cache = cache_guard.as_ref().unwrap();
+    let cache = cache_guard.as_ref().expect("Whisper context was just initialized above");
 
     let state_start = Instant::now();
     let mut wh_state = cache
         .ctx
         .create_state()
         .map_err(|e| format!("Failed to create whisper state: {}", e))?;
-    println!(
-        "[Sumi] Whisper state created: {:.0?}",
+    tracing::info!(
+        "Whisper state created: {:.0?}",
         state_start.elapsed()
     );
 
@@ -304,8 +304,8 @@ pub fn transcribe_with_cached_whisper(
         params.set_initial_prompt(&prompt);
     }
 
-    println!(
-        "[Sumi] [whisper] language={:?} (config: {:?}), app={:?}, prompt={:?}",
+    tracing::info!(
+        "[whisper] language={:?} (config: {:?}), app={:?}, prompt={:?}",
         lang_hint, language, app_name, prompt
     );
 
@@ -326,8 +326,8 @@ pub fn transcribe_with_cached_whisper(
     wh_state
         .full(params, samples_16k)
         .map_err(|e| format!("Whisper inference failed: {}", e))?;
-    println!(
-        "[Sumi] Whisper wh_state.full() done: {:.0?}",
+    tracing::info!(
+        "Whisper wh_state.full() done: {:.0?}",
         infer_start.elapsed()
     );
 
@@ -337,13 +337,13 @@ pub fn transcribe_with_cached_whisper(
     for i in 0..num_segments {
         if let Some(seg) = wh_state.get_segment(i) {
             let no_speech_prob = seg.no_speech_probability();
-            println!(
-                "[Sumi] segment {} no_speech_prob={:.3}",
+            tracing::info!(
+                "segment {} no_speech_prob={:.3}",
                 i, no_speech_prob
             );
             if no_speech_prob > 0.5 {
-                println!(
-                    "[Sumi] Skipping segment {} (no_speech_prob={:.3} > 0.5)",
+                tracing::info!(
+                    "Skipping segment {} (no_speech_prob={:.3} > 0.5)",
                     i, no_speech_prob
                 );
                 continue;
