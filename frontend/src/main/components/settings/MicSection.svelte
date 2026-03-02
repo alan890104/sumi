@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { t } from '$lib/stores/i18n.svelte';
   import SectionHeader from '$lib/components/SectionHeader.svelte';
-  import { getMicStatus } from '$lib/api';
+  import { getMicStatus, setMicDevice, getSettings } from '$lib/api';
   import type { MicStatus } from '$lib/types';
   import SettingRow from '$lib/components/SettingRow.svelte';
   import Select from '$lib/components/Select.svelte';
@@ -47,10 +47,16 @@
     }
   }
 
-  function onDeviceChange(value: string) {
+  async function onDeviceChange(value: string) {
     selectedDevice = value;
-    // Device selection is informational in this app --
-    // the backend always uses the default input device
+    const deviceName = value === 'auto' ? null : value;
+    try {
+      await setMicDevice(deviceName);
+      // Refresh mic status after switching device
+      await loadMicStatus();
+    } catch (e) {
+      console.error('Failed to set mic device:', e);
+    }
   }
 
   function startPolling() {
@@ -74,7 +80,14 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
+    // Load saved device preference from settings
+    try {
+      const settings = await getSettings();
+      selectedDevice = settings.mic_device ?? 'auto';
+    } catch (e) {
+      console.error('Failed to load settings:', e);
+    }
     startPolling();
     document.addEventListener('visibilitychange', handleVisibility);
   });

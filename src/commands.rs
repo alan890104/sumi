@@ -10,7 +10,7 @@ use crate::{history, AppState};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -597,12 +597,15 @@ Do NOT include any explanation, only the JSON object."#
 
 #[tauri::command]
 pub fn start_recording(state: State<'_, AppState>) -> Result<(), String> {
+    let device_name = state.settings.lock().ok().and_then(|s| s.mic_device.clone());
     audio::do_start_recording(
         &state.is_recording,
         &state.mic_available,
         &state.sample_rate,
         &state.buffer,
         &state.is_recording,
+        &state.audio_thread,
+        device_name,
     )
 }
 
@@ -708,11 +711,14 @@ pub fn get_mic_status(state: State<'_, AppState>) -> MicStatus {
     // Auto-reconnect: if mic was unavailable at startup but devices exist now, try to connect.
     let mut connected = state.mic_available.load(Ordering::SeqCst);
     if !connected && !devices.is_empty() {
+        let device_name = state.settings.lock().ok().and_then(|s| s.mic_device.clone());
         if audio::try_reconnect_audio(
             &state.mic_available,
             &state.sample_rate,
             &state.buffer,
             &state.is_recording,
+            &state.audio_thread,
+            device_name,
         ).is_ok() {
             connected = true;
         }
@@ -722,6 +728,46 @@ pub fn get_mic_status(state: State<'_, AppState>) -> MicStatus {
         connected,
         default_device,
         devices,
+    }
+}
+
+#[tauri::command]
+pub fn set_mic_device(device_name: Option<String>, state: State<'_, AppState>) -> Result<(), String> {
+    if state.is_recording.load(Ordering::SeqCst) {
+        return Err("Cannot change input device while recording".to_string());
+    }
+
+    // Save to settings
+    {
+        let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+        settings.mic_device = device_name.clone();
+        settings::save_settings_to_disk(&settings);
+    }
+
+    // Stop the old audio thread
+    if let Ok(mut at) = state.audio_thread.lock() {
+        if let Some(control) = at.take() {
+            control.stop();
+        }
+    }
+
+    // Clear the buffer to avoid leftover samples from the old device
+    if let Ok(mut buf) = state.buffer.lock() {
+        buf.clear();
+    }
+
+    // Start a new audio thread with the selected device
+    state.mic_available.store(false, Ordering::SeqCst);
+    match audio::spawn_audio_thread(Arc::clone(&state.buffer), Arc::clone(&state.is_recording), device_name) {
+        Ok((sr, control)) => {
+            *state.sample_rate.lock().map_err(|e| e.to_string())? = Some(sr);
+            if let Ok(mut at) = state.audio_thread.lock() {
+                *at = Some(control);
+            }
+            state.mic_available.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+        Err(e) => Err(e),
     }
 }
 

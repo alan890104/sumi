@@ -115,6 +115,9 @@ export const downloadLlmModel = () => invoke<void>('download_llm_model');
 
 export const getMicStatus = () => invoke<MicStatus>('get_mic_status');
 
+export const setMicDevice = (deviceName: string | null) =>
+  invoke<void>('set_mic_device', { deviceName });
+
 export const checkPermissions = () => invoke<PermissionStatus>('check_permissions');
 
 export const openPermissionSettings = (permissionType: string) =>

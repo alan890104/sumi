@@ -24,6 +24,9 @@ pub struct Settings {
     /// Whether the onboarding wizard has been completed. `false` triggers the setup overlay.
     #[serde(default)]
     pub onboarding_completed: bool,
+    /// Preferred microphone input device name. None = use system default.
+    #[serde(default)]
+    pub mic_device: Option<String>,
 }
 
 impl Default for Settings {
@@ -42,6 +45,7 @@ impl Default for Settings {
             stt: SttConfig::default(),
             edit_hotkey,
             onboarding_completed: false,
+            mic_device: None,
         }
     }
 }

@@ -41,6 +41,7 @@ let settings = $state<Settings>({
   },
   edit_hotkey: null,
   onboarding_completed: false,
+  mic_device: null,
 });
 
 export function getSettings(): Settings {

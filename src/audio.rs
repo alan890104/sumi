@@ -8,26 +8,67 @@ use std::time::Instant;
 use crate::stt::{SttConfig, SttMode};
 use crate::transcribe::{transcribe_with_cached_whisper, WhisperContextCache, VadContextCache};
 
+/// Handle to control (stop) a running audio thread.
+pub struct AudioThreadControl {
+    thread: std::thread::Thread,
+    stop_signal: Arc<AtomicBool>,
+}
+
+impl AudioThreadControl {
+    /// Signal the audio thread to stop and wake it up.
+    pub fn stop(&self) {
+        self.stop_signal.store(true, Ordering::Relaxed);
+        self.thread.unpark();
+    }
+}
+
 /// Spawn a persistent audio thread that builds and immediately starts the cpal
 /// input stream.  The stream runs for the entire app lifetime — the callback
 /// checks `is_recording` atomically and discards samples when false.
+///
+/// If `device_name` is Some, the named device is used; falls back to the
+/// system default if not found.
 pub fn spawn_audio_thread(
     buffer: Arc<Mutex<Vec<f32>>>,
     is_recording: Arc<AtomicBool>,
-) -> Result<u32, String> {
+    device_name: Option<String>,
+) -> Result<(u32, AudioThreadControl), String> {
+    let stop = Arc::new(AtomicBool::new(false));
+    let stop_for_thread = Arc::clone(&stop);
+
     let (init_tx, init_rx) = mpsc::channel::<Result<u32, String>>();
 
     let buf_for_thread = Arc::clone(&buffer);
     let rec_for_thread = Arc::clone(&is_recording);
 
-    std::thread::spawn(move || {
+    let join_handle = std::thread::spawn(move || {
         let host = cpal::default_host();
 
-        let device = match host.default_input_device() {
-            Some(d) => d,
-            None => {
-                let _ = init_tx.send(Err("找不到麥克風裝置".to_string()));
-                return;
+        let device = if let Some(ref name) = device_name {
+            let found = host
+                .input_devices()
+                .ok()
+                .and_then(|mut devs| devs.find(|d| d.name().ok().as_deref() == Some(name.as_str())));
+            match found {
+                Some(d) => d,
+                None => {
+                    eprintln!("[Sumi] Device '{}' not found, falling back to default", name);
+                    match host.default_input_device() {
+                        Some(d) => d,
+                        None => {
+                            let _ = init_tx.send(Err("找不到麥克風裝置".to_string()));
+                            return;
+                        }
+                    }
+                }
+            }
+        } else {
+            match host.default_input_device() {
+                Some(d) => d,
+                None => {
+                    let _ = init_tx.send(Err("找不到麥克風裝置".to_string()));
+                    return;
+                }
             }
         };
 
@@ -134,17 +175,24 @@ pub fn spawn_audio_thread(
         );
         let _ = init_tx.send(Ok(sample_rate));
 
-        // Park the thread forever to keep `stream` alive.
+        // Park the thread until signalled to stop, keeping `stream` alive.
         loop {
+            if stop_for_thread.load(Ordering::Relaxed) {
+                println!("[Sumi] Audio thread stopping");
+                break;
+            }
             std::thread::park();
         }
     });
+
+    // Grab the Thread handle before blocking on the init channel.
+    let thread = join_handle.thread().clone();
 
     let sample_rate = init_rx
         .recv_timeout(std::time::Duration::from_secs(5))
         .map_err(|_| "音訊執行緒初始化逾時".to_string())??;
 
-    Ok(sample_rate)
+    Ok((sample_rate, AudioThreadControl { thread, stop_signal: stop }))
 }
 
 /// Attempt to reconnect the microphone when `mic_available` is false.
@@ -153,12 +201,17 @@ pub fn try_reconnect_audio(
     sample_rate: &Mutex<Option<u32>>,
     buffer: &Arc<Mutex<Vec<f32>>>,
     is_recording: &Arc<AtomicBool>,
+    audio_thread: &Mutex<Option<AudioThreadControl>>,
+    device_name: Option<String>,
 ) -> Result<(), String> {
     if mic_available.load(Ordering::SeqCst) {
         return Ok(());
     }
-    let sr = spawn_audio_thread(Arc::clone(buffer), Arc::clone(is_recording))?;
+    let (sr, control) = spawn_audio_thread(Arc::clone(buffer), Arc::clone(is_recording), device_name)?;
     *sample_rate.lock().map_err(|e| e.to_string())? = Some(sr);
+    if let Ok(mut at) = audio_thread.lock() {
+        *at = Some(control);
+    }
     mic_available.store(true, Ordering::SeqCst);
     println!("[Sumi] Microphone reconnected: {} Hz", sr);
     Ok(())
@@ -171,9 +224,11 @@ pub fn do_start_recording(
     sample_rate: &Mutex<Option<u32>>,
     buffer: &Arc<Mutex<Vec<f32>>>,
     is_recording_arc: &Arc<AtomicBool>,
+    audio_thread: &Mutex<Option<AudioThreadControl>>,
+    device_name: Option<String>,
 ) -> Result<(), String> {
     if !mic_available.load(Ordering::SeqCst) {
-        try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc)?;
+        try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name)?;
     }
 
     if is_recording.load(Ordering::SeqCst) {

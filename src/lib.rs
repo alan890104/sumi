@@ -59,6 +59,7 @@ pub struct AppState {
     pub saved_clipboard: Mutex<Option<String>>,
     pub vad_ctx: Mutex<Option<transcribe::VadContextCache>>,
     pub downloading: AtomicBool,
+    pub audio_thread: Mutex<Option<audio::AudioThreadControl>>,
 }
 
 /// Restore original clipboard content from saved_clipboard.
@@ -611,6 +612,7 @@ pub fn run() {
             commands::download_vad_model,
             commands::copy_image_to_clipboard,
             commands::is_dev_mode,
+            commands::set_mic_device,
         ])
         .setup(|app| {
             // Hide Dock icon (macOS) / equivalent
@@ -627,12 +629,12 @@ pub fn run() {
             // Pre-initialise audio pipeline
             let is_recording = Arc::new(AtomicBool::new(false));
             let buffer = Arc::new(Mutex::new(Vec::new()));
-            let (mic_available, sample_rate) =
-                match audio::spawn_audio_thread(Arc::clone(&buffer), Arc::clone(&is_recording)) {
-                    Ok(sr) => (true, Some(sr)),
+            let (mic_available, sample_rate, audio_thread_init) =
+                match audio::spawn_audio_thread(Arc::clone(&buffer), Arc::clone(&is_recording), settings.mic_device.clone()) {
+                    Ok((sr, control)) => (true, Some(sr), Some(control)),
                     Err(e) => {
                         eprintln!("[Sumi] Audio init failed: {}", e);
-                        (false, None)
+                        (false, None, None)
                     }
                 };
 
@@ -663,6 +665,7 @@ pub fn run() {
                 saved_clipboard: Mutex::new(None),
                 vad_ctx: Mutex::new(None),
                 downloading: AtomicBool::new(false),
+                audio_thread: Mutex::new(audio_thread_init),
             });
 
             // Migration: if old zh-TW model exists but settings use default (LargeV3Turbo)
@@ -954,12 +957,17 @@ pub fn run() {
                                     .and_then(|ctx| ctx.clone())
                                     .unwrap_or_else(context_detect::detect_frontmost_app);
 
+                                let preferred_device = state.settings.lock()
+                                    .ok()
+                                    .and_then(|s| s.mic_device.clone());
                                 match audio::do_start_recording(
                                     &state.is_recording,
                                     &state.mic_available,
                                     &state.sample_rate,
                                     &state.buffer,
                                     &state.is_recording,
+                                    &state.audio_thread,
+                                    preferred_device,
                                 ) {
                                     Ok(()) => {
                                         println!("[Sumi] 🎙️ Recording started (app: {:?}, bundle: {:?}, url: {:?})",

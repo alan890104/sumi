@@ -131,6 +131,7 @@ export interface Settings {
   stt: SttConfig;
   edit_hotkey: string | null;
   onboarding_completed: boolean;
+  mic_device: string | null;
 }
 
 // ── History ──
