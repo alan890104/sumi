@@ -4,6 +4,9 @@
 <dict>
     <!-- Required for kSecUseDataProtectionKeychain (no per-app ACL, no password prompts). -->
     <!-- Both the release and dev bundle IDs are listed so a single file covers all builds. -->
+    <!-- TODO: In a signed distribution build these strings must be prefixed with the Apple  -->
+    <!-- Developer Team ID, e.g. "TEAMID.com.sumivoice.app". The Team ID can be found in    -->
+    <!-- the Apple Developer Portal under Membership Details.                                 -->
     <key>keychain-access-groups</key>
     <array>
         <string>com.sumivoice.app</string>

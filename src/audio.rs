@@ -47,10 +47,11 @@ pub fn resolve_input_device(preferred: Option<String>) -> Option<String> {
     }
     if crate::platform::is_default_input_bluetooth() {
         let builtin = crate::platform::get_builtin_input_device_name();
-        tracing::info!(
-            "Default input is Bluetooth — routing to built-in mic: {:?}",
-            builtin
-        );
+        if builtin.is_none() {
+            tracing::warn!("Default input is Bluetooth but no built-in mic found — recording from BT device");
+        } else {
+            tracing::info!("Default input is Bluetooth — routing to built-in mic: {:?}", builtin);
+        }
         return builtin; // None = let cpal pick system default (safe fallback)
     }
     None

@@ -328,6 +328,7 @@ unsafe fn cfstring_to_string(cf_str: *mut c_void) -> String {
     if CFStringGetCString(cf_str, buf.as_mut_ptr(), buf.len() as i64, K_CF_STRING_UTF8) != 0 {
         return std::ffi::CStr::from_ptr(buf.as_ptr()).to_str().unwrap_or("").to_string();
     }
+    tracing::warn!("cfstring_to_string: name did not fit in 512-byte buffer, skipping device");
     String::new()
 }
 
@@ -477,10 +478,13 @@ pub fn add_default_input_listener(callback: impl Fn() + Send + 'static) {
         element: K_ELEMENT_MAIN,
     };
     unsafe {
-        AudioObjectAddPropertyListener(
+        let status = AudioObjectAddPropertyListener(
             K_AUDIO_OBJECT_SYSTEM, &addr,
             on_default_input_changed, raw,
         );
+        if status != 0 {
+            tracing::warn!("AudioObjectAddPropertyListener failed: OSStatus {}", status);
+        }
     }
 }
 

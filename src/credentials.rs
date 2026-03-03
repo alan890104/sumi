@@ -112,8 +112,11 @@ pub fn load(provider: &str) -> Result<String, String> {
                     .output();
                 if let Ok(o) = out {
                     let stderr = String::from_utf8_lossy(&o.stderr);
-                    if !stderr.trim().is_empty() {
-                        tracing::warn!("Legacy Keychain entry cleanup may have failed: {}", stderr.trim());
+                    if !o.status.success() {
+                        tracing::warn!(
+                            "Legacy Keychain entry cleanup may have failed (status={:?}): {}",
+                            o.status.code(), stderr.trim()
+                        );
                     }
                 }
             }

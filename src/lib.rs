@@ -62,6 +62,7 @@ pub struct AppState {
     pub audio_thread: Mutex<Option<audio::AudioThreadControl>>,
     pub qwen3_asr_ctx: Mutex<Option<qwen3_asr::Qwen3AsrCache>>,
     pub model_switching: AtomicBool,
+    pub reconnecting: AtomicBool,
 }
 
 /// Restore original clipboard content from saved_clipboard.
@@ -761,6 +762,7 @@ pub fn run() {
                 audio_thread: Mutex::new(audio_thread_init),
                 qwen3_asr_ctx: Mutex::new(None),
                 model_switching: AtomicBool::new(false),
+                reconnecting: AtomicBool::new(false),
             });
 
             // Register a CoreAudio listener for default-input-device changes.
@@ -796,6 +798,15 @@ pub fn run() {
 
                     tracing::info!("Default audio input device changed to Bluetooth — reconnecting to built-in mic");
 
+                    // Guard against multiple concurrent reconnects: CoreAudio can fire
+                    // 2-3 property-change notifications per physical hotplug event.
+                    // If two threads both reach spawn_audio_thread, the second one leaks
+                    // the first cpal stream (it keeps running, consuming resources forever).
+                    if state.reconnecting.swap(true, Ordering::SeqCst) {
+                        tracing::info!("Reconnect already in progress — skipping duplicate CoreAudio notification");
+                        return;
+                    }
+
                     // Tear down the old thread so try_reconnect_audio will spawn a fresh one.
                     if let Ok(mut at) = state.audio_thread.lock() {
                         if let Some(ctrl) = at.take() { ctrl.stop(); }
@@ -807,14 +818,17 @@ pub fn run() {
                     let app2 = app_for_listener.clone();
                     std::thread::spawn(move || {
                         let state = app2.state::<AppState>();
-                        match audio::try_reconnect_audio(
+                        let result = audio::try_reconnect_audio(
                             &state.mic_available,
                             &state.sample_rate,
                             &state.buffer,
                             &state.is_recording,
                             &state.audio_thread,
                             None,
-                        ) {
+                        );
+                        // Always reset the guard so future events can trigger reconnect.
+                        state.reconnecting.store(false, Ordering::SeqCst);
+                        match result {
                             Ok(()) => tracing::info!("Mic stream reconnected after input device change"),
                             Err(e) => tracing::error!("Mic stream reconnect failed: {}", e),
                         }
