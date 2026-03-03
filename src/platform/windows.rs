@@ -1,14 +1,14 @@
+use windows::Win32::Foundation::HWND;
+use windows::Win32::Graphics::Dwm::{DwmEnableBlurBehindWindow, DWM_BB_ENABLE, DWM_BLURBEHIND};
 use windows::Win32::System::DataExchange::GetClipboardSequenceNumber;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VIRTUAL_KEY,
 };
-use windows::Win32::Graphics::Dwm::{DwmEnableBlurBehindWindow, DWM_BB_ENABLE, DWM_BLURBEHIND};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_EXSTYLE, HWND_TOPMOST,
     SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE,
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
 };
-use windows::Win32::Foundation::HWND;
 
 // Virtual-Key codes
 const VK_CONTROL: u16 = 0x11;
@@ -28,6 +28,12 @@ pub unsafe fn setup_overlay(hwnd: *mut std::ffi::c_void) {
     // windows. A full EXSTYLE replacement triggers WM_STYLECHANGED, which can
     // disrupt DWM compositing state and produce a visible rectangle behind the
     // capsule on Windows.
+    // GetWindowLongPtrW returns 0 on both "no styles" and failure; the two are
+    // indistinguishable without a GetLastError() call. Failure is effectively
+    // impossible here because the HWND has already been validated by Tauri
+    // (platform::setup_overlay_window checks hwnd() before calling us), so a
+    // zero return is treated as "no prior extended styles" and degrades safely
+    // to the original hard-coded behaviour.
     let current = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
     let ex_style = current | (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW).0 as isize;
     SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style);
