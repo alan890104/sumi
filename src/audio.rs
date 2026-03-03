@@ -15,6 +15,9 @@ pub struct AudioThreadControl {
     stop_signal: Arc<AtomicBool>,
     /// False when the cpal stream has emitted an error and is no longer delivering data.
     pub stream_alive: Arc<AtomicBool>,
+    /// The resolved device name this stream was opened on (after BT-avoidance).
+    /// `None` means cpal's system default was used at open time.
+    pub device_name: Option<String>,
 }
 
 impl AudioThreadControl {
@@ -29,17 +32,48 @@ impl AudioThreadControl {
     }
 }
 
+/// Resolve the effective microphone device name, applying Bluetooth avoidance
+/// when the user has not made an explicit device selection.
+///
+/// - `preferred = Some(name)` → user chose a specific device; always honoured.
+/// - `preferred = None` (Auto) → if the system default input is a Bluetooth
+///   device, return the name of the built-in microphone instead. This prevents
+///   macOS from switching the Bluetooth headset from A2DP → HFP (which causes
+///   the microphone to sound dramatically louder and degrades audio output
+///   quality). If no built-in mic exists, falls back to `None` (cpal default).
+pub fn resolve_input_device(preferred: Option<String>) -> Option<String> {
+    if preferred.is_some() {
+        return preferred;
+    }
+    if crate::platform::is_default_input_bluetooth() {
+        let builtin = crate::platform::get_builtin_input_device_name();
+        tracing::info!(
+            "Default input is Bluetooth — routing to built-in mic: {:?}",
+            builtin
+        );
+        return builtin; // None = let cpal pick system default (safe fallback)
+    }
+    None
+}
+
 /// Spawn a persistent audio thread that builds and immediately starts the cpal
 /// input stream.  The stream runs for the entire app lifetime — the callback
 /// checks `is_recording` atomically and discards samples when false.
 ///
 /// If `device_name` is Some, the named device is used; falls back to the
-/// system default if not found.
+/// system default if not found.  When `device_name` is None (Auto mode),
+/// `resolve_input_device` is applied first so Bluetooth inputs are avoided.
 pub fn spawn_audio_thread(
     buffer: Arc<Mutex<Vec<f32>>>,
     is_recording: Arc<AtomicBool>,
     device_name: Option<String>,
 ) -> Result<(u32, AudioThreadControl), String> {
+    // Apply Bluetooth avoidance when in Auto mode (device_name == None).
+    let device_name = resolve_input_device(device_name);
+    // Clone the resolved name before it is moved into the spawned thread,
+    // so we can record it on AudioThreadControl for the mismatch check.
+    let resolved_device_name = device_name.clone();
+
     let stop = Arc::new(AtomicBool::new(false));
     let stop_for_thread = Arc::clone(&stop);
 
@@ -217,7 +251,7 @@ pub fn spawn_audio_thread(
         .recv_timeout(std::time::Duration::from_secs(5))
         .map_err(|_| "音訊執行緒初始化逾時".to_string())??;
 
-    Ok((sample_rate, AudioThreadControl { thread, stop_signal: stop, stream_alive }))
+    Ok((sample_rate, AudioThreadControl { thread, stop_signal: stop, stream_alive, device_name: resolved_device_name }))
 }
 
 /// Attempt to reconnect the microphone when `mic_available` is false.
@@ -252,7 +286,8 @@ pub fn do_start_recording(
     audio_thread: &Mutex<Option<AudioThreadControl>>,
     device_name: Option<String>,
 ) -> Result<(), String> {
-    // Reconnect if mic was unavailable OR if the stream has died since last use.
+    // ── Step 1: ensure stream is alive ───────────────────────────────────
+    // Clone device_name here so it remains available for the mismatch check below.
     let stream_dead = audio_thread.lock().ok()
         .and_then(|at| at.as_ref().map(|c| !c.is_alive()))
         .unwrap_or(false);
@@ -262,9 +297,37 @@ pub fn do_start_recording(
             tracing::warn!("Audio stream was dead, reconnecting before recording");
             mic_available.store(false, Ordering::SeqCst);
         }
-        try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name)?;
+        try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name.clone())?;
+        // Freshly reconnected stream is already on the correct device;
+        // the mismatch check below will be a no-op.
     }
 
+    // ── Step 2: device-mismatch guard (BT hotplug race defence) ─────────
+    // resolve_input_device reflects the *current* system state.  If BT
+    // headphones connected while the stream was open as "system default"
+    // (device_name = None → recorded as None on AudioThreadControl), the
+    // wanted device is now Some("MacBook Pro Microphone") — a mismatch.
+    // Reconnect *before* setting is_recording so the race window is zero.
+    let wanted = resolve_input_device(device_name.clone());
+    if wanted.is_some() {
+        let current = audio_thread.lock().ok()
+            .and_then(|g| g.as_ref().map(|c| c.device_name.clone()))
+            .flatten();
+        if current.as_deref() != wanted.as_deref() {
+            tracing::info!(
+                "Stream device mismatch (stream={:?}, wanted={:?}) — reconnecting before recording",
+                current, wanted
+            );
+            {
+                let mut at = audio_thread.lock().map_err(|e| e.to_string())?;
+                if let Some(ctrl) = at.take() { ctrl.stop(); }
+            }
+            mic_available.store(false, Ordering::SeqCst);
+            try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name)?;
+        }
+    }
+
+    // ── Step 3: flip the recording flag ──────────────────────────────────
     if is_recording.load(Ordering::SeqCst) {
         return Err("已在錄音中".to_string());
     }

@@ -1,8 +1,13 @@
 //! Credential storage — platform-specific implementations.
 //!
-//! macOS: uses the `security-framework` crate (direct Keychain C API calls).
-//!        API keys are never exposed in process argv.
-//! Other: uses the `keyring` crate (Windows Credential Manager, etc.).
+//! macOS: hybrid approach — good UX AND no argv leaks:
+//!   save()   → security-framework + Data Protection Keychain
+//!              (kSecUseDataProtectionKeychain=true, no per-app ACL, no prompts ever)
+//!   load()   → Data Protection Keychain first; falls back to `security` CLI for
+//!              legacy items (key returned via stdout, never in argv), then auto-migrates
+//!   delete() → Data Protection Keychain + `security` CLI legacy cleanup
+//!
+//! Non-macOS: `keyring` crate (Windows Credential Manager, etc.)
 
 const SERVICE: &str = if cfg!(debug_assertions) { "sumi-dev" } else { "sumi" };
 
@@ -10,41 +15,117 @@ fn keychain_service(provider: &str) -> String {
     format!("{}-api-key-{}", SERVICE, provider)
 }
 
-// ── macOS: `security-framework` crate ─────────────────────────────
+// ── macOS ──────────────────────────────────────────────────────────
 
 #[cfg(target_os = "macos")]
 pub fn save(provider: &str, key: &str) -> Result<(), String> {
-    security_framework::passwords::set_generic_password(
-        &keychain_service(provider),
-        SERVICE,
-        key.as_bytes(),
-    )
-    .map_err(|e| format!("Keychain save failed: {}", e))
+    use security_framework::passwords::{set_generic_password_options, PasswordOptions};
+    const ERR_MISSING_ENTITLEMENT: i32 = -34018; // errSecMissingEntitlement
+
+    let mut opts = PasswordOptions::new_generic_password(&keychain_service(provider), SERVICE);
+    opts.use_protected_keychain();
+    match set_generic_password_options(key.as_bytes(), opts) {
+        Ok(()) => return Ok(()),
+        Err(e) if e.code() == ERR_MISSING_ENTITLEMENT => {
+            // App isn't signed with keychain-access-groups yet (e.g. raw cargo build).
+            // Fall back to security CLI so the key is never silently dropped.
+            tracing::warn!("Data Protection Keychain unavailable, falling back to security CLI");
+        }
+        Err(e) => return Err(format!("Keychain save failed: {}", e)),
+    }
+
+    // Fallback: security CLI. The key appears in argv briefly — acceptable only
+    // because this path is only reached when the app lacks proper entitlements.
+    let service = keychain_service(provider);
+    let _ = std::process::Command::new("/usr/bin/security")
+        .args(["delete-generic-password", "-s", &service, "-a", SERVICE])
+        .output();
+    let out = std::process::Command::new("/usr/bin/security")
+        .args(["add-generic-password", "-s", &service, "-a", SERVICE, "-w", key, "-U"])
+        .output()
+        .map_err(|e| format!("Failed to run security CLI: {}", e))?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "security add-generic-password failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ))
+    }
 }
 
 #[cfg(target_os = "macos")]
 pub fn load(provider: &str) -> Result<String, String> {
-    match security_framework::passwords::get_generic_password(
-        &keychain_service(provider),
-        SERVICE,
-    ) {
-        Ok(bytes) => String::from_utf8(bytes)
+    use security_framework::passwords::{generic_password, PasswordOptions};
+    const ERR_NOT_FOUND: i32 = -25300;         // errSecItemNotFound
+    const ERR_MISSING_ENTITLEMENT: i32 = -34018; // errSecMissingEntitlement
+
+    // Try Data Protection Keychain first (no per-app ACL → no prompts).
+    // Track whether the entitlement is present so we know if migration is safe.
+    let mut opts = PasswordOptions::new_generic_password(&keychain_service(provider), SERVICE);
+    opts.use_protected_keychain();
+    let has_entitlement = match generic_password(opts) {
+        Ok(bytes) => return String::from_utf8(bytes)
             .map_err(|e| format!("Keychain value is not valid UTF-8: {}", e)),
-        Err(e) if e.code() == -25300 => Ok(String::new()), // errSecItemNotFound
-        Err(e) => Err(format!("Keychain load failed: {}", e)),
+        Err(e) if e.code() == ERR_NOT_FOUND => true,          // entitlement ok, item just absent
+        Err(e) if e.code() == ERR_MISSING_ENTITLEMENT => false, // no entitlement, skip migration
+        Err(e) => return Err(format!("Keychain load failed: {}", e)),
+    };
+
+    // Fallback: read legacy item via `security` CLI.
+    // The key is returned via stdout — it never appears in argv.
+    let service = keychain_service(provider);
+    let out = std::process::Command::new("/usr/bin/security")
+        .args(["find-generic-password", "-s", &service, "-a", SERVICE, "-w"])
+        .output()
+        .map_err(|e| format!("Failed to run security CLI: {}", e))?;
+
+    if !out.status.success() {
+        return Ok(String::new()); // nothing in legacy either
     }
+
+    let key = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if key.is_empty() {
+        return Ok(String::new());
+    }
+
+    // Only migrate if entitlement is present — otherwise save() would fall back to
+    // security CLI (recreating the legacy item), and the delete below would erase it.
+    if has_entitlement {
+        match save(provider, &key) {
+            Ok(()) => {
+                let _ = std::process::Command::new("/usr/bin/security")
+                    .args(["delete-generic-password", "-s", &service, "-a", SERVICE])
+                    .output();
+            }
+            Err(e) => tracing::warn!("Keychain migration failed: {}", e),
+        }
+    }
+
+    Ok(key)
 }
 
 #[cfg(target_os = "macos")]
 pub fn delete(provider: &str) -> Result<(), String> {
-    match security_framework::passwords::delete_generic_password(
-        &keychain_service(provider),
-        SERVICE,
-    ) {
+    use security_framework::passwords::{delete_generic_password_options, PasswordOptions};
+    const ERR_NOT_FOUND: i32 = -25300; // errSecItemNotFound
+
+    // Remove from Data Protection Keychain.
+    let mut opts = PasswordOptions::new_generic_password(&keychain_service(provider), SERVICE);
+    opts.use_protected_keychain();
+    let result = match delete_generic_password_options(opts) {
         Ok(()) => Ok(()),
-        Err(e) if e.code() == -25300 => Ok(()), // errSecItemNotFound → already gone
+        Err(e) if e.code() == ERR_NOT_FOUND => Ok(()),
         Err(e) => Err(format!("Keychain delete failed: {}", e)),
-    }
+    };
+
+    // Also clean up any legacy item.
+    let service = keychain_service(provider);
+    let _ = std::process::Command::new("/usr/bin/security")
+        .args(["delete-generic-password", "-s", &service, "-a", SERVICE])
+        .output();
+
+    result
 }
 
 // ── Non-macOS: `keyring` crate ─────────────────────────────────────

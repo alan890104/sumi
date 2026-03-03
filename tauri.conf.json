@@ -57,7 +57,10 @@
             "icons/icon.png",
             "icons/icon.ico"
         ],
-        "createUpdaterArtifacts": true
+        "createUpdaterArtifacts": true,
+        "macOS": {
+            "entitlements": "./entitlements.plist"
+        }
     },
     "plugins": {
         "updater": {

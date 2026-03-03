@@ -763,6 +763,60 @@ pub fn run() {
                 model_switching: AtomicBool::new(false),
             });
 
+            // Register a CoreAudio listener for default-input-device changes.
+            // When the user connects Bluetooth headphones, the system default input
+            // may switch to them. The listener reconnects the cpal stream to the
+            // built-in mic (via resolve_input_device), preventing an A2DP → HFP switch.
+            {
+                let app_for_listener = app.handle().clone();
+                platform::add_default_input_listener(move || {
+                    let state = app_for_listener.state::<AppState>();
+
+                    // If the user chose an explicit mic device, never interfere.
+                    let explicit = state.settings.lock()
+                        .ok()
+                        .and_then(|s| s.mic_device.clone());
+                    if explicit.is_some() { return; }
+
+                    // Don't interrupt an active recording.
+                    if state.is_recording.load(Ordering::SeqCst) {
+                        tracing::info!("Default input changed while recording — will apply on next start");
+                        return;
+                    }
+
+                    // Only reconnect when the new default IS Bluetooth.
+                    // If BT just disconnected and the default reverted to built-in,
+                    // our cpal stream is already on the built-in mic — no action needed.
+                    // (If the BT stream dies, the error callback will set stream_alive=false
+                    //  and do_start_recording will trigger a lazy reconnect.)
+                    if !platform::is_default_input_bluetooth() {
+                        tracing::info!("Default input changed to non-BT device — stream already correct, skipping reconnect");
+                        return;
+                    }
+
+                    tracing::info!("Default audio input device changed to Bluetooth — reconnecting to built-in mic");
+
+                    // Tear down the old thread so try_reconnect_audio will spawn a fresh one.
+                    if let Ok(mut at) = state.audio_thread.lock() {
+                        if let Some(ctrl) = at.take() { ctrl.stop(); }
+                    }
+                    state.mic_available.store(false, Ordering::SeqCst);
+
+                    // resolve_input_device runs inside spawn_audio_thread automatically.
+                    match audio::try_reconnect_audio(
+                        &state.mic_available,
+                        &state.sample_rate,
+                        &state.buffer,
+                        &state.is_recording,
+                        &state.audio_thread,
+                        None,
+                    ) {
+                        Ok(()) => tracing::info!("Mic stream reconnected after input device change"),
+                        Err(e) => tracing::error!("Mic stream reconnect failed: {}", e),
+                    }
+                });
+            }
+
             // Migration: if old zh-TW model exists but settings use default (LargeV3Turbo)
             // and the LargeV3Turbo model file doesn't exist, switch to LargeV3TurboZhTw
             {

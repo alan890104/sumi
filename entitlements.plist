@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Required for kSecUseDataProtectionKeychain (no per-app ACL, no password prompts). -->
+    <!-- Both the release and dev bundle IDs are listed so a single file covers all builds. -->
+    <key>keychain-access-groups</key>
+    <array>
+        <string>com.sumivoice.app</string>
+        <string>com.sumivoice.app.dev</string>
+    </array>
+</dict>
+</plist>

@@ -107,6 +107,33 @@ pub fn simulate_undo() -> bool {
     { false }
 }
 
+/// Returns `true` if the system default audio input device is Bluetooth.
+/// Always `false` on non-macOS platforms.
+pub fn is_default_input_bluetooth() -> bool {
+    #[cfg(target_os = "macos")]
+    { macos::is_default_input_bluetooth() }
+    #[cfg(not(target_os = "macos"))]
+    { false }
+}
+
+/// Returns the name of the first built-in audio input device, or `None`.
+/// Always `None` on non-macOS platforms.
+pub fn get_builtin_input_device_name() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    { macos::get_builtin_input_device_name() }
+    #[cfg(not(target_os = "macos"))]
+    { None }
+}
+
+/// Register a permanent listener that fires when the system default audio
+/// input device changes. No-op on non-macOS platforms.
+pub fn add_default_input_listener(callback: impl Fn() + Send + 'static) {
+    #[cfg(target_os = "macos")]
+    macos::add_default_input_listener(callback);
+    #[cfg(not(target_os = "macos"))]
+    { let _ = callback; }
+}
+
 /// Returns the clipboard change sequence number if the platform supports it.
 /// macOS: NSPasteboard.changeCount, Windows: GetClipboardSequenceNumber.
 /// Returns None on Linux/other (caller falls back to sentinel approach).
