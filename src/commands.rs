@@ -24,13 +24,15 @@ pub fn get_cached_api_key(cache: &Mutex<HashMap<String, String>>, provider: &str
         }
     }
     match credentials::load(provider) {
-        Ok(key) => {
+        Ok(key) if !key.is_empty() => {
             if let Ok(mut map) = cache.lock() {
                 map.insert(provider.to_string(), key.clone());
             }
             key
         }
-        Err(_) => String::new(),
+        // Empty key or error: return empty without caching, so the next call retries
+        // the credential store rather than hitting a poisoned cache entry.
+        Ok(_) | Err(_) => String::new(),
     }
 }
 

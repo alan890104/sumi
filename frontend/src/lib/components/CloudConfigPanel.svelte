@@ -19,6 +19,7 @@
     modelId = $bindable(),
     language = $bindable(''),
     onchange,
+    onapiKeyChange,
   }: {
     type: 'stt' | 'polish';
     provider: string;
@@ -27,6 +28,8 @@
     modelId: string;
     language?: string;
     onchange: () => void;
+    /** Called only when the user explicitly edits the API key field. */
+    onapiKeyChange?: () => void;
   } = $props();
 
   // Derive provider options based on type
@@ -143,6 +146,7 @@
   function onApiKeyInput(e: Event) {
     const target = e.target as HTMLInputElement;
     apiKey = target.value;
+    onapiKeyChange?.();
     onchange();
   }
 

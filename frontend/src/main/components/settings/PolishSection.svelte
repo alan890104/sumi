@@ -139,18 +139,19 @@
   });
 
   async function onCloudChange() {
-    const provider = cloudProvider;
-    const apiKey = cloudApiKey;
-    setPolishCloudProvider(provider as any);
-    setPolishCloudApiKey(apiKey);
+    setPolishCloudProvider(cloudProvider as any);
+    setPolishCloudApiKey(cloudApiKey);
     setPolishCloudEndpoint(cloudEndpoint);
     setPolishCloudModelId(cloudModelId);
+    await savePolish();
+  }
+
+  async function onApiKeyChange() {
     try {
-      await saveApiKey(provider, apiKey);
+      await saveApiKey(cloudProvider, cloudApiKey);
     } catch (e) {
       console.error('Failed to save polish API key to keychain:', e);
     }
-    await savePolish();
   }
 
   onMount(() => {
@@ -279,6 +280,7 @@
             bind:endpoint={cloudEndpoint}
             bind:modelId={cloudModelId}
             onchange={onCloudChange}
+            onapiKeyChange={onApiKeyChange}
           />
         </div>
       {/if}

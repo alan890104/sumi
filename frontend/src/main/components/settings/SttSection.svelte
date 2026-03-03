@@ -272,14 +272,15 @@
   // ── Cloud config change ──
 
   async function onCloudChange() {
-    const provider = getSttConfig().cloud.provider;
-    const apiKey = getSttConfig().cloud.api_key;
+    await saveStt();
+  }
+
+  async function onSttApiKeyChange() {
     try {
-      await saveApiKey('stt_' + provider, apiKey);
+      await saveApiKey('stt_' + cloudProvider, cloudApiKey);
     } catch (e) {
       console.error('Failed to save STT API key to keychain:', e);
     }
-    await saveStt();
   }
 
   // ── Cloud config bindings ──
@@ -552,6 +553,7 @@
           setSttCloudLanguage(cloudLanguage);
           await onCloudChange();
         }}
+        onapiKeyChange={onSttApiKeyChange}
       />
     </div>
   {/if}
