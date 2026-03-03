@@ -4476,7 +4476,7 @@ dependencies = [
 [[package]]
 name = "qwen3-asr"
 version = "0.1.0"
-source = "git+https://github.com/alan890104/qwen3-asr-rs.git?rev=bdaedf40f033c4b845aade9eafd258fdaeaa9ec7#bdaedf40f033c4b845aade9eafd258fdaeaa9ec7"
+source = "git+https://github.com/alan890104/qwen3-asr-rs.git?rev=b505643#b50564321db6e731fde175045146b1fd59db7116"
 dependencies = [
  "anyhow",
  "candle-core",

@@ -2032,7 +2032,7 @@ pub fn download_qwen3_asr_model(
                 }
             }
 
-            let tmp = dest.with_extension("safetensors.part");
+            let tmp = dest.with_extension("part");
             let resp = match client.get(&url).send() {
                 Ok(r) => r,
                 Err(e) => {

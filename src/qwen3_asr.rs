@@ -46,7 +46,8 @@ pub fn warm_qwen3_asr(
     let t0 = std::time::Instant::now();
 
     let device = Device::new_metal(0).unwrap_or(Device::Cpu);
-    let engine = qwen3_asr::inference::AsrInference::load(&model_dir, device)
+    let gguf_path = model_dir.join(model.gguf_filename());
+    let engine = qwen3_asr::inference::AsrInference::load_gguf(&gguf_path, device)
         .map_err(|e| format!("Qwen3-ASR load failed: {}", e))?;
 
     tracing::info!("Qwen3-ASR {} loaded in {:.1?}", model.display_name(), t0.elapsed());

@@ -62,60 +62,31 @@ impl Qwen3AsrModel {
 
     pub fn size_bytes(&self) -> u64 {
         match self {
-            Self::Qwen3Asr1_7B => 4_700_000_000,
-            Self::Qwen3Asr0_6B => 1_890_000_000,
+            Self::Qwen3Asr1_7B => 1_200_000_000, // Q4_K GGUF
+            Self::Qwen3Asr0_6B =>   966_000_000, // Q8_0 GGUF
         }
     }
 
     pub fn hf_repo(&self) -> &'static str {
+        "Alkd/qwen3-asr-gguf"
+    }
+
+    /// Returns the GGUF filename for this model variant.
+    pub fn gguf_filename(&self) -> &'static str {
         match self {
-            Self::Qwen3Asr1_7B => "Qwen/Qwen3-ASR-1.7B",
-            Self::Qwen3Asr0_6B => "Qwen/Qwen3-ASR-0.6B",
+            Self::Qwen3Asr1_7B => "qwen3_asr_1.7b_q4_k.gguf",
+            Self::Qwen3Asr0_6B => "qwen3_asr_0.6b_q8_0.gguf",
         }
     }
 
     /// Files that must be present for the model to be considered downloaded.
     pub fn required_files(&self) -> Vec<&'static str> {
-        match self {
-            Self::Qwen3Asr1_7B => vec![
-                "config.json",
-                "tokenizer.json",
-                "model.safetensors.index.json",
-                "model-00001-of-00002.safetensors",
-                "model-00002-of-00002.safetensors",
-            ],
-            Self::Qwen3Asr0_6B => vec![
-                "config.json",
-                "tokenizer.json",
-                "model.safetensors",
-            ],
-        }
+        vec![self.gguf_filename()]
     }
 
     /// Returns `(filename, hf_repo)` pairs for downloading.
-    ///
-    /// `tokenizer.json` is not present in the ASR repo — it must be fetched
-    /// from the corresponding Qwen3 base model repo instead.
     pub fn download_files(&self) -> Vec<(&'static str, &'static str)> {
-        let asr = self.hf_repo();
-        let tok_repo = match self {
-            Self::Qwen3Asr1_7B => "Qwen/Qwen3-1.7B",
-            Self::Qwen3Asr0_6B => "Qwen/Qwen3-0.6B",
-        };
-        match self {
-            Self::Qwen3Asr0_6B => vec![
-                ("config.json", asr),
-                ("tokenizer.json", tok_repo),
-                ("model.safetensors", asr),
-            ],
-            Self::Qwen3Asr1_7B => vec![
-                ("config.json", asr),
-                ("tokenizer.json", tok_repo),
-                ("model.safetensors.index.json", asr),
-                ("model-00001-of-00002.safetensors", asr),
-                ("model-00002-of-00002.safetensors", asr),
-            ],
-        }
+        vec![(self.gguf_filename(), self.hf_repo())]
     }
 
     pub fn all() -> &'static [Self] {
