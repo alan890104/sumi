@@ -189,11 +189,13 @@
   let isMeetingCapturing = $state(false);
   let meetingCapturedModifiers = $state(new Set<string>());
   let meetingCapturedCode = $state('');
+  let meetingCaptureError = $state('');
 
   function startMeetingCapture() {
     isMeetingCapturing = true;
     meetingCapturedModifiers = new Set();
     meetingCapturedCode = '';
+    meetingCaptureError = '';
     document.addEventListener('keydown', onMeetingCaptureKeydown);
     document.addEventListener('keyup', onMeetingCaptureKeyup);
   }
@@ -246,14 +248,14 @@
 
     // Require at least one modifier to avoid swallowing bare keypresses globally.
     if (meetingCapturedModifiers.size === 0) {
-      console.warn('Meeting hotkey must include at least one modifier key');
+      meetingCaptureError = 'Must include at least one modifier (⌥ ⌃ ⇧ ⌘)';
       cancelMeetingCapture();
       return;
     }
 
     // Must differ from primary and edit hotkeys
     if (newMeetingHotkey === getHotkey() || newMeetingHotkey === getEditHotkey()) {
-      console.warn('Meeting hotkey must differ from primary and edit hotkeys');
+      meetingCaptureError = 'Must differ from primary and edit hotkeys';
       cancelMeetingCapture();
       return;
     }
@@ -386,6 +388,9 @@
           <button class="hotkey-btn" onclick={startMeetingCapture}>{t('settings.shortcuts.change')}</button>
         </div>
       </div>
+      {#if meetingCaptureError}
+        <div class="capture-error">{meetingCaptureError}</div>
+      {/if}
     {:else}
       <div class="hotkey-capture active">
         <div class="capture-label">{t('settings.shortcuts.captureLabel')}</div>
@@ -496,6 +501,12 @@
   .btn-cancel:hover {
     background: var(--bg-active);
     color: var(--text-primary);
+  }
+
+  .capture-error {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--accent-red, #e05252);
   }
 
   .edit-hotkey-section {

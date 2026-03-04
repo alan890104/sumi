@@ -384,6 +384,12 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String) {
                 break;
             }
         }
+
+        // Persist accumulated transcript every tick so stop_meeting_mode can
+        // read it immediately even when the feeder times out mid-session.
+        if let Ok(mut t) = state.meeting_transcript.lock() {
+            t.clone_from(&accumulated);
+        }
     }
 
     // Feed samples that arrived since the last tick (up to 2 s may be unread).
@@ -405,10 +411,11 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String) {
         }
     }
 
-    // If stop_meeting_mode timed out and cancelled us, discard results so this
-    // zombie thread cannot overwrite a subsequent meeting session's transcript.
+    // If stop_meeting_mode timed out and cancelled us, meeting_transcript is
+    // already up-to-date via the incremental per-tick write above, so we can
+    // return without acquiring the engine lock for finish_streaming.
     if state.meeting_cancelled.load(Ordering::SeqCst) {
-        tracing::warn!("[meeting] Feeder was cancelled (timeout) — discarding result");
+        tracing::warn!("[meeting] Feeder cancelled (timeout) — partial transcript already persisted ({} chars)", accumulated.len());
         return;
     }
 

@@ -186,6 +186,13 @@ pub fn update_meeting_hotkey(
         if !hk.is_empty() {
             let _ = parse_hotkey_string(hk)
                 .ok_or_else(|| "Invalid meeting hotkey string".to_string())?;
+            // Must include at least one modifier to avoid swallowing bare keypresses.
+            let has_modifier = ["Alt+", "Control+", "Shift+", "Super+"]
+                .iter()
+                .any(|m| hk.contains(m));
+            if !has_modifier {
+                return Err("Meeting hotkey must include at least one modifier key".to_string());
+            }
             // Must not conflict with primary or edit hotkeys.
             if *hk == settings.hotkey {
                 return Err("Meeting hotkey must differ from primary hotkey".to_string());
