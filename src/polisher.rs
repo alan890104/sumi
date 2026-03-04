@@ -200,7 +200,7 @@ impl PolishModel {
             PolishModel::Phi4Mm => "Phi 4 Mini",
             PolishModel::Ministral3B => "Ministral 3B",
             PolishModel::Qwen3_4B => "Qwen 3 4B",
-            PolishModel::Unknown => "Phi 4 MM",
+            PolishModel::Unknown => "Phi 4 Mini",
         }
     }
 
@@ -228,9 +228,9 @@ impl PolishModel {
 
     fn eos_token(&self) -> &'static str {
         match self {
-            PolishModel::Phi4Mm => "<|end|>",
+            PolishModel::Phi4Mm | PolishModel::Unknown => "<|end|>",
             PolishModel::Ministral3B => "</s>",
-            PolishModel::Qwen3_4B | PolishModel::Unknown => "<|im_end|>",
+            PolishModel::Qwen3_4B => "<|im_end|>",
         }
     }
 
@@ -383,10 +383,14 @@ fn format_chat_prompt(model: &PolishModel, system: &str, user: &str) -> String {
         PolishModel::Ministral3B => format!(
             "<s>[INST] {user}\n\n{system} [/INST]"
         ),
-        PolishModel::Qwen3_4B | PolishModel::Unknown => format!(
+        PolishModel::Qwen3_4B => format!(
             // Pre-fill empty <think></think> so the model skips thinking mode.
             "<|im_start|>user\n{user}\n\n{system}<|im_end|>\n\
              <|im_start|>assistant\n<think>\n\n</think>\n\n"
+        ),
+        PolishModel::Unknown => format!(
+            "<|user|>\n{user}\n\n{system}<|end|>\n\
+             <|assistant|>\n"
         ),
     }
 }
