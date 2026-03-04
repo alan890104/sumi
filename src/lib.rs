@@ -6,6 +6,7 @@ mod history;
 mod hotkey;
 mod permissions;
 pub mod platform;
+pub mod models;
 mod polisher;
 mod qwen3_asr;
 pub mod settings;

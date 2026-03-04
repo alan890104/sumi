@@ -22,7 +22,7 @@ export type WhisperModelId =
 
 export type LocalSttEngine = 'whisper' | 'qwen3_asr';
 
-export type Qwen3AsrModelId = 'qwen3_asr1_7_b_full' | 'qwen3_asr1_7_b_q8' | 'qwen3_asr1_7_b' | 'qwen3_asr0_6_b';
+export type Qwen3AsrModelId = 'qwen3_asr1_7_b' | 'qwen3_asr0_6_b';
 
 export interface Qwen3AsrModelInfo {
   id: Qwen3AsrModelId;
@@ -78,7 +78,7 @@ export type CloudProvider =
   | 'samba_nova'
   | 'custom';
 
-export type PolishModel = 'llama_taiwan' | 'qwen25' | 'qwen3' | 'qwen3_4b';
+export type PolishModel = 'phi4_mm' | 'ministral3b' | 'qwen3_4b';
 
 export interface PolishModelInfo {
   id: PolishModel;
@@ -243,6 +243,7 @@ export type Page =
 export type OverlayStatus =
   | 'preparing'
   | 'recording'
+  | 'edit_recording'
   | 'processing'
   | 'transcribing'
   | 'polishing'
