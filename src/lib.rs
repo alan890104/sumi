@@ -16,7 +16,7 @@ pub mod whisper_models;
 
 use std::collections::HashMap;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     Arc, Mutex,
 };
 use std::time::Instant;
@@ -69,6 +69,12 @@ pub struct AppState {
     pub streaming_result: Mutex<Option<String>>,
     pub meeting_active: AtomicBool,
     pub meeting_cancelled: AtomicBool,
+    /// Monotonically increasing session counter. Incremented each time a new
+    /// meeting session starts. The feeder thread captures this value at launch
+    /// and aborts post-loop work if the counter has advanced, preventing a
+    /// zombie feeder from the previous timed-out session from corrupting the
+    /// new session's transcript or forcing `meeting_active` to false.
+    pub meeting_session: AtomicU64,
     pub meeting_transcript: Mutex<String>,
     pub meeting_start_time: Mutex<Option<std::time::Instant>>,
 }
@@ -783,6 +789,7 @@ pub fn run() {
                 streaming_result: Mutex::new(None),
                 meeting_active: AtomicBool::new(false),
                 meeting_cancelled: AtomicBool::new(false),
+                meeting_session: AtomicU64::new(0),
                 meeting_transcript: Mutex::new(String::new()),
                 meeting_start_time: Mutex::new(None),
             });
@@ -1277,22 +1284,29 @@ pub fn run() {
                                         }
 
                                         // ── Live-preview feeder (Qwen3-ASR non-edit mode only) ──
-                                        let should_stream = !is_edit_hotkey && {
-                                            state.settings.lock()
-                                                .map(|s| s.stt.mode == SttMode::Local
-                                                    && s.stt.local_engine == stt::LocalSttEngine::Qwen3Asr)
-                                                .unwrap_or(false)
+                                        // Read all feeder-relevant settings in a single lock acquisition
+                                        // so that no race can occur between computing should_stream and
+                                        // reading feeder_model/feeder_lang.
+                                        let stream_config = if !is_edit_hotkey {
+                                            state.settings.lock().ok().and_then(|s| {
+                                                if s.stt.mode == SttMode::Local
+                                                    && s.stt.local_engine == stt::LocalSttEngine::Qwen3Asr
+                                                {
+                                                    Some((s.stt.qwen3_asr_model.clone(), s.stt.language.clone()))
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                        } else {
+                                            None
                                         };
-                                        if should_stream {
+                                        if let Some((feeder_model, feeder_lang)) = stream_config {
                                             state.streaming_active.store(true, Ordering::SeqCst);
                                             state.streaming_cancelled.store(false, Ordering::SeqCst);
                                             if let Ok(mut r) = state.streaming_result.lock() {
                                                 *r = None;
                                             }
                                             let feeder_app = app.clone();
-                                            let (feeder_model, feeder_lang) = state.settings.lock()
-                                                .map(|s| (s.stt.qwen3_asr_model.clone(), s.stt.language.clone()))
-                                                .unwrap_or_default();
                                             std::thread::spawn(move || {
                                                 let fstate = feeder_app.state::<AppState>();
                                                 // Wait for engine warm (max 8s)
@@ -1565,6 +1579,10 @@ fn start_meeting_mode(app: &AppHandle) {
     // hotkey handler sees meeting_active=true and does not try to stop the session.
     state.meeting_active.store(true, Ordering::SeqCst);
     state.meeting_cancelled.store(false, Ordering::SeqCst);
+    // Advance the session generation counter. The feeder captures this value
+    // and aborts post-loop work if the counter has advanced past it, preventing
+    // a zombie feeder from a timed-out previous session from corrupting state.
+    let session_id = state.meeting_session.fetch_add(1, Ordering::SeqCst) + 1;
     // Reset normal-recording streaming state in case a previous session left it dirty.
     state.streaming_active.store(false, Ordering::SeqCst);
     if let Ok(mut r) = state.streaming_result.lock() {
@@ -1696,7 +1714,7 @@ fn start_meeting_mode(app: &AppHandle) {
             hide_overlay_delayed(&feeder_app, 2000);
             return;
         }
-        qwen3_asr::run_meeting_feeder_loop(feeder_app, lang);
+        qwen3_asr::run_meeting_feeder_loop(feeder_app, lang, session_id);
     });
 }
 
@@ -1750,7 +1768,6 @@ fn stop_meeting_mode(app: &AppHandle) {
             let _ = overlay.emit("recording-status", "error");
         }
         hide_overlay_delayed(app, 1500);
-        state.meeting_active.store(false, Ordering::SeqCst);
         return;
     }
 
@@ -1804,5 +1821,6 @@ fn stop_meeting_mode(app: &AppHandle) {
         let _ = overlay.emit("recording-status", "copied");
     }
     hide_overlay_delayed(app, 2000);
-    state.meeting_active.store(false, Ordering::SeqCst);
+    // meeting_active is already false: either the feeder set it to false when
+    // it finished normally, or stop_meeting_mode set it to false on timeout.
 }

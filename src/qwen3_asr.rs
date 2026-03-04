@@ -244,7 +244,7 @@ pub(crate) fn run_feeder_loop(app: AppHandle, language: String) {
 /// When `is_recording` becomes false, the loop exits, the final segment is flushed,
 /// and the full transcript is written to `AppState.meeting_transcript` before
 /// `meeting_active` is set to false.
-pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String) {
+pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, session_id: u64) {
     let state = app.state::<crate::AppState>();
 
     let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100);
@@ -392,6 +392,36 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String) {
         }
     }
 
+    // ── Post-loop: stale-session / cancellation guards ────────────────────────
+    //
+    // Guard 1 — Session mismatch (zombie from TOCTOU race):
+    //   stop_meeting_mode timed out → set meeting_cancelled + meeting_active=false
+    //   → start_meeting_mode incremented meeting_session for a NEW session and
+    //   reset meeting_cancelled=false. We must not touch the new session's state.
+    //
+    // Guard 2 — Cancelled (same session, timeout path, no new session yet):
+    //   stop_meeting_mode timed out and set meeting_cancelled=true but the user
+    //   has not started another session. meeting_transcript is already current
+    //   via the incremental per-tick write inside the main loop.
+    //
+    // Both cases are safe to abort here — transcript has been persisted.
+    let current_session = state.meeting_session.load(Ordering::SeqCst);
+    if current_session != session_id {
+        tracing::warn!(
+            "[meeting] Stale feeder (session {} vs current {}) — aborting post-loop work",
+            session_id,
+            current_session
+        );
+        return;
+    }
+    if state.meeting_cancelled.load(Ordering::SeqCst) {
+        tracing::warn!(
+            "[meeting] Feeder cancelled (timeout) — partial transcript already persisted ({} chars)",
+            accumulated.len()
+        );
+        return;
+    }
+
     // Feed samples that arrived since the last tick (up to 2 s may be unread).
     {
         let trailing_raw: Vec<f32> = {
@@ -409,14 +439,6 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String) {
                 let _ = c.engine.feed_audio(&mut sstate, &trailing_16k);
             }
         }
-    }
-
-    // If stop_meeting_mode timed out and cancelled us, meeting_transcript is
-    // already up-to-date via the incremental per-tick write above, so we can
-    // return without acquiring the engine lock for finish_streaming.
-    if state.meeting_cancelled.load(Ordering::SeqCst) {
-        tracing::warn!("[meeting] Feeder cancelled (timeout) — partial transcript already persisted ({} chars)", accumulated.len());
-        return;
     }
 
     // Flush remaining audio from the last segment.
