@@ -1014,15 +1014,18 @@ pub fn run() {
 
                             let state = app.state::<AppState>();
 
-                            let is_meeting_hotkey = state.settings.lock()
+                            let (is_meeting_hotkey, is_edit_hotkey) = state.settings.lock()
                                 .ok()
-                                .and_then(|s| s.meeting_hotkey.as_deref().and_then(parse_hotkey_string))
-                                .is_some_and(|ms| *shortcut == ms);
-
-                            let is_edit_hotkey = state.settings.lock()
-                                .ok()
-                                .and_then(|s| s.edit_hotkey.as_deref().and_then(parse_hotkey_string))
-                                .is_some_and(|es| *shortcut == es);
+                                .map(|s| {
+                                    let meeting = s.meeting_hotkey.as_deref()
+                                        .and_then(parse_hotkey_string)
+                                        .is_some_and(|ms| *shortcut == ms);
+                                    let edit = s.edit_hotkey.as_deref()
+                                        .and_then(parse_hotkey_string)
+                                        .is_some_and(|es| *shortcut == es);
+                                    (meeting, edit)
+                                })
+                                .unwrap_or((false, false));
 
                             if state.test_mode.load(Ordering::SeqCst) {
                                 if let Some(main_win) = app.get_webview_window("main") {
@@ -1562,6 +1565,11 @@ fn start_meeting_mode(app: &AppHandle) {
     // hotkey handler sees meeting_active=true and does not try to stop the session.
     state.meeting_active.store(true, Ordering::SeqCst);
     state.meeting_cancelled.store(false, Ordering::SeqCst);
+    // Reset normal-recording streaming state in case a previous session left it dirty.
+    state.streaming_active.store(false, Ordering::SeqCst);
+    if let Ok(mut r) = state.streaming_result.lock() {
+        *r = None;
+    }
     if let Ok(mut t) = state.meeting_transcript.lock() {
         t.clear();
     }
@@ -1677,6 +1685,11 @@ fn start_meeting_mode(app: &AppHandle) {
             tracing::warn!("Meeting mode: engine not ready after 8s, aborting");
             fstate.meeting_active.store(false, Ordering::SeqCst);
             fstate.is_recording.store(false, Ordering::SeqCst);
+            // Clear audio captured during the failed warm-up window to prevent
+            // stale samples from being prepended to the next recording session.
+            if let Ok(mut buf) = fstate.buffer.lock() {
+                buf.clear();
+            }
             if let Some(ov) = feeder_app.get_webview_window("overlay") {
                 let _ = ov.emit("recording-status", "error");
             }

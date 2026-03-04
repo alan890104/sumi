@@ -466,7 +466,9 @@ pub fn do_stop_recording(
                 }
 
                 // Batch fallback. The feeder has been signalled to cancel so it
-                // will not be holding qwen3_asr_ctx when we acquire it here.
+                // will skip post-loop engine work once it wakes. It may still
+                // be holding qwen3_asr_ctx mid-inference; this call will block
+                // briefly until the feeder releases the lock.
                 tracing::info!("[streaming] using batch fallback");
                 let result = crate::qwen3_asr::transcribe_with_cached_qwen3_asr(
                     qwen3_asr_ctx,

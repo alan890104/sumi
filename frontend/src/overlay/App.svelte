@@ -155,7 +155,7 @@
   let isSwitchingSpinner: boolean = $derived.by(() => is('switching'));
 
   // ── Partial text display (live preview during Qwen3-ASR recording) ──
-  const PARTIAL_MAX = 16;
+  const PARTIAL_MAX = 30;
   let showingPartial: boolean = $derived.by(() => is('recording', 'meeting_recording') && partialText.length > 0);
   let displayLabelText: string = $derived(
     showingPartial

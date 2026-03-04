@@ -264,7 +264,10 @@
       await updateMeetingHotkey(newMeetingHotkey);
       setMeetingHotkey(newMeetingHotkey);
     } catch (e) {
+      meetingCaptureError = typeof e === 'string' ? e : 'Failed to update meeting hotkey';
       console.error('Failed to update meeting hotkey:', e);
+      cancelMeetingCapture();
+      return;
     }
 
     cancelMeetingCapture();
