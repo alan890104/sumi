@@ -17,7 +17,7 @@ pub mod whisper_models;
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
-    Arc, Mutex,
+    Arc, Condvar, Mutex,
 };
 use std::time::Instant;
 use tauri::{
@@ -67,6 +67,12 @@ pub struct AppState {
     pub streaming_active: AtomicBool,
     pub streaming_cancelled: AtomicBool,
     pub streaming_result: Mutex<Option<String>>,
+    /// Condvar used to wake feeder threads early when `is_recording` is set to
+    /// false. Replaces a fixed `thread::sleep(2000 ms)` with an interruptible
+    /// `wait_timeout(2000 ms)`, eliminating up to 2 s of unnecessary latency
+    /// for short recordings (especially noticeable on 1–2 s utterances).
+    pub feeder_stop_cv: Condvar,
+    pub feeder_stop_mu: Mutex<()>,
     pub meeting_active: AtomicBool,
     pub meeting_cancelled: AtomicBool,
     /// Monotonically increasing session counter. Incremented each time a new
@@ -176,6 +182,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
             &state.streaming_active,
             &state.streaming_cancelled,
             &state.streaming_result,
+            &state.feeder_stop_cv,
         ) {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
@@ -467,6 +474,14 @@ fn stop_edit_and_replace(app: &AppHandle) {
             .unwrap_or_default();
         let edit_dict_terms = polish_config.dictionary.enabled_terms();
 
+        // The edit path never spawns a live-preview feeder. Defensively clear
+        // any residual streaming state from a previous normal recording so a
+        // stale result cannot be consumed as the edit instruction.
+        state.streaming_active.store(false, Ordering::SeqCst);
+        if let Ok(mut r) = state.streaming_result.lock() {
+            *r = None;
+        }
+
         match audio::do_stop_recording(
             &state.is_recording,
             &state.sample_rate,
@@ -483,6 +498,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
             &state.streaming_active,
             &state.streaming_cancelled,
             &state.streaming_result,
+            &state.feeder_stop_cv,
         ) {
             Ok((instruction, _samples)) => {
                 tracing::info!("Edit instruction received: {} graphemes", instruction.graphemes(true).count());
@@ -787,6 +803,8 @@ pub fn run() {
                 streaming_active: AtomicBool::new(false),
                 streaming_cancelled: AtomicBool::new(false),
                 streaming_result: Mutex::new(None),
+                feeder_stop_cv: Condvar::new(),
+                feeder_stop_mu: Mutex::new(()),
                 meeting_active: AtomicBool::new(false),
                 meeting_cancelled: AtomicBool::new(false),
                 meeting_session: AtomicU64::new(0),
@@ -1727,6 +1745,9 @@ fn stop_meeting_mode(app: &AppHandle) {
     if !state.is_recording.swap(false, Ordering::SeqCst) {
         return;
     }
+    // Wake the meeting feeder immediately so it exits its 2 s sleep and starts
+    // post-loop work (trailing feed + finish_streaming) right away.
+    state.feeder_stop_cv.notify_all();
 
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.emit("recording-status", "processing");

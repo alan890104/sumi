@@ -138,9 +138,12 @@ pub(crate) fn run_feeder_loop(app: AppHandle, language: String) {
 
     let mut last_tail: usize = 0;
 
-    // Main loop: every 2 s, feed new audio to the engine.
+    // Main loop: every 2 s (interruptible), feed new audio to the engine.
     loop {
-        std::thread::sleep(Duration::from_millis(2000));
+        {
+            let guard = state.feeder_stop_mu.lock().unwrap_or_else(|e| e.into_inner());
+            let _ = state.feeder_stop_cv.wait_timeout(guard, Duration::from_millis(2000));
+        }
         if !state.is_recording.load(Ordering::SeqCst) {
             break;
         }
@@ -284,7 +287,10 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
     let waveform_keep: usize = sr as usize * 2;
 
     loop {
-        std::thread::sleep(Duration::from_millis(2000));
+        {
+            let guard = state.feeder_stop_mu.lock().unwrap_or_else(|e| e.into_inner());
+            let _ = state.feeder_stop_cv.wait_timeout(guard, Duration::from_millis(2000));
+        }
 
         if !state.is_recording.load(Ordering::SeqCst) {
             break;
@@ -366,6 +372,11 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
                 }
 
                 // Re-initialise a fresh session for the next speech segment.
+                // Add a space separator so adjacent segments are not fused into
+                // one word when the model omits trailing whitespace.
+                if !accumulated.is_empty() {
+                    accumulated.push(' ');
+                }
                 match guard.as_ref() {
                     Some(c) => {
                         sstate = c.engine.init_streaming(make_opts());

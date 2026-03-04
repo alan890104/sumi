@@ -360,6 +360,7 @@ pub fn do_stop_recording(
     streaming_active: &AtomicBool,
     streaming_cancelled: &AtomicBool,
     streaming_result: &Mutex<Option<String>>,
+    feeder_stop_cv: &std::sync::Condvar,
 ) -> Result<(String, Vec<f32>), String> {
     let sample_rate = sample_rate_mutex
         .lock()
@@ -372,6 +373,10 @@ pub fn do_stop_recording(
     {
         return Err("目前未在錄音".to_string());
     }
+    // Wake the streaming feeder immediately so it exits its 2 s sleep and
+    // starts post-loop work (trailing feed + finish_streaming) right away,
+    // reducing transcription latency by up to 2 s on short recordings.
+    feeder_stop_cv.notify_all();
 
     let samples: Vec<f32> = {
         let mut buf = buffer.lock().map_err(|e| e.to_string())?;

@@ -73,6 +73,17 @@ pub fn update_hotkey(
     let shortcut =
         parse_hotkey_string(&new_hotkey).ok_or_else(|| "Invalid hotkey string".to_string())?;
 
+    // Check for conflicts with existing edit/meeting hotkeys before touching shortcuts.
+    {
+        let settings = state.settings.lock().map_err(|e| e.to_string())?;
+        if settings.edit_hotkey.as_deref() == Some(new_hotkey.as_str()) {
+            return Err("Primary hotkey must differ from edit hotkey".to_string());
+        }
+        if settings.meeting_hotkey.as_deref() == Some(new_hotkey.as_str()) {
+            return Err("Primary hotkey must differ from meeting hotkey".to_string());
+        }
+    }
+
     app.global_shortcut()
         .unregister_all()
         .map_err(|e| format!("Failed to unregister shortcuts: {}", e))?;
@@ -136,6 +147,13 @@ pub fn update_edit_hotkey(
         if !hk.is_empty() {
             let _ = parse_hotkey_string(hk)
                 .ok_or_else(|| "Invalid edit hotkey string".to_string())?;
+            // Symmetric conflict check: edit hotkey must not match primary or meeting hotkey.
+            if *hk == settings.hotkey {
+                return Err("Edit hotkey must differ from primary hotkey".to_string());
+            }
+            if settings.meeting_hotkey.as_deref() == Some(hk.as_str()) {
+                return Err("Edit hotkey must differ from meeting hotkey".to_string());
+            }
         }
     }
     settings.edit_hotkey = new_edit_hotkey.filter(|s| !s.is_empty());
@@ -747,6 +765,7 @@ pub fn stop_recording(state: State<'_, AppState>) -> Result<String, String> {
         &state.streaming_active,
         &state.streaming_cancelled,
         &state.streaming_result,
+        &state.feeder_stop_cv,
     )
     .map(|(text, _samples)| text)
 }
@@ -788,7 +807,15 @@ pub fn set_edit_text_override(state: State<'_, AppState>, text: String) {
 
 #[tauri::command]
 pub fn cancel_recording(app: AppHandle, state: State<'_, AppState>) {
+    // If meeting mode is active, signal the feeder to discard its work
+    // (transcript, clipboard copy, history save) before hiding the overlay.
+    if state.meeting_active.load(Ordering::SeqCst) {
+        state.meeting_cancelled.store(true, Ordering::SeqCst);
+        state.meeting_active.store(false, Ordering::SeqCst);
+    }
     state.is_recording.store(false, Ordering::SeqCst);
+    // Wake any sleeping feeder immediately.
+    state.feeder_stop_cv.notify_all();
     if let Some(overlay) = app.get_webview_window("overlay") {
         platform::hide_overlay(&overlay);
     }
