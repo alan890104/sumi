@@ -1381,91 +1381,7 @@ pub fn run() {
                                         }
 
                                         // Audio level monitoring thread
-                                        let app_for_monitor = app.clone();
-                                        std::thread::spawn(move || {
-                                            let state = app_for_monitor.state::<AppState>();
-                                            let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100) as usize;
-                                            let recording_start = Instant::now();
-
-                                            const NUM_BARS: usize = 20;
-                                            let samples_per_bar = sr / 20;
-                                            // Adaptive gain: track recent peak RMS so the waveform
-                                            // fills the full visual range regardless of platform
-                                            // mic level (macOS Core Audio vs Windows WASAPI).
-                                            let mut peak_rms: f32 = 0.01; // initial floor
-
-                                            while state.is_recording.load(Ordering::SeqCst) {
-                                                // Dead-stream guard: if buffer is still empty after
-                                                // 1.5 s the cpal callback is not running at all.
-                                                if recording_start.elapsed().as_millis() >= 1500 {
-                                                    let buf_empty = state.buffer.lock()
-                                                        .map(|b| b.is_empty())
-                                                        .unwrap_or(false);
-                                                    if buf_empty {
-                                                        tracing::warn!("⚠️ No audio data after 1.5s — stream dead, aborting recording");
-                                                        state.is_recording.store(false, Ordering::SeqCst);
-                                                        state.mic_available.store(false, Ordering::SeqCst);
-                                                        if let Some(ov) = app_for_monitor.get_webview_window("overlay") {
-                                                            let _ = ov.emit("recording-status", "error");
-                                                        }
-                                                        return;
-                                                    }
-                                                }
-
-                                                if recording_start.elapsed().as_secs() >= MAX_RECORDING_SECS {
-                                                    tracing::info!("⏱️ Max recording duration reached ({}s)", MAX_RECORDING_SECS);
-                                                    if state.edit_mode.load(Ordering::SeqCst) {
-                                                        stop_edit_and_replace(&app_for_monitor);
-                                                    } else {
-                                                        stop_transcribe_and_paste(&app_for_monitor);
-                                                    }
-                                                    return;
-                                                }
-                                                let levels: Vec<f32> = if let Ok(buf) = state.buffer.lock() {
-                                                    if buf.is_empty() {
-                                                        vec![0.0; NUM_BARS]
-                                                    } else {
-                                                        let total = NUM_BARS * samples_per_bar;
-                                                        let start = buf.len().saturating_sub(total);
-                                                        let raw_rms: Vec<f32> = buf[start..]
-                                                            .chunks(samples_per_bar)
-                                                            .map(|chunk| {
-                                                                (chunk.iter().map(|&s| s * s).sum::<f32>()
-                                                                    / chunk.len() as f32)
-                                                                    .sqrt()
-                                                            })
-                                                            .collect();
-                                                        // Fast attack, slow decay (~3.5s to halve at 50ms tick)
-                                                        let frame_max = raw_rms.iter().cloned().fold(0.0f32, f32::max);
-                                                        if frame_max > peak_rms {
-                                                            peak_rms = frame_max;
-                                                        } else {
-                                                            peak_rms *= 0.99;
-                                                        }
-                                                        peak_rms = peak_rms.max(0.001);
-                                                        let mut bars: Vec<f32> = raw_rms.iter()
-                                                            .map(|&rms| (rms / peak_rms).min(1.0))
-                                                            .collect();
-                                                        while bars.len() < NUM_BARS {
-                                                            bars.insert(0, 0.0);
-                                                        }
-                                                        bars
-                                                    }
-                                                } else {
-                                                    vec![0.0; NUM_BARS]
-                                                };
-
-                                                if let Some(ov) = app_for_monitor.get_webview_window("overlay") {
-                                                    let _ = ov.emit("audio-levels", &levels);
-                                                }
-                                                if state.voice_rule_mode.load(Ordering::SeqCst) {
-                                                    if let Some(main_win) = app_for_monitor.get_webview_window("main") {
-                                                        let _ = main_win.emit("voice-rule-levels", &levels);
-                                                    }
-                                                }
-                                                std::thread::sleep(std::time::Duration::from_millis(50));
-                                            }
-                                        });
+                                        spawn_audio_level_monitor(app.clone(), AudioMonitorMode::Normal);
                                     }
                                     Err(e) => {
                                         tracing::error!("Failed to start recording: {}", e);
@@ -1631,76 +1547,8 @@ fn start_meeting_mode(app: &AppHandle) {
         platform::show_overlay(&overlay);
     }
 
-    // Audio level monitor thread (same as normal recording, but checks meeting_active).
-    {
-        let app_for_monitor = app.clone();
-        std::thread::spawn(move || {
-            let state = app_for_monitor.state::<AppState>();
-            let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100) as usize;
-            let recording_start = Instant::now();
-
-            const NUM_BARS: usize = 20;
-            let samples_per_bar = sr / 20;
-            let mut peak_rms: f32 = 0.01;
-
-            while state.is_recording.load(Ordering::SeqCst) {
-                // Dead-stream guard: if the buffer is still empty after 1.5 s, the
-                // cpal callback has stopped (mic disconnected / stream error). Treat
-                // this identically to the user pressing the stop hotkey so the
-                // overlay is updated and the accumulated transcript is saved.
-                if recording_start.elapsed().as_millis() >= 1500 {
-                    let buf_empty = state.buffer.lock()
-                        .map(|b| b.is_empty())
-                        .unwrap_or(false);
-                    if buf_empty {
-                        tracing::warn!("No audio data after 1.5s in meeting mode — stream dead, stopping meeting");
-                        state.mic_available.store(false, Ordering::SeqCst);
-                        stop_meeting_mode(&app_for_monitor);
-                        return;
-                    }
-                }
-
-                let levels: Vec<f32> = if let Ok(buf) = state.buffer.lock() {
-                    if buf.is_empty() {
-                        vec![0.0; NUM_BARS]
-                    } else {
-                        let total = NUM_BARS * samples_per_bar;
-                        let start = buf.len().saturating_sub(total);
-                        let raw_rms: Vec<f32> = buf[start..]
-                            .chunks(samples_per_bar)
-                            .map(|chunk| {
-                                (chunk.iter().map(|&s| s * s).sum::<f32>()
-                                    / chunk.len() as f32)
-                                    .sqrt()
-                            })
-                            .collect();
-                        let frame_max = raw_rms.iter().cloned().fold(0.0f32, f32::max);
-                        if frame_max > peak_rms {
-                            peak_rms = frame_max;
-                        } else {
-                            peak_rms *= 0.99;
-                        }
-                        peak_rms = peak_rms.max(0.001);
-                        let mut bars: Vec<f32> = raw_rms
-                            .iter()
-                            .map(|&rms| (rms / peak_rms).min(1.0))
-                            .collect();
-                        while bars.len() < NUM_BARS {
-                            bars.insert(0, 0.0);
-                        }
-                        bars
-                    }
-                } else {
-                    vec![0.0; NUM_BARS]
-                };
-
-                if let Some(ov) = app_for_monitor.get_webview_window("overlay") {
-                    let _ = ov.emit("audio-levels", &levels);
-                }
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }
-        });
-    }
+    // Audio level monitor thread.
+    spawn_audio_level_monitor(app.clone(), AudioMonitorMode::Meeting);
 
     // Spawn meeting feeder after engine is warm (max 8 s wait).
     // Also trigger warm proactively so the engine starts loading in parallel.
@@ -1863,4 +1711,126 @@ fn stop_meeting_mode(app: &AppHandle) {
     hide_overlay_delayed(app, 2000);
     // meeting_active is already false: either the feeder set it to false when
     // it finished normally, or stop_meeting_mode set it to false on timeout.
+}
+
+// ---------------------------------------------------------------------------
+// Audio level monitor helpers
+// ---------------------------------------------------------------------------
+
+enum AudioMonitorMode {
+    Normal,
+    Meeting,
+}
+
+/// Compute per-bar RMS levels from the current audio buffer, applying adaptive
+/// gain (fast attack, slow decay) so the waveform fills the visual range on
+/// any platform or mic sensitivity.
+fn compute_audio_levels(
+    buffer: &std::sync::Mutex<Vec<f32>>,
+    num_bars: usize,
+    samples_per_bar: usize,
+    peak_rms: &mut f32,
+) -> Vec<f32> {
+    let Ok(buf) = buffer.lock() else {
+        return vec![0.0; num_bars];
+    };
+    if buf.is_empty() {
+        return vec![0.0; num_bars];
+    }
+    let total = num_bars * samples_per_bar;
+    let start = buf.len().saturating_sub(total);
+    let raw_rms: Vec<f32> = buf[start..]
+        .chunks(samples_per_bar)
+        .map(|chunk| {
+            (chunk.iter().map(|&s| s * s).sum::<f32>() / chunk.len() as f32).sqrt()
+        })
+        .collect();
+    // Fast attack, slow decay (~3.5 s to halve at 50 ms tick).
+    let frame_max = raw_rms.iter().cloned().fold(0.0f32, f32::max);
+    if frame_max > *peak_rms {
+        *peak_rms = frame_max;
+    } else {
+        *peak_rms *= 0.99;
+    }
+    *peak_rms = peak_rms.max(0.001);
+    let mut bars: Vec<f32> = raw_rms.iter().map(|&rms| (rms / *peak_rms).min(1.0)).collect();
+    while bars.len() < num_bars {
+        bars.insert(0, 0.0);
+    }
+    bars
+}
+
+/// Spawn the 50 ms audio-level monitor thread.
+/// `Normal` mode applies max-duration auto-stop and voice-rule-mode forwarding.
+/// `Meeting` mode calls `stop_meeting_mode` on dead-stream detection.
+fn spawn_audio_level_monitor(app: AppHandle, mode: AudioMonitorMode) {
+    std::thread::spawn(move || {
+        let state = app.state::<AppState>();
+        let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100) as usize;
+        let recording_start = Instant::now();
+
+        const NUM_BARS: usize = 20;
+        let samples_per_bar = sr / 20;
+        // Adaptive gain: track recent peak RMS so the waveform fills the full
+        // visual range regardless of platform mic level.
+        let mut peak_rms: f32 = 0.01;
+
+        while state.is_recording.load(Ordering::SeqCst) {
+            // Dead-stream guard: if the buffer is still empty after 1.5 s the
+            // cpal callback is not running at all.
+            if recording_start.elapsed().as_millis() >= 1500 {
+                let buf_empty = state.buffer.lock().map(|b| b.is_empty()).unwrap_or(false);
+                if buf_empty {
+                    state.mic_available.store(false, Ordering::SeqCst);
+                    match mode {
+                        AudioMonitorMode::Normal => {
+                            tracing::warn!(
+                                "No audio data after 1.5s — stream dead, aborting recording"
+                            );
+                            state.is_recording.store(false, Ordering::SeqCst);
+                            if let Some(ov) = app.get_webview_window("overlay") {
+                                let _ = ov.emit("recording-status", "error");
+                            }
+                        }
+                        AudioMonitorMode::Meeting => {
+                            tracing::warn!(
+                                "No audio data after 1.5s in meeting mode — stream dead, stopping meeting"
+                            );
+                            stop_meeting_mode(&app);
+                        }
+                    }
+                    return;
+                }
+            }
+
+            // Normal mode only: enforce max recording duration.
+            if matches!(mode, AudioMonitorMode::Normal)
+                && recording_start.elapsed().as_secs() >= MAX_RECORDING_SECS
+            {
+                tracing::info!("Max recording duration reached ({}s)", MAX_RECORDING_SECS);
+                if state.edit_mode.load(Ordering::SeqCst) {
+                    stop_edit_and_replace(&app);
+                } else {
+                    stop_transcribe_and_paste(&app);
+                }
+                return;
+            }
+
+            let levels = compute_audio_levels(&state.buffer, NUM_BARS, samples_per_bar, &mut peak_rms);
+
+            if let Some(ov) = app.get_webview_window("overlay") {
+                let _ = ov.emit("audio-levels", &levels);
+            }
+            // Normal mode only: forward levels to the main window for voice-rule visualisation.
+            if matches!(mode, AudioMonitorMode::Normal)
+                && state.voice_rule_mode.load(Ordering::SeqCst)
+            {
+                if let Some(main_win) = app.get_webview_window("main") {
+                    let _ = main_win.emit("voice-rule-levels", &levels);
+                }
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    });
 }
