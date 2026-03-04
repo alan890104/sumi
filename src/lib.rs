@@ -1637,12 +1637,29 @@ fn start_meeting_mode(app: &AppHandle) {
         std::thread::spawn(move || {
             let state = app_for_monitor.state::<AppState>();
             let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100) as usize;
+            let recording_start = Instant::now();
 
             const NUM_BARS: usize = 20;
             let samples_per_bar = sr / 20;
             let mut peak_rms: f32 = 0.01;
 
             while state.is_recording.load(Ordering::SeqCst) {
+                // Dead-stream guard: if the buffer is still empty after 1.5 s, the
+                // cpal callback has stopped (mic disconnected / stream error). Treat
+                // this identically to the user pressing the stop hotkey so the
+                // overlay is updated and the accumulated transcript is saved.
+                if recording_start.elapsed().as_millis() >= 1500 {
+                    let buf_empty = state.buffer.lock()
+                        .map(|b| b.is_empty())
+                        .unwrap_or(false);
+                    if buf_empty {
+                        tracing::warn!("No audio data after 1.5s in meeting mode — stream dead, stopping meeting");
+                        state.mic_available.store(false, Ordering::SeqCst);
+                        stop_meeting_mode(&app_for_monitor);
+                        return;
+                    }
+                }
+
                 let levels: Vec<f32> = if let Ok(buf) = state.buffer.lock() {
                     if buf.is_empty() {
                         vec![0.0; NUM_BARS]
@@ -1792,7 +1809,9 @@ fn stop_meeting_mode(app: &AppHandle) {
         return;
     }
 
-    // Copy to clipboard.
+    // Copy to clipboard. Meeting mode intentionally ignores `auto_paste`:
+    // auto-pasting a full meeting transcript at the cursor would be disruptive
+    // and almost never what the user wants. Clipboard-only is the safe default.
     if let Ok(mut clipboard) = arboard::Clipboard::new() {
         if let Err(e) = clipboard.set_text(&transcript) {
             tracing::error!("Meeting clipboard error: {}", e);

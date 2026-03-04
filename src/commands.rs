@@ -57,6 +57,7 @@ pub fn save_settings(
     // Keep cloud.language in sync with top-level language
     current.stt.cloud.language = current.stt.language.clone();
     current.edit_hotkey = new_settings.edit_hotkey;
+    current.meeting_hotkey = new_settings.meeting_hotkey;
     current.onboarding_completed = new_settings.onboarding_completed;
     settings::save_settings_to_disk(&current);
     Ok(())

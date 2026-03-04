@@ -155,6 +155,8 @@
   let isSwitchingSpinner: boolean = $derived.by(() => is('switching'));
 
   // ── Partial text display (live preview during Qwen3-ASR recording) ──
+  // Maximum characters shown in the live-preview label. Displays the trailing
+  // PARTIAL_MAX-1 chars with a leading '…' when the transcript exceeds this.
   const PARTIAL_MAX = 30;
   let showingPartial: boolean = $derived.by(() => is('recording', 'meeting_recording') && partialText.length > 0);
   let displayLabelText: string = $derived(
