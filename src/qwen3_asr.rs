@@ -1,13 +1,11 @@
 use std::sync::Mutex;
 
-use candle_core::Device;
-
 use crate::stt::{qwen3_asr_model_dir, is_qwen3_asr_downloaded, Qwen3AsrModel};
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
 pub struct Qwen3AsrCache {
-    pub engine: qwen3_asr::inference::AsrInference,
+    pub engine: qwen3_asr::AsrInference,
     pub model: Qwen3AsrModel,
 }
 
@@ -46,21 +44,8 @@ pub fn warm_qwen3_asr(
     tracing::info!("Loading Qwen3-ASR {}...", model.display_name());
     let t0 = std::time::Instant::now();
 
-    let device = if cfg!(feature = "metal") {
-        Device::new_metal(0).unwrap_or_else(|e| {
-            tracing::warn!("Metal unavailable, falling back to CPU (Qwen3-ASR will be slow): {}", e);
-            Device::Cpu
-        })
-    } else if candle_core::utils::cuda_is_available() {
-        Device::new_cuda(0).unwrap_or_else(|e| {
-            tracing::warn!("CUDA unavailable, falling back to CPU (Qwen3-ASR will be slow): {}", e);
-            Device::Cpu
-        })
-    } else {
-        tracing::warn!("No GPU acceleration available, Qwen3-ASR will run on CPU");
-        Device::Cpu
-    };
-    let engine = qwen3_asr::inference::AsrInference::load(&model_dir, device)
+    let device = qwen3_asr::best_device();
+    let engine = qwen3_asr::AsrInference::load(&model_dir, device)
         .map_err(|e| format!("Qwen3-ASR load failed: {}", e))?;
 
     tracing::info!("Qwen3-ASR {} loaded in {:.1?}", model.display_name(), t0.elapsed());
@@ -83,15 +68,19 @@ pub fn transcribe_with_cached_qwen3_asr(
     });
     let c = guard.as_ref().ok_or("Qwen3-ASR cache empty after warm")?;
 
-    let lang_opt: Option<&str> = if language == "auto" || language.is_empty() {
+    let lang_opt = if language == "auto" || language.is_empty() {
         None
     } else {
-        Some(language)
+        Some(language.to_string())
     };
 
+    let mut opts = qwen3_asr::TranscribeOptions::default();
+    if let Some(lang) = lang_opt {
+        opts = opts.with_language(lang);
+    }
     let result = c
         .engine
-        .transcribe_samples(samples, lang_opt)
+        .transcribe_samples(samples, opts)
         .map_err(|e| format!("Qwen3-ASR transcription failed: {}", e))?;
 
     Ok(result.text)
