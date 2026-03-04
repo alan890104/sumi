@@ -148,6 +148,7 @@ export interface Settings {
   edit_hotkey: string | null;
   onboarding_completed: boolean;
   mic_device: string | null;
+  meeting_hotkey: string | null;
 }
 
 // ── History ──
@@ -251,6 +252,7 @@ export type OverlayStatus =
   | 'preparing'
   | 'recording'
   | 'edit_recording'
+  | 'meeting_recording'
   | 'processing'
   | 'transcribing'
   | 'polishing'

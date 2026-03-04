@@ -91,6 +91,12 @@ pub fn update_hotkey(
         }
     }
 
+    if let Some(ref meeting_hk) = settings.meeting_hotkey {
+        if let Some(meeting_shortcut) = parse_hotkey_string(meeting_hk) {
+            let _ = app.global_shortcut().register(meeting_shortcut);
+        }
+    }
+
     let label = hotkey_display_label(&new_hotkey);
     if let Some(tray) = app.tray_by_id("main-tray") {
         let tooltip = if settings::is_debug() {
@@ -145,8 +151,65 @@ pub fn update_edit_hotkey(
         }
     }
 
+    if let Some(ref meeting_hk) = settings.meeting_hotkey {
+        if let Some(shortcut) = parse_hotkey_string(meeting_hk) {
+            let _ = app.global_shortcut().register(shortcut);
+        }
+    }
+
     settings::save_settings_to_disk(&settings);
     tracing::info!("Edit hotkey updated to: {:?}", settings.edit_hotkey);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_meeting_hotkey(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    hotkey: Option<String>,
+) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|e| format!("Failed to unregister shortcuts: {}", e))?;
+
+    let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+
+    if let Some(ref hk) = hotkey {
+        if !hk.is_empty() {
+            let _ = parse_hotkey_string(hk)
+                .ok_or_else(|| "Invalid meeting hotkey string".to_string())?;
+        }
+    }
+    settings.meeting_hotkey = hotkey.filter(|s| !s.is_empty());
+
+    // Re-register primary hotkey.
+    let primary = parse_hotkey_string(&settings.hotkey)
+        .ok_or_else(|| "Invalid primary hotkey".to_string())?;
+    app.global_shortcut()
+        .register(primary)
+        .map_err(|e| format!("Failed to register primary shortcut: {}", e))?;
+
+    // Re-register edit hotkey if set.
+    if let Some(ref edit_hk) = settings.edit_hotkey {
+        if let Some(shortcut) = parse_hotkey_string(edit_hk) {
+            let _ = app.global_shortcut().register(shortcut);
+        }
+    }
+
+    // Register new meeting hotkey if set.
+    if let Some(ref meeting_hk) = settings.meeting_hotkey {
+        if let Some(shortcut) = parse_hotkey_string(meeting_hk) {
+            app.global_shortcut()
+                .register(shortcut)
+                .map_err(|e| format!("Failed to register meeting shortcut: {}", e))?;
+            tracing::info!("Meeting hotkey registered: {}", meeting_hk);
+        }
+    }
+
+    settings::save_settings_to_disk(&settings);
+    tracing::info!("Meeting hotkey updated to: {:?}", settings.meeting_hotkey);
     Ok(())
 }
 

@@ -36,6 +36,9 @@ export const updateHotkey = (hotkey: string) =>
 export const updateEditHotkey = (hotkey: string) =>
   invoke<void>('update_edit_hotkey', { hotkey });
 
+export const updateMeetingHotkey = (hotkey: string | null) =>
+  invoke<void>('update_meeting_hotkey', { hotkey });
+
 export const resetSettings = () => invoke<void>('reset_settings');
 
 export const getDefaultPrompt = () =>

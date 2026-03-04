@@ -350,5 +350,9 @@
   "stats.fact.streak": "{count} dictations and counting!",
   "stats.fact.keepGoing": "Keep dictating to unlock fun stats!",
   "promptRules.matchConditions": "Match Conditions",
-  "promptRules.or": "OR"
+  "promptRules.or": "OR",
+  "overlay.meetingRecording": "Meeting…",
+  "settings.shortcuts.meetingHotkey": "Meeting Mode",
+  "settings.shortcuts.meetingHotkeyDesc": "Long-form meeting transcription (Qwen3-ASR only)",
+  "settings.shortcuts.meetingNotSet": "Not configured"
 }

@@ -66,6 +66,9 @@ pub struct AppState {
     pub reconnecting: AtomicBool,
     pub streaming_active: AtomicBool,
     pub streaming_result: Mutex<Option<String>>,
+    pub meeting_active: AtomicBool,
+    pub meeting_transcript: Mutex<String>,
+    pub meeting_start_time: Mutex<Option<std::time::Instant>>,
 }
 
 /// Restore original clipboard content from saved_clipboard.
@@ -666,6 +669,7 @@ pub fn run() {
             commands::list_qwen3_asr_models,
             commands::switch_qwen3_asr_model,
             commands::download_qwen3_asr_model,
+            commands::update_meeting_hotkey,
         ])
         .setup(|app| {
             // Initialize logger
@@ -772,6 +776,9 @@ pub fn run() {
                 reconnecting: AtomicBool::new(false),
                 streaming_active: AtomicBool::new(false),
                 streaming_result: Mutex::new(None),
+                meeting_active: AtomicBool::new(false),
+                meeting_transcript: Mutex::new(String::new()),
+                meeting_start_time: Mutex::new(None),
             });
 
             // Register a CoreAudio listener for default-input-device changes.
@@ -990,6 +997,7 @@ pub fn run() {
                 let primary_shortcut = parse_hotkey_string(&hotkey_str)
                     .unwrap_or(fallback_shortcut);
                 let edit_shortcut = settings.edit_hotkey.as_deref().and_then(parse_hotkey_string);
+                let meeting_shortcut = settings.meeting_hotkey.as_deref().and_then(parse_hotkey_string);
 
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
@@ -999,6 +1007,11 @@ pub fn run() {
                             }
 
                             let state = app.state::<AppState>();
+
+                            let is_meeting_hotkey = state.settings.lock()
+                                .ok()
+                                .and_then(|s| s.meeting_hotkey.as_deref().and_then(parse_hotkey_string))
+                                .is_some_and(|ms| *shortcut == ms);
 
                             let is_edit_hotkey = state.settings.lock()
                                 .ok()
@@ -1028,6 +1041,22 @@ pub fn run() {
                             }
 
                             if state.model_switching.load(Ordering::SeqCst) {
+                                return;
+                            }
+
+                            // Meeting hotkey: toggle meeting mode independently.
+                            if is_meeting_hotkey {
+                                if state.meeting_active.load(Ordering::SeqCst) {
+                                    let app_clone = app.clone();
+                                    std::thread::spawn(move || stop_meeting_mode(&app_clone));
+                                } else {
+                                    start_meeting_mode(app);
+                                }
+                                return;
+                            }
+
+                            // Block regular hotkeys while meeting is active.
+                            if state.meeting_active.load(Ordering::SeqCst) {
                                 return;
                             }
 
@@ -1429,6 +1458,13 @@ pub fn run() {
                         tracing::info!("{} edit shortcut registered", hotkey_display_label(edit_hk));
                     }
                 }
+
+                if let Some(meeting_sc) = meeting_shortcut {
+                    app.global_shortcut().register(meeting_sc)?;
+                    if let Some(ref meeting_hk) = settings.meeting_hotkey {
+                        tracing::info!("{} meeting shortcut registered", hotkey_display_label(meeting_hk));
+                    }
+                }
             }
 
             Ok(())
@@ -1444,4 +1480,267 @@ fn show_settings_window(app: &AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+fn start_meeting_mode(app: &AppHandle) {
+    let state = app.state::<AppState>();
+
+    // Only Qwen3-ASR local mode is supported.
+    let (stt_mode, local_engine, qwen3_model, lang) = state
+        .settings
+        .lock()
+        .map(|s| (
+            s.stt.mode.clone(),
+            s.stt.local_engine.clone(),
+            s.stt.qwen3_asr_model.clone(),
+            s.stt.language.clone(),
+        ))
+        .unwrap_or_default();
+
+    if stt_mode != SttMode::Local || local_engine != stt::LocalSttEngine::Qwen3Asr {
+        tracing::warn!("Meeting mode requires Qwen3-ASR local engine");
+        if let Some(overlay) = app.get_webview_window("overlay") {
+            let _ = overlay.emit("recording-status", "error");
+            if let Ok(Some(monitor)) = overlay.current_monitor() {
+                let screen = monitor.size();
+                let scale = monitor.scale_factor();
+                let win_w = 300.0_f64;
+                let win_h = 40.0_f64;
+                let x = (screen.width as f64 / scale - win_w) / 2.0;
+                let y = screen.height as f64 / scale - win_h - 80.0;
+                let _ = overlay.set_position(tauri::PhysicalPosition::new(
+                    (x * scale) as i32,
+                    (y * scale) as i32,
+                ));
+            }
+            platform::show_overlay(&overlay);
+        }
+        hide_overlay_delayed(app, 2000);
+        return;
+    }
+
+    let preferred_device = state.settings.lock().ok().and_then(|s| s.mic_device.clone());
+    if let Err(e) = audio::do_start_recording(
+        &state.is_recording,
+        &state.mic_available,
+        &state.sample_rate,
+        &state.buffer,
+        &state.is_recording,
+        &state.audio_thread,
+        preferred_device,
+    ) {
+        tracing::error!("Meeting mode start failed: {}", e);
+        return;
+    }
+
+    state.meeting_active.store(true, Ordering::SeqCst);
+    if let Ok(mut t) = state.meeting_transcript.lock() {
+        t.clear();
+    }
+    if let Ok(mut st) = state.meeting_start_time.lock() {
+        *st = Some(std::time::Instant::now());
+    }
+
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.emit("recording-status", "meeting_recording");
+        let _ = overlay.emit("recording-max-duration", 0u64); // 0 = unlimited
+        if let Ok(Some(monitor)) = overlay.current_monitor() {
+            let screen = monitor.size();
+            let scale = monitor.scale_factor();
+            let win_w = 300.0_f64;
+            let win_h = 40.0_f64;
+            let x = (screen.width as f64 / scale - win_w) / 2.0;
+            let y = screen.height as f64 / scale - win_h - 80.0;
+            let _ = overlay.set_position(tauri::PhysicalPosition::new(
+                (x * scale) as i32,
+                (y * scale) as i32,
+            ));
+        }
+        platform::show_overlay(&overlay);
+    }
+
+    // Audio level monitor thread (same as normal recording, but checks meeting_active).
+    {
+        let app_for_monitor = app.clone();
+        std::thread::spawn(move || {
+            let state = app_for_monitor.state::<AppState>();
+            let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100) as usize;
+
+            const NUM_BARS: usize = 20;
+            let samples_per_bar = sr / 20;
+            let mut peak_rms: f32 = 0.01;
+
+            while state.is_recording.load(Ordering::SeqCst) {
+                let levels: Vec<f32> = if let Ok(buf) = state.buffer.lock() {
+                    if buf.is_empty() {
+                        vec![0.0; NUM_BARS]
+                    } else {
+                        let total = NUM_BARS * samples_per_bar;
+                        let start = buf.len().saturating_sub(total);
+                        let raw_rms: Vec<f32> = buf[start..]
+                            .chunks(samples_per_bar)
+                            .map(|chunk| {
+                                (chunk.iter().map(|&s| s * s).sum::<f32>()
+                                    / chunk.len() as f32)
+                                    .sqrt()
+                            })
+                            .collect();
+                        let frame_max = raw_rms.iter().cloned().fold(0.0f32, f32::max);
+                        if frame_max > peak_rms {
+                            peak_rms = frame_max;
+                        } else {
+                            peak_rms *= 0.99;
+                        }
+                        peak_rms = peak_rms.max(0.001);
+                        let mut bars: Vec<f32> = raw_rms
+                            .iter()
+                            .map(|&rms| (rms / peak_rms).min(1.0))
+                            .collect();
+                        while bars.len() < NUM_BARS {
+                            bars.insert(0, 0.0);
+                        }
+                        bars
+                    }
+                } else {
+                    vec![0.0; NUM_BARS]
+                };
+
+                if let Some(ov) = app_for_monitor.get_webview_window("overlay") {
+                    let _ = ov.emit("audio-levels", &levels);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+        });
+    }
+
+    // Spawn meeting feeder after engine is warm (max 8 s wait).
+    let feeder_app = app.clone();
+    std::thread::spawn(move || {
+        let fstate = feeder_app.state::<AppState>();
+        let mut waited = 0u64;
+        while waited < 8000 {
+            let ready = fstate
+                .qwen3_asr_ctx
+                .lock()
+                .ok()
+                .and_then(|g| g.as_ref().map(|c| c.model == qwen3_model))
+                .unwrap_or(false);
+            if ready {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            waited += 200;
+        }
+        let ready = fstate
+            .qwen3_asr_ctx
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(|c| c.model == qwen3_model))
+            .unwrap_or(false);
+        if !ready {
+            tracing::warn!("Meeting mode: engine not ready after 8s, aborting");
+            fstate.meeting_active.store(false, Ordering::SeqCst);
+            fstate.is_recording.store(false, Ordering::SeqCst);
+            return;
+        }
+        qwen3_asr::run_meeting_feeder_loop(feeder_app, lang);
+    });
+}
+
+fn stop_meeting_mode(app: &AppHandle) {
+    let state = app.state::<AppState>();
+
+    // Signal feeder to stop.
+    state.is_recording.store(false, Ordering::SeqCst);
+
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.emit("recording-status", "processing");
+    }
+
+    // Wait for feeder to finish (max 8 s).
+    let deadline =
+        std::time::Instant::now() + std::time::Duration::from_millis(8000);
+    while state.meeting_active.load(Ordering::SeqCst) {
+        if std::time::Instant::now() >= deadline {
+            tracing::warn!("Meeting feeder timeout — using partial transcript");
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    let transcript = state
+        .meeting_transcript
+        .lock()
+        .map(|t| t.clone())
+        .unwrap_or_default();
+
+    let duration_secs = state
+        .meeting_start_time
+        .lock()
+        .ok()
+        .and_then(|st| *st)
+        .map(|t| t.elapsed().as_secs_f64())
+        .unwrap_or(0.0);
+
+    if transcript.is_empty() {
+        tracing::info!("Meeting mode stopped — no transcript");
+        if let Some(overlay) = app.get_webview_window("overlay") {
+            let _ = overlay.emit("recording-status", "error");
+        }
+        hide_overlay_delayed(app, 1500);
+        state.meeting_active.store(false, Ordering::SeqCst);
+        return;
+    }
+
+    // Copy to clipboard.
+    if let Ok(mut clipboard) = arboard::Clipboard::new() {
+        if let Err(e) = clipboard.set_text(&transcript) {
+            tracing::error!("Meeting clipboard error: {}", e);
+        }
+    }
+
+    // Save history entry (no audio file).
+    {
+        let retention_days = state
+            .settings
+            .lock()
+            .map(|s| s.history_retention_days)
+            .unwrap_or(0);
+        let ctx = state
+            .captured_context
+            .lock()
+            .ok()
+            .and_then(|c| c.clone())
+            .unwrap_or_default();
+        let word_count = history::count_words(&transcript) as u64;
+        let entry_id = history::generate_id();
+        let entry = history::HistoryEntry {
+            id: entry_id,
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as i64,
+            text: transcript.clone(),
+            raw_text: transcript.clone(),
+            reasoning: None,
+            stt_model: "Qwen3-ASR (Meeting)".to_string(),
+            polish_model: "None".to_string(),
+            duration_secs,
+            has_audio: false,
+            stt_elapsed_ms: (duration_secs * 1000.0) as u64,
+            polish_elapsed_ms: None,
+            total_elapsed_ms: (duration_secs * 1000.0) as u64,
+            app_name: ctx.app_name.clone(),
+            bundle_id: ctx.bundle_id.clone(),
+            chars_per_sec: 0.0,
+            word_count,
+        };
+        history::add_entry(&history_dir(), &audio_dir(), entry, retention_days);
+    }
+
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.emit("recording-status", "copied");
+    }
+    hide_overlay_delayed(app, 2000);
+    state.meeting_active.store(false, Ordering::SeqCst);
 }

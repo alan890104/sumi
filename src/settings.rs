@@ -27,6 +27,9 @@ pub struct Settings {
     /// Preferred microphone input device name. None = use system default.
     #[serde(default)]
     pub mic_device: Option<String>,
+    /// Optional hotkey for meeting transcription mode. None = disabled.
+    #[serde(default)]
+    pub meeting_hotkey: Option<String>,
 }
 
 impl Default for Settings {
@@ -46,6 +49,7 @@ impl Default for Settings {
             edit_hotkey,
             onboarding_completed: false,
             mic_device: None,
+            meeting_hotkey: None,
         }
     }
 }

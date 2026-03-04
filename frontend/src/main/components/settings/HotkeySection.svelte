@@ -2,8 +2,8 @@
   import { onDestroy } from 'svelte';
   import { t } from '$lib/stores/i18n.svelte';
   import SectionHeader from '$lib/components/SectionHeader.svelte';
-  import { getHotkey, getEditHotkey, setHotkey, setEditHotkey, getPolishConfig } from '$lib/stores/settings.svelte';
-  import { updateHotkey, updateEditHotkey } from '$lib/api';
+  import { getHotkey, getEditHotkey, setHotkey, setEditHotkey, getPolishConfig, getMeetingHotkey, setMeetingHotkey } from '$lib/stores/settings.svelte';
+  import { updateHotkey, updateEditHotkey, updateMeetingHotkey } from '$lib/api';
   import Keycaps from '$lib/components/Keycaps.svelte';
   import { MODIFIER_SYMBOLS } from '$lib/constants';
 
@@ -184,10 +184,106 @@
     }
   }
 
+  // ── Meeting hotkey capture ──
+
+  let isMeetingCapturing = $state(false);
+  let meetingCapturedModifiers = $state(new Set<string>());
+  let meetingCapturedCode = $state('');
+
+  function startMeetingCapture() {
+    isMeetingCapturing = true;
+    meetingCapturedModifiers = new Set();
+    meetingCapturedCode = '';
+    document.addEventListener('keydown', onMeetingCaptureKeydown);
+    document.addEventListener('keyup', onMeetingCaptureKeyup);
+  }
+
+  function cancelMeetingCapture() {
+    isMeetingCapturing = false;
+    meetingCapturedModifiers = new Set();
+    meetingCapturedCode = '';
+    document.removeEventListener('keydown', onMeetingCaptureKeydown);
+    document.removeEventListener('keyup', onMeetingCaptureKeyup);
+  }
+
+  function onMeetingCaptureKeydown(e: KeyboardEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.key === 'Escape') {
+      cancelMeetingCapture();
+      return;
+    }
+
+    const mods = new Set<string>();
+    if (e.altKey) mods.add('Alt');
+    if (e.ctrlKey) mods.add('Control');
+    if (e.shiftKey) mods.add('Shift');
+    if (e.metaKey) mods.add('Super');
+    meetingCapturedModifiers = mods;
+
+    const nonModifiers = ['Alt', 'Control', 'Shift', 'Meta'];
+    if (!nonModifiers.includes(e.key)) {
+      meetingCapturedCode = e.code;
+    }
+
+    if (meetingCapturedCode) {
+      confirmMeetingCapture();
+    }
+  }
+
+  function onMeetingCaptureKeyup(_e: KeyboardEvent) {
+    // Wait for a non-modifier key
+  }
+
+  async function confirmMeetingCapture() {
+    const parts: string[] = [];
+    for (const mod of ['Control', 'Alt', 'Shift', 'Super']) {
+      if (meetingCapturedModifiers.has(mod)) parts.push(mod);
+    }
+    parts.push(meetingCapturedCode);
+    const newMeetingHotkey = parts.join('+');
+
+    // Must differ from primary and edit hotkeys
+    if (newMeetingHotkey === getHotkey() || newMeetingHotkey === getEditHotkey()) {
+      console.warn('Meeting hotkey must differ from primary and edit hotkeys');
+      cancelMeetingCapture();
+      return;
+    }
+
+    try {
+      await updateMeetingHotkey(newMeetingHotkey);
+      setMeetingHotkey(newMeetingHotkey);
+    } catch (e) {
+      console.error('Failed to update meeting hotkey:', e);
+    }
+
+    cancelMeetingCapture();
+  }
+
+  let meetingCapturePreviewHotkey = $derived.by(() => {
+    const parts: string[] = [];
+    for (const mod of ['Control', 'Alt', 'Shift', 'Super']) {
+      if (meetingCapturedModifiers.has(mod)) parts.push(mod);
+    }
+    if (meetingCapturedCode) parts.push(meetingCapturedCode);
+    return parts.join('+');
+  });
+
+  async function clearMeetingHotkey() {
+    try {
+      await updateMeetingHotkey(null);
+      setMeetingHotkey(null);
+    } catch (e) {
+      console.error('Failed to clear meeting hotkey:', e);
+    }
+  }
+
   // Cleanup on destroy
   onDestroy(() => {
     if (isCapturing) cancelCapture();
     if (isEditCapturing) cancelEditCapture();
+    if (isMeetingCapturing) cancelMeetingCapture();
   });
 </script>
 
@@ -257,6 +353,43 @@
         <div class="capture-hint">{t('settings.shortcuts.captureHint', { modifiers: modifierHint })}</div>
         <div class="capture-actions">
           <button class="btn-cancel" onclick={cancelEditCapture}>{t('settings.shortcuts.cancel')}</button>
+        </div>
+      </div>
+    {/if}
+  </div>
+
+  <!-- Meeting mode hotkey -->
+  <div class="edit-hotkey-section">
+    <div class="edit-hotkey-info">
+      <div class="edit-hotkey-name">{t('settings.shortcuts.meetingHotkey')}</div>
+      <div class="edit-hotkey-desc">{t('settings.shortcuts.meetingHotkeyDesc')}</div>
+    </div>
+
+    {#if !isMeetingCapturing}
+      <div class="hotkey-row">
+        {#if getMeetingHotkey()}
+          <Keycaps hotkey={getMeetingHotkey()!} />
+        {:else}
+          <span class="not-set">{t('settings.shortcuts.meetingNotSet')}</span>
+        {/if}
+        <div style="display: flex; gap: 8px; align-items: center;">
+          {#if getMeetingHotkey()}
+            <button class="hotkey-btn" onclick={clearMeetingHotkey}>{t('settings.shortcuts.clear')}</button>
+          {/if}
+          <button class="hotkey-btn" onclick={startMeetingCapture}>{t('settings.shortcuts.change')}</button>
+        </div>
+      </div>
+    {:else}
+      <div class="hotkey-capture active">
+        <div class="capture-label">{t('settings.shortcuts.captureLabel')}</div>
+        <div class="capture-preview">
+          {#if meetingCapturePreviewHotkey}
+            <Keycaps hotkey={meetingCapturePreviewHotkey} />
+          {/if}
+        </div>
+        <div class="capture-hint">{t('settings.shortcuts.captureHint', { modifiers: modifierHint })}</div>
+        <div class="capture-actions">
+          <button class="btn-cancel" onclick={cancelMeetingCapture}>{t('settings.shortcuts.cancel')}</button>
         </div>
       </div>
     {/if}

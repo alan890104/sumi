@@ -199,3 +199,158 @@ pub(crate) fn run_feeder_loop(app: AppHandle, language: String) {
     // Store result before clearing active flag (SeqCst ensures visibility ordering).
     state.streaming_active.store(false, Ordering::SeqCst);
 }
+
+/// Meeting mode feeder loop for continuous long-form transcription.
+///
+/// Runs in a dedicated thread during meeting recording. Every 2 seconds it drains
+/// the entire buffer (preventing the 10M sample safety cap), resamples to 16 kHz,
+/// feeds audio to the Qwen3-ASR streaming engine, and emits `"transcription-partial"`
+/// events with the accumulated transcript to the overlay window.
+///
+/// When continuous silence (RMS < 0.003) is detected for ≥ 4 seconds (2 ticks),
+/// the current streaming session is finished and a new one is started, keeping each
+/// inference segment short (~30–60 s) without requiring an additional VAD model.
+///
+/// When `is_recording` becomes false, the loop exits, the final segment is flushed,
+/// and the full transcript is written to `AppState.meeting_transcript` before
+/// `meeting_active` is set to false.
+pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String) {
+    let state = app.state::<crate::AppState>();
+
+    let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100);
+
+    let make_opts = || -> qwen3_asr::StreamingOptions {
+        if !language.is_empty() && language != "auto" {
+            qwen3_asr::StreamingOptions::default().with_language(&language)
+        } else {
+            qwen3_asr::StreamingOptions::default()
+        }
+    };
+
+    // Initialise first streaming session.
+    let mut sstate = {
+        let guard = state.qwen3_asr_ctx.lock().unwrap_or_else(|e| e.into_inner());
+        match guard.as_ref() {
+            Some(c) => c.engine.init_streaming(make_opts()),
+            None => {
+                state.meeting_active.store(false, Ordering::SeqCst);
+                return;
+            }
+        }
+    };
+
+    let mut accumulated = String::new();
+    let mut silence_count: u32 = 0;
+    const RMS_THRESHOLD: f32 = 0.003;
+
+    loop {
+        std::thread::sleep(Duration::from_millis(2000));
+
+        if !state.is_recording.load(Ordering::SeqCst) {
+            break;
+        }
+
+        // Drain the entire buffer to prevent the 10M sample safety cap.
+        let delta_raw: Vec<f32> = {
+            let mut buf = state.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            std::mem::take(&mut *buf)
+        };
+        if delta_raw.is_empty() {
+            silence_count += 1;
+            // Still check for reset even on empty buffer
+        } else {
+            // Resample to 16 kHz if needed.
+            let delta_16k = if sr != 16000 {
+                crate::audio::resample(&delta_raw, sr, 16000)
+            } else {
+                delta_raw
+            };
+
+            // RMS-based silence detection.
+            let rms = (delta_16k.iter().map(|&s| s * s).sum::<f32>()
+                / delta_16k.len() as f32)
+                .sqrt();
+            if rms < RMS_THRESHOLD {
+                silence_count += 1;
+            } else {
+                silence_count = 0;
+            }
+
+            // Feed audio to the streaming engine.
+            let partial = {
+                let guard = state.qwen3_asr_ctx.lock().unwrap_or_else(|e| e.into_inner());
+                guard.as_ref().map(|c| c.engine.feed_audio(&mut sstate, &delta_16k))
+            };
+
+            if let Some(Ok(Some(result))) = partial {
+                if !result.text.is_empty() {
+                    accumulated.push_str(&result.text);
+                    emit_meeting_partial(&app, &accumulated);
+                }
+            }
+        }
+
+        // Reset session on prolonged silence (≥ 2 ticks = 4 s).
+        if silence_count >= 2 {
+            let final_seg = {
+                let guard = state.qwen3_asr_ctx.lock().unwrap_or_else(|e| e.into_inner());
+                let text = guard
+                    .as_ref()
+                    .and_then(|c| c.engine.finish_streaming(&mut sstate).ok())
+                    .map(|r| r.text)
+                    .unwrap_or_default();
+                if !text.is_empty() {
+                    accumulated.push_str(&text);
+                }
+                // Re-initialise session for the next speech segment.
+                sstate = guard
+                    .as_ref()
+                    .map(|c| c.engine.init_streaming(make_opts()))
+                    .unwrap_or_else(|| {
+                        // Engine was dropped while we held the lock — this should not happen.
+                        tracing::error!("Qwen3-ASR engine gone during silence reset");
+                        // Return a dummy state; the next iteration will break anyway.
+                        // SAFETY: init_streaming is the only constructor; if the engine is
+                        // gone the next loop iteration will exit via is_recording==false.
+                        unreachable!("engine cannot be None here")
+                    });
+                text
+            };
+            if !final_seg.is_empty() {
+                emit_meeting_partial(&app, &accumulated);
+            }
+            silence_count = 0;
+            tracing::debug!("[meeting] Silence reset — new streaming session started");
+        }
+    }
+
+    // Flush remaining audio from the last segment.
+    let final_seg = {
+        let guard = state.qwen3_asr_ctx.lock().unwrap_or_else(|e| e.into_inner());
+        guard
+            .as_ref()
+            .and_then(|c| c.engine.finish_streaming(&mut sstate).ok())
+            .map(|r| r.text)
+            .unwrap_or_default()
+    };
+    if !final_seg.is_empty() {
+        accumulated.push_str(&final_seg);
+    }
+
+    tracing::info!("[meeting] Feeder finished. Total transcript length: {} chars", accumulated.len());
+
+    // Store transcript and signal completion.
+    if let Ok(mut t) = state.meeting_transcript.lock() {
+        *t = accumulated;
+    }
+    state.meeting_active.store(false, Ordering::SeqCst);
+}
+
+fn emit_meeting_partial(app: &tauri::AppHandle, text: &str) {
+    if let Some(ov) = app.get_webview_window("overlay") {
+        let _ = ov.emit(
+            "transcription-partial",
+            serde_json::json!({ "text": text }),
+        );
+    }
+}

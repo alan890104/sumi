@@ -46,6 +46,7 @@ let settings = $state<Settings>({
   edit_hotkey: null,
   onboarding_completed: false,
   mic_device: null,
+  meeting_hotkey: null,
 });
 
 export function getSettings(): Settings {
@@ -133,6 +134,14 @@ export function setHotkey(hotkey: string) {
 
 export function setEditHotkey(hotkey: string | null) {
   settings.edit_hotkey = hotkey;
+}
+
+export function getMeetingHotkey(): string | null {
+  return settings.meeting_hotkey;
+}
+
+export function setMeetingHotkey(hotkey: string | null) {
+  settings.meeting_hotkey = hotkey;
 }
 
 export function setLanguage(lang: string | null) {
