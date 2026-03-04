@@ -1725,26 +1725,30 @@ enum AudioMonitorMode {
 /// Compute per-bar RMS levels from the current audio buffer, applying adaptive
 /// gain (fast attack, slow decay) so the waveform fills the visual range on
 /// any platform or mic sensitivity.
+///
+/// The buffer lock is held only while copying the tail slice; all computation
+/// runs after the lock is released to minimise contention with the cpal callback.
 fn compute_audio_levels(
     buffer: &std::sync::Mutex<Vec<f32>>,
     num_bars: usize,
     samples_per_bar: usize,
     peak_rms: &mut f32,
 ) -> Vec<f32> {
-    let Ok(buf) = buffer.lock() else {
-        return vec![0.0; num_bars];
+    // Copy only the tail we need, then release the lock before computing.
+    let tail: Vec<f32> = {
+        let Ok(buf) = buffer.lock() else {
+            return vec![0.0; num_bars];
+        };
+        if buf.is_empty() {
+            return vec![0.0; num_bars];
+        }
+        let total = num_bars * samples_per_bar;
+        let start = buf.len().saturating_sub(total);
+        buf[start..].to_vec()
     };
-    if buf.is_empty() {
-        return vec![0.0; num_bars];
-    }
-    let total = num_bars * samples_per_bar;
-    let start = buf.len().saturating_sub(total);
-    let raw_rms: Vec<f32> = buf[start..]
-        .chunks(samples_per_bar)
-        .map(|chunk| {
-            (chunk.iter().map(|&s| s * s).sum::<f32>() / chunk.len() as f32).sqrt()
-        })
-        .collect();
+
+    let raw_rms: Vec<f32> = tail.chunks(samples_per_bar).map(audio::rms).collect();
+
     // Fast attack, slow decay (~3.5 s to halve at 50 ms tick).
     let frame_max = raw_rms.iter().cloned().fold(0.0f32, f32::max);
     if frame_max > *peak_rms {
@@ -1753,10 +1757,11 @@ fn compute_audio_levels(
         *peak_rms *= 0.99;
     }
     *peak_rms = peak_rms.max(0.001);
-    let mut bars: Vec<f32> = raw_rms.iter().map(|&rms| (rms / *peak_rms).min(1.0)).collect();
-    while bars.len() < num_bars {
-        bars.insert(0, 0.0);
-    }
+
+    // Left-pad with zeros so the waveform always has exactly `num_bars` bars,
+    // with the most-recent audio on the right.
+    let mut bars = vec![0.0f32; num_bars.saturating_sub(raw_rms.len())];
+    bars.extend(raw_rms.iter().map(|&rms| (rms / *peak_rms).min(1.0)));
     bars
 }
 
@@ -1774,11 +1779,14 @@ fn spawn_audio_level_monitor(app: AppHandle, mode: AudioMonitorMode) {
         // Adaptive gain: track recent peak RMS so the waveform fills the full
         // visual range regardless of platform mic level.
         let mut peak_rms: f32 = 0.01;
+        let is_normal = matches!(mode, AudioMonitorMode::Normal);
 
         while state.is_recording.load(Ordering::SeqCst) {
+            let elapsed = recording_start.elapsed();
+
             // Dead-stream guard: if the buffer is still empty after 1.5 s the
             // cpal callback is not running at all.
-            if recording_start.elapsed().as_millis() >= 1500 {
+            if elapsed.as_millis() >= 1500 {
                 let buf_empty = state.buffer.lock().map(|b| b.is_empty()).unwrap_or(false);
                 if buf_empty {
                     state.mic_available.store(false, Ordering::SeqCst);
@@ -1804,9 +1812,7 @@ fn spawn_audio_level_monitor(app: AppHandle, mode: AudioMonitorMode) {
             }
 
             // Normal mode only: enforce max recording duration.
-            if matches!(mode, AudioMonitorMode::Normal)
-                && recording_start.elapsed().as_secs() >= MAX_RECORDING_SECS
-            {
+            if is_normal && elapsed.as_secs() >= MAX_RECORDING_SECS {
                 tracing::info!("Max recording duration reached ({}s)", MAX_RECORDING_SECS);
                 if state.edit_mode.load(Ordering::SeqCst) {
                     stop_edit_and_replace(&app);
@@ -1822,9 +1828,7 @@ fn spawn_audio_level_monitor(app: AppHandle, mode: AudioMonitorMode) {
                 let _ = ov.emit("audio-levels", &levels);
             }
             // Normal mode only: forward levels to the main window for voice-rule visualisation.
-            if matches!(mode, AudioMonitorMode::Normal)
-                && state.voice_rule_mode.load(Ordering::SeqCst)
-            {
+            if is_normal && state.voice_rule_mode.load(Ordering::SeqCst) {
                 if let Some(main_win) = app.get_webview_window("main") {
                     let _ = main_win.emit("voice-rule-levels", &levels);
                 }
