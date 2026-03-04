@@ -404,11 +404,11 @@ pub fn get_app_icon(bundle_id: String) -> Result<String, String> {
 #[cfg(target_os = "macos")]
 fn get_app_icon_macos(bundle_id: &str) -> Result<String, String> {
     use base64::Engine;
-    use std::ffi::c_void;
+    use std::ffi::{c_char, c_void};
 
     extern "C" {
-        fn sel_registerName(name: *const u8) -> *mut c_void;
-        fn objc_getClass(name: *const u8) -> *mut c_void;
+        fn sel_registerName(name: *const c_char) -> *mut c_void;
+        fn objc_getClass(name: *const c_char) -> *mut c_void;
         fn objc_msgSend();
     }
 
@@ -418,16 +418,16 @@ fn get_app_icon_macos(bundle_id: &str) -> Result<String, String> {
         let send_obj_obj: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> *mut c_void =
             std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
 
-        let ws_cls = objc_getClass(c"NSWorkspace".as_ptr().cast());
+        let ws_cls = objc_getClass(c"NSWorkspace".as_ptr());
         if ws_cls.is_null() {
             return Err("NSWorkspace not found".to_string());
         }
-        let workspace = send_void(ws_cls, sel_registerName(c"sharedWorkspace".as_ptr().cast()));
+        let workspace = send_void(ws_cls, sel_registerName(c"sharedWorkspace".as_ptr()));
         if workspace.is_null() {
             return Err("sharedWorkspace is null".to_string());
         }
 
-        let nsstring_cls = objc_getClass(c"NSString".as_ptr().cast());
+        let nsstring_cls = objc_getClass(c"NSString".as_ptr());
         if nsstring_cls.is_null() {
             return Err("NSString class not found".to_string());
         }
@@ -437,7 +437,7 @@ fn get_app_icon_macos(bundle_id: &str) -> Result<String, String> {
             std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
         let ns_bundle_id = send_cstr(
             nsstring_cls,
-            sel_registerName(c"stringWithUTF8String:".as_ptr().cast()),
+            sel_registerName(c"stringWithUTF8String:".as_ptr()),
             c_bundle.as_ptr(),
         );
         if ns_bundle_id.is_null() {
@@ -446,21 +446,21 @@ fn get_app_icon_macos(bundle_id: &str) -> Result<String, String> {
 
         let app_url = send_obj_obj(
             workspace,
-            sel_registerName(c"URLForApplicationWithBundleIdentifier:".as_ptr().cast()),
+            sel_registerName(c"URLForApplicationWithBundleIdentifier:".as_ptr()),
             ns_bundle_id,
         );
         if app_url.is_null() {
             return Err("App not found for bundle_id".to_string());
         }
 
-        let app_path = send_void(app_url, sel_registerName(c"path".as_ptr().cast()));
+        let app_path = send_void(app_url, sel_registerName(c"path".as_ptr()));
         if app_path.is_null() {
             return Err("Failed to get app path".to_string());
         }
 
         let icon = send_obj_obj(
             workspace,
-            sel_registerName(c"iconForFile:".as_ptr().cast()),
+            sel_registerName(c"iconForFile:".as_ptr()),
             app_path,
         );
         if icon.is_null() {
@@ -476,25 +476,25 @@ fn get_app_icon_macos(bundle_id: &str) -> Result<String, String> {
             std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
         send_set_size(
             icon,
-            sel_registerName(c"setSize:".as_ptr().cast()),
+            sel_registerName(c"setSize:".as_ptr()),
             NSSize {
                 width: 32.0,
                 height: 32.0,
             },
         );
 
-        let tiff_data = send_void(icon, sel_registerName(c"TIFFRepresentation".as_ptr().cast()));
+        let tiff_data = send_void(icon, sel_registerName(c"TIFFRepresentation".as_ptr()));
         if tiff_data.is_null() {
             return Err("Failed to get TIFF data".to_string());
         }
 
-        let bitmap_cls = objc_getClass(c"NSBitmapImageRep".as_ptr().cast());
+        let bitmap_cls = objc_getClass(c"NSBitmapImageRep".as_ptr());
         if bitmap_cls.is_null() {
             return Err("NSBitmapImageRep not found".to_string());
         }
         let bitmap_rep = send_obj_obj(
             bitmap_cls,
-            sel_registerName(c"imageRepWithData:".as_ptr().cast()),
+            sel_registerName(c"imageRepWithData:".as_ptr()),
             tiff_data,
         );
         if bitmap_rep.is_null() {
@@ -503,11 +503,11 @@ fn get_app_icon_macos(bundle_id: &str) -> Result<String, String> {
 
         let send_png: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *mut c_void) -> *mut c_void =
             std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-        let empty_dict_cls = objc_getClass(c"NSDictionary".as_ptr().cast());
-        let empty_dict = send_void(empty_dict_cls, sel_registerName(c"dictionary".as_ptr().cast()));
+        let empty_dict_cls = objc_getClass(c"NSDictionary".as_ptr());
+        let empty_dict = send_void(empty_dict_cls, sel_registerName(c"dictionary".as_ptr()));
         let png_data = send_png(
             bitmap_rep,
-            sel_registerName(c"representationUsingType:properties:".as_ptr().cast()),
+            sel_registerName(c"representationUsingType:properties:".as_ptr()),
             4,
             empty_dict,
         );
@@ -520,8 +520,8 @@ fn get_app_icon_macos(bundle_id: &str) -> Result<String, String> {
         let send_bytes: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const u8 =
             std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
 
-        let len = send_len(png_data, sel_registerName(c"length".as_ptr().cast())) as usize;
-        let bytes_ptr = send_bytes(png_data, sel_registerName(c"bytes".as_ptr().cast()));
+        let len = send_len(png_data, sel_registerName(c"length".as_ptr())) as usize;
+        let bytes_ptr = send_bytes(png_data, sel_registerName(c"bytes".as_ptr()));
         if bytes_ptr.is_null() || len == 0 {
             return Err("PNG data is empty".to_string());
         }
@@ -1314,7 +1314,7 @@ pub fn download_polish_model(app: AppHandle, model: polisher::PolishModel) -> Re
     let model_path = dir.join(model.filename());
     let tokenizer_path = model.tokenizer_filename().map(|f| dir.join(f));
     let already_complete = model_path.exists()
-        && tokenizer_path.as_ref().map_or(true, |p| p.exists());
+        && tokenizer_path.as_ref().is_none_or(|p| p.exists());
     if already_complete {
         let _ = app.emit("polish-model-download-progress", serde_json::json!({
             "status": "complete",

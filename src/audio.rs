@@ -344,6 +344,7 @@ pub fn do_start_recording(
 }
 
 /// Stop recording, transcribe, and return the text + 16 kHz samples for history.
+#[allow(clippy::too_many_arguments)]
 pub fn do_stop_recording(
     is_recording: &AtomicBool,
     sample_rate_mutex: &Mutex<Option<u32>>,

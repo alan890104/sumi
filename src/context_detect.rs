@@ -170,7 +170,7 @@ fn match_cli_tool_by_processes(process_list: &str) -> Option<&'static str> {
     let procs: Vec<&str> = lower.split(',').map(|s| s.trim().trim_start_matches('-')).collect();
     for tool in CLI_TOOLS {
         for pname in tool.process_names {
-            if procs.iter().any(|p| *p == *pname) {
+            if procs.contains(pname) {
                 return Some(tool.display_name);
             }
         }
@@ -251,22 +251,22 @@ fn detect_terminal_subprocess(bundle_id: &str, _terminal_name: &str) -> Option<S
 /// Uses Objective-C runtime to get the frontmost application's name and bundle ID.
 #[cfg(target_os = "macos")]
 fn get_frontmost_app_info() -> (String, String) {
-    use std::ffi::c_void;
+    use std::ffi::{c_char, c_void};
 
     extern "C" {
-        fn sel_registerName(name: *const u8) -> *mut c_void;
-        fn objc_getClass(name: *const u8) -> *mut c_void;
+        fn sel_registerName(name: *const c_char) -> *mut c_void;
+        fn objc_getClass(name: *const c_char) -> *mut c_void;
         fn objc_msgSend();
     }
 
     unsafe {
         // [NSWorkspace sharedWorkspace]
-        let cls = objc_getClass(c"NSWorkspace".as_ptr().cast());
+        let cls = objc_getClass(c"NSWorkspace".as_ptr());
         if cls.is_null() {
             return (String::new(), String::new());
         }
 
-        let sel_shared = sel_registerName(c"sharedWorkspace".as_ptr().cast());
+        let sel_shared = sel_registerName(c"sharedWorkspace".as_ptr());
         let send_void: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
             std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
         let workspace = send_void(cls, sel_shared);
@@ -275,19 +275,19 @@ fn get_frontmost_app_info() -> (String, String) {
         }
 
         // [workspace frontmostApplication]
-        let sel_front = sel_registerName(c"frontmostApplication".as_ptr().cast());
+        let sel_front = sel_registerName(c"frontmostApplication".as_ptr());
         let app = send_void(workspace, sel_front);
         if app.is_null() {
             return (String::new(), String::new());
         }
 
         // [app localizedName]
-        let sel_name = sel_registerName(c"localizedName".as_ptr().cast());
+        let sel_name = sel_registerName(c"localizedName".as_ptr());
         let ns_name = send_void(app, sel_name);
         let app_name = nsstring_to_string(ns_name);
 
         // [app bundleIdentifier]
-        let sel_bundle = sel_registerName(c"bundleIdentifier".as_ptr().cast());
+        let sel_bundle = sel_registerName(c"bundleIdentifier".as_ptr());
         let ns_bundle = send_void(app, sel_bundle);
         let bundle_id = nsstring_to_string(ns_bundle);
 

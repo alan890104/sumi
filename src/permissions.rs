@@ -8,7 +8,7 @@ pub struct PermissionStatus {
 
 #[cfg(target_os = "macos")]
 mod inner {
-    use std::ffi::c_void;
+    use std::ffi::{c_char, c_void};
 
     // AVFoundation — AVCaptureDevice authorizationStatusForMediaType:
     #[link(name = "AVFoundation", kind = "framework")]
@@ -22,8 +22,8 @@ mod inner {
     }
 
     extern "C" {
-        fn objc_getClass(name: *const u8) -> *mut c_void;
-        fn sel_registerName(name: *const u8) -> *mut c_void;
+        fn objc_getClass(name: *const c_char) -> *mut c_void;
+        fn sel_registerName(name: *const c_char) -> *mut c_void;
         fn objc_msgSend();
     }
 
@@ -31,17 +31,17 @@ mod inner {
     /// 0 = notDetermined, 1 = restricted, 2 = denied, 3 = authorized
     pub fn microphone_auth_status() -> i64 {
         unsafe {
-            let cls = objc_getClass(b"AVCaptureDevice\0".as_ptr());
+            let cls = objc_getClass(c"AVCaptureDevice".as_ptr());
             if cls.is_null() {
                 return 0;
             }
-            let sel = sel_registerName(b"authorizationStatusForMediaType:\0".as_ptr());
+            let sel = sel_registerName(c"authorizationStatusForMediaType:".as_ptr());
 
-            let ns_string_cls = objc_getClass(b"NSString\0".as_ptr());
-            let sel_str = sel_registerName(b"stringWithUTF8String:\0".as_ptr());
-            let make_str: unsafe extern "C" fn(*mut c_void, *mut c_void, *const u8) -> *mut c_void =
+            let ns_string_cls = objc_getClass(c"NSString".as_ptr());
+            let sel_str = sel_registerName(c"stringWithUTF8String:".as_ptr());
+            let make_str: unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_char) -> *mut c_void =
                 std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-            let media_type = make_str(ns_string_cls, sel_str, b"soun\0".as_ptr());
+            let media_type = make_str(ns_string_cls, sel_str, c"soun".as_ptr());
 
             let send: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> i64 =
                 std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
@@ -52,17 +52,17 @@ mod inner {
     /// Request microphone access (triggers the system prompt if undetermined).
     pub fn request_microphone_access() {
         unsafe {
-            let cls = objc_getClass(b"AVCaptureDevice\0".as_ptr());
+            let cls = objc_getClass(c"AVCaptureDevice".as_ptr());
             if cls.is_null() {
                 return;
             }
-            let sel = sel_registerName(b"requestAccessForMediaType:completionHandler:\0".as_ptr());
+            let sel = sel_registerName(c"requestAccessForMediaType:completionHandler:".as_ptr());
 
-            let ns_string_cls = objc_getClass(b"NSString\0".as_ptr());
-            let sel_str = sel_registerName(b"stringWithUTF8String:\0".as_ptr());
-            let make_str: unsafe extern "C" fn(*mut c_void, *mut c_void, *const u8) -> *mut c_void =
+            let ns_string_cls = objc_getClass(c"NSString".as_ptr());
+            let sel_str = sel_registerName(c"stringWithUTF8String:".as_ptr());
+            let make_str: unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_char) -> *mut c_void =
                 std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-            let media_type = make_str(ns_string_cls, sel_str, b"soun\0".as_ptr());
+            let media_type = make_str(ns_string_cls, sel_str, c"soun".as_ptr());
 
             #[repr(C)]
             struct Block {
@@ -119,26 +119,26 @@ mod inner {
     pub fn prompt_accessibility() -> bool {
         unsafe {
             // Build { kAXTrustedCheckOptionPrompt: true } dictionary
-            let key_str = objc_getClass(b"NSString\0".as_ptr());
-            let sel_str = sel_registerName(b"stringWithUTF8String:\0".as_ptr());
-            let make_str: unsafe extern "C" fn(*mut c_void, *mut c_void, *const u8) -> *mut c_void =
+            let key_str = objc_getClass(c"NSString".as_ptr());
+            let sel_str = sel_registerName(c"stringWithUTF8String:".as_ptr());
+            let make_str: unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_char) -> *mut c_void =
                 std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
             let key = make_str(
                 key_str,
                 sel_str,
-                b"AXTrustedCheckOptionPrompt\0".as_ptr(),
+                c"AXTrustedCheckOptionPrompt".as_ptr(),
             );
 
             // NSNumber numberWithBool:YES
-            let ns_number = objc_getClass(b"NSNumber\0".as_ptr());
-            let sel_bool = sel_registerName(b"numberWithBool:\0".as_ptr());
+            let ns_number = objc_getClass(c"NSNumber".as_ptr());
+            let sel_bool = sel_registerName(c"numberWithBool:".as_ptr());
             let make_bool: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> *mut c_void =
                 std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
             let val = make_bool(ns_number, sel_bool, true);
 
             // NSDictionary dictionaryWithObject:forKey:
-            let ns_dict = objc_getClass(b"NSDictionary\0".as_ptr());
-            let sel_dict = sel_registerName(b"dictionaryWithObject:forKey:\0".as_ptr());
+            let ns_dict = objc_getClass(c"NSDictionary".as_ptr());
+            let sel_dict = sel_registerName(c"dictionaryWithObject:forKey:".as_ptr());
             let make_dict: unsafe extern "C" fn(
                 *mut c_void,
                 *mut c_void,

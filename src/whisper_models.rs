@@ -294,7 +294,7 @@ fn get_available_disk_space() -> u64 {
         unsafe {
             let mut stat: libc::statvfs = std::mem::zeroed();
             if libc::statvfs(path_c.as_ptr(), &mut stat) == 0 {
-                stat.f_bavail as u64 * stat.f_frsize as u64
+                stat.f_bavail as u64 * stat.f_frsize
             } else {
                 0
             }

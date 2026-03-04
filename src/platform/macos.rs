@@ -1,12 +1,12 @@
-use std::ffi::c_void;
+use std::ffi::{c_char, c_void};
 
 extern "C" {
-    fn sel_registerName(name: *const u8) -> *mut c_void;
+    fn sel_registerName(name: *const c_char) -> *mut c_void;
     fn objc_msgSend();
-    fn objc_getClass(name: *const u8) -> *mut c_void;
+    fn objc_getClass(name: *const c_char) -> *mut c_void;
     fn objc_allocateClassPair(
         superclass: *mut c_void,
-        name: *const u8,
+        name: *const c_char,
         extra_bytes: usize,
     ) -> *mut c_void;
     fn objc_registerClassPair(cls: *mut c_void);
@@ -15,16 +15,15 @@ extern "C" {
 
 /// Hide the Dock icon by setting the activation policy to Accessory.
 /// NSApplicationActivationPolicyAccessory = 1
+///
+/// # Safety
+/// Calls ObjC runtime through raw pointers. Must be called from the main thread.
 pub unsafe fn set_accessory_policy() {
-    let cls_name = b"NSApplication\0";
-    let sel_shared = sel_registerName(b"sharedApplication\0".as_ptr());
+    let sel_shared = sel_registerName(c"sharedApplication".as_ptr());
     let send_shared: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
 
-    let class_sel = sel_registerName(b"class\0".as_ptr());
-    let _ = class_sel;
-
-    let ns_app_class = objc_getClass(cls_name.as_ptr());
+    let ns_app_class = objc_getClass(c"NSApplication".as_ptr());
     if ns_app_class.is_null() {
         return;
     }
@@ -33,7 +32,7 @@ pub unsafe fn set_accessory_policy() {
         return;
     }
 
-    let sel_policy = sel_registerName(b"setActivationPolicy:\0".as_ptr());
+    let sel_policy = sel_registerName(c"setActivationPolicy:".as_ptr());
     let send_policy: unsafe extern "C" fn(*mut c_void, *mut c_void, i64) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send_policy(ns_app, sel_policy, 1); // 1 = Accessory
@@ -46,8 +45,11 @@ pub unsafe fn set_accessory_policy() {
 /// the full window.  Setting `isMovableByWindowBackground = YES` lets the
 /// user drag the window by clicking anywhere that is not an interactive
 /// control.
+///
+/// # Safety
+/// `ns_window` must be a valid, non-null NSWindow pointer.
 pub unsafe fn set_movable_by_background(ns_window: *mut c_void) {
-    let sel = sel_registerName(b"setMovableByWindowBackground:\0".as_ptr());
+    let sel = sel_registerName(c"setMovableByWindowBackground:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, i8) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 1); // YES
@@ -66,14 +68,13 @@ const OVERLAY_BEHAVIOR: u64 = 1    // canJoinAllSpaces
 /// runtime class that inherits from NSPanel and swap the window's
 /// isa pointer so the window server treats it as a panel.
 unsafe fn make_panel(ns_window: *mut c_void) {
-    let panel_class_name = b"SumiOverlayPanel\0".as_ptr();
-    let mut cls = objc_getClass(panel_class_name);
+    let mut cls = objc_getClass(c"SumiOverlayPanel".as_ptr());
     if cls.is_null() {
-        let ns_panel = objc_getClass(b"NSPanel\0".as_ptr());
+        let ns_panel = objc_getClass(c"NSPanel".as_ptr());
         if ns_panel.is_null() {
             return;
         }
-        cls = objc_allocateClassPair(ns_panel, panel_class_name, 0);
+        cls = objc_allocateClassPair(ns_panel, c"SumiOverlayPanel".as_ptr(), 0);
         if cls.is_null() {
             return;
         }
@@ -82,24 +83,24 @@ unsafe fn make_panel(ns_window: *mut c_void) {
     object_setClass(ns_window, cls);
 
     // NSPanel-specific: don't become key unless user explicitly clicks
-    let sel = sel_registerName(b"setBecomesKeyOnlyIfNeeded:\0".as_ptr());
+    let sel = sel_registerName(c"setBecomesKeyOnlyIfNeeded:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, i8) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 1);
 
     // NSPanel-specific: treat as a floating panel
-    let sel = sel_registerName(b"setFloatingPanel:\0".as_ptr());
+    let sel = sel_registerName(c"setFloatingPanel:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, i8) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 1);
 
     // Add non-activating panel to style mask (bit 7 = 128)
-    let sel_mask = sel_registerName(b"styleMask\0".as_ptr());
+    let sel_mask = sel_registerName(c"styleMask".as_ptr());
     let get_mask: unsafe extern "C" fn(*mut c_void, *mut c_void) -> u64 =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     let mask = get_mask(ns_window, sel_mask);
 
-    let sel_set = sel_registerName(b"setStyleMask:\0".as_ptr());
+    let sel_set = sel_registerName(c"setStyleMask:".as_ptr());
     let set_mask: unsafe extern "C" fn(*mut c_void, *mut c_void, u64) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     set_mask(ns_window, sel_set, mask | (1 << 7)); // NSWindowStyleMaskNonactivatingPanel
@@ -107,77 +108,86 @@ unsafe fn make_panel(ns_window: *mut c_void) {
 
 /// One-time setup: convert to NSPanel, floating level, stays visible
 /// when app deactivates, joins all Spaces (including fullscreen).
+///
+/// # Safety
+/// `ns_window` must be a valid, non-null NSWindow pointer. Must be called
+/// on the main thread during window setup.
 pub unsafe fn setup_overlay(ns_window: *mut c_void) {
     // Convert NSWindow → NSPanel so it can appear in fullscreen Spaces
     make_panel(ns_window);
 
     // setLevel: kCGPopUpMenuWindowLevel (101) — above fullscreen windows
-    let sel = sel_registerName(b"setLevel:\0".as_ptr());
+    let sel = sel_registerName(c"setLevel:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, i64) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 101);
 
     // setHidesOnDeactivate: NO
-    let sel = sel_registerName(b"setHidesOnDeactivate:\0".as_ptr());
+    let sel = sel_registerName(c"setHidesOnDeactivate:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, i8) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 0);
 
     // setCollectionBehavior
-    let sel = sel_registerName(b"setCollectionBehavior:\0".as_ptr());
+    let sel = sel_registerName(c"setCollectionBehavior:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, u64) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, OVERLAY_BEHAVIOR);
 
     // Register with window server immediately (alpha=0 so invisible),
     // ensuring the window joins all Spaces from the start.
-    let sel = sel_registerName(b"setAlphaValue:\0".as_ptr());
+    let sel = sel_registerName(c"setAlphaValue:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, f64) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 0.0);
 
-    let sel = sel_registerName(b"setIgnoresMouseEvents:\0".as_ptr());
+    let sel = sel_registerName(c"setIgnoresMouseEvents:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, i8) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 1);
 
     // Order front while invisible to register with all Spaces immediately
-    let sel = sel_registerName(b"orderFrontRegardless\0".as_ptr());
+    let sel = sel_registerName(c"orderFrontRegardless".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel);
-
 }
 
 /// Show without activating the application.
+///
+/// # Safety
+/// `ns_window` must be a valid, non-null NSWindow pointer.
 pub unsafe fn show_no_activate(ns_window: *mut c_void) {
     // Accept mouse events
-    let sel = sel_registerName(b"setIgnoresMouseEvents:\0".as_ptr());
+    let sel = sel_registerName(c"setIgnoresMouseEvents:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, i8) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 0);
 
     // Make visible
-    let sel = sel_registerName(b"setAlphaValue:\0".as_ptr());
+    let sel = sel_registerName(c"setAlphaValue:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, f64) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 1.0);
 
     // Bring to front without activating
-    let sel = sel_registerName(b"orderFrontRegardless\0".as_ptr());
+    let sel = sel_registerName(c"orderFrontRegardless".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel);
 }
 
 /// Hide the overlay (alpha-based, stays in window server for all Spaces).
+///
+/// # Safety
+/// `ns_window` must be a valid, non-null NSWindow pointer.
 pub unsafe fn hide_window(ns_window: *mut c_void) {
-    let sel = sel_registerName(b"setAlphaValue:\0".as_ptr());
+    let sel = sel_registerName(c"setAlphaValue:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, f64) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 0.0);
 
-    let sel = sel_registerName(b"setIgnoresMouseEvents:\0".as_ptr());
+    let sel = sel_registerName(c"setIgnoresMouseEvents:".as_ptr());
     let send: unsafe extern "C" fn(*mut c_void, *mut c_void, i8) =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     send(ns_window, sel, 1);
@@ -229,12 +239,16 @@ unsafe fn simulate_cmd_key(virtual_key: u16) -> bool {
 }
 
 /// Convert an NSString pointer to a Rust String.
+///
+/// # Safety
+/// `nsstr` must be a valid NSString pointer or null. A null pointer returns an
+/// empty string.
 pub unsafe fn nsstring_to_string(nsstr: *mut c_void) -> String {
     if nsstr.is_null() {
         return String::new();
     }
 
-    let sel_utf8 = sel_registerName(b"UTF8String\0".as_ptr());
+    let sel_utf8 = sel_registerName(c"UTF8String".as_ptr());
     let send_cstr: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const i8 =
         std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
     let cstr_ptr = send_cstr(nsstr, sel_utf8);
@@ -248,10 +262,19 @@ pub unsafe fn nsstring_to_string(nsstr: *mut c_void) -> String {
 }
 
 /// Simulate Cmd+V (paste).
+///
+/// # Safety
+/// Posts CGEvents; must be called from a context where CGEvent posting is allowed.
 pub unsafe fn simulate_cmd_v() -> bool { simulate_cmd_key(9) }
 /// Simulate Cmd+C (copy).
+///
+/// # Safety
+/// Posts CGEvents; must be called from a context where CGEvent posting is allowed.
 pub unsafe fn simulate_cmd_c() -> bool { simulate_cmd_key(8) }
 /// Simulate Cmd+Z (undo).
+///
+/// # Safety
+/// Posts CGEvents; must be called from a context where CGEvent posting is allowed.
 pub unsafe fn simulate_cmd_z() -> bool { simulate_cmd_key(6) }
 
 // ── CoreAudio: Bluetooth input detection & device-change listener ────────────
@@ -493,17 +516,17 @@ pub fn add_default_input_listener(callback: impl Fn() + Send + 'static) {
 /// when the selected text is identical to the previously saved clipboard content).
 pub fn clipboard_change_count() -> Option<u32> {
     unsafe {
-        let cls = objc_getClass(b"NSPasteboard\0".as_ptr());
+        let cls = objc_getClass(c"NSPasteboard".as_ptr());
         if cls.is_null() { return None; }
 
-        let sel_general = sel_registerName(b"generalPasteboard\0".as_ptr());
+        let sel_general = sel_registerName(c"generalPasteboard".as_ptr());
         type MsgSendPb = unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void;
-        let pb = std::mem::transmute::<_, MsgSendPb>(objc_msgSend as *const ())(cls, sel_general);
+        let pb = std::mem::transmute::<*const (), MsgSendPb>(objc_msgSend as *const ())(cls, sel_general);
         if pb.is_null() { return None; }
 
-        let sel_count = sel_registerName(b"changeCount\0".as_ptr());
+        let sel_count = sel_registerName(c"changeCount".as_ptr());
         type MsgSendCount = unsafe extern "C" fn(*mut c_void, *mut c_void) -> i64;
-        let count = std::mem::transmute::<_, MsgSendCount>(objc_msgSend as *const ())(pb, sel_count);
+        let count = std::mem::transmute::<*const (), MsgSendCount>(objc_msgSend as *const ())(pb, sel_count);
         Some(count as u32)
     }
 }

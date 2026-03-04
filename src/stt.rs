@@ -315,7 +315,7 @@ pub fn locale_to_stt_language(locale: &str) -> String {
     }
 
     // Extract the language part (before _ or -)
-    let lang = base.split(|c: char| c == '_' || c == '-').next().unwrap_or(base);
+    let lang = base.split(['_', '-']).next().unwrap_or(base);
 
     const VALID: &[&str] = &[
         "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs",

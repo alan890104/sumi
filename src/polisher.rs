@@ -62,9 +62,11 @@ pub enum PolishMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum CloudProvider {
     #[serde(rename = "github_models")]
     GitHubModels,
+    #[default]
     Groq,
     OpenRouter,
     OpenAi,
@@ -73,11 +75,6 @@ pub enum CloudProvider {
     Custom,
 }
 
-impl Default for CloudProvider {
-    fn default() -> Self {
-        Self::Groq
-    }
-}
 
 impl CloudProvider {
     /// Returns the snake_case identifier matching the serde serialization.
@@ -107,6 +104,7 @@ impl CloudProvider {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct CloudConfig {
     #[serde(default)]
     pub provider: CloudProvider,
@@ -118,16 +116,6 @@ pub struct CloudConfig {
     pub model_id: String,
 }
 
-impl Default for CloudConfig {
-    fn default() -> Self {
-        Self {
-            provider: CloudProvider::default(),
-            api_key: String::new(),
-            endpoint: String::new(),
-            model_id: String::new(),
-        }
-    }
-}
 
 impl CloudConfig {
     /// Returns the default model ID for the given locale.
@@ -144,12 +132,14 @@ impl CloudConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum PolishModel {
     /// Phi-4-mini-instruct — default for English and other languages.
     /// Accepts legacy "phi35_mini", "phi4_mini", "phi4_mm" serde aliases for transparent migration.
     #[serde(rename = "phi4_mini")]
     #[serde(alias = "phi35_mini")]
     #[serde(alias = "phi4_mm")]
+    #[default]
     Phi4Mm,
     #[serde(rename = "ministral3b")]
     Ministral3B,
@@ -162,11 +152,6 @@ pub enum PolishModel {
     Unknown,
 }
 
-impl Default for PolishModel {
-    fn default() -> Self {
-        Self::Phi4Mm
-    }
-}
 
 impl PolishModel {
     pub fn filename(&self) -> &'static str {
@@ -478,10 +463,10 @@ pub fn default_prompt_rules() -> Vec<PromptRule> {
 /// Falls back to English when a translation is not available.
 pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
     let lower = lang.map(|l| l.to_lowercase());
-    let is_zh_tw = lower.as_deref().map_or(false, |l| {
+    let is_zh_tw = lower.as_deref().is_some_and(|l| {
         l.starts_with("zh-tw") || l.starts_with("zh_tw") || l.starts_with("zh-hant")
     });
-    let is_zh = lower.as_deref().map_or(false, |l| l.starts_with("zh"));
+    let is_zh = lower.as_deref().is_some_and(|l| l.starts_with("zh"));
 
     let (code_editor_prompt, ai_cli_prompt, chat_prompt, email_prompt, notion_prompt, slack_prompt, github_prompt, twitter_prompt) = if is_zh_tw {
         (
@@ -1368,7 +1353,7 @@ pub fn validate_gguf_file(path: &std::path::Path, expected_model: &PolishModel) 
     f.read_exact(&mut version_bytes)
         .map_err(|e| format!("Cannot read GGUF version: {}", e))?;
     let version = u32::from_le_bytes(version_bytes);
-    if version < 2 || version > 3 {
+    if !(2..=3).contains(&version) {
         return Err(format!("Unsupported GGUF version: {}", version));
     }
 
@@ -1604,8 +1589,8 @@ pub fn validate_custom_endpoint(url_str: &str) -> Result<(), String> {
             || host == "127.0.0.1"
             || host == "::1"
             || host == "0.0.0.0"
-            || host.parse::<std::net::Ipv4Addr>().map_or(false, |ip| ip.is_private())
-            || host.parse::<std::net::IpAddr>().map_or(false, |ip| match ip {
+            || host.parse::<std::net::Ipv4Addr>().is_ok_and(|ip| ip.is_private())
+            || host.parse::<std::net::IpAddr>().is_ok_and(|ip| match ip {
                 // IPv6 ULA (fc00::/7) — private routable IPv6
                 std::net::IpAddr::V6(v6) => (v6.segments()[0] & 0xfe00) == 0xfc00,
                 _ => false,
