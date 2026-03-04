@@ -182,6 +182,14 @@ pub(crate) fn run_feeder_loop(app: AppHandle, language: String) {
         }
     }
 
+    // If do_stop_recording timed out and signalled a cancel, skip the post-loop
+    // engine work so the batch fallback can acquire qwen3_asr_ctx without contention.
+    if state.streaming_cancelled.load(Ordering::SeqCst) {
+        tracing::info!("[streaming] cancelled — skipping trailing feed, batch fallback will handle it");
+        state.streaming_active.store(false, Ordering::SeqCst);
+        return;
+    }
+
     // Feed samples that arrived since the last tick (up to 2 s may be unread).
     {
         let trailing_raw: Vec<f32> = {

@@ -358,6 +358,7 @@ pub fn do_stop_recording(
     vad_ctx: &Mutex<Option<VadContextCache>>,
     vad_enabled: bool,
     streaming_active: &AtomicBool,
+    streaming_cancelled: &AtomicBool,
     streaming_result: &Mutex<Option<String>>,
 ) -> Result<(String, Vec<f32>), String> {
     let sample_rate = sample_rate_mutex
@@ -436,18 +437,23 @@ pub fn do_stop_recording(
             }
             LocalSttEngine::Qwen3Asr => {
                 // Wait for the streaming feeder thread to complete (max 3 s).
+                // On timeout, set streaming_cancelled so the feeder aborts its
+                // post-loop work (trailing feed + finish_streaming) without
+                // acquiring the engine lock, letting the batch fallback below
+                // proceed without contention.
                 if streaming_active.load(Ordering::SeqCst) {
                     let deadline = Instant::now() + std::time::Duration::from_millis(3000);
                     while streaming_active.load(Ordering::SeqCst) {
                         if Instant::now() >= deadline {
-                            tracing::warn!("[streaming] feeder timeout — falling back to batch inference");
+                            tracing::warn!("[streaming] feeder timeout — signalling cancel, falling back to batch");
+                            streaming_cancelled.store(true, Ordering::SeqCst);
                             break;
                         }
                         std::thread::sleep(std::time::Duration::from_millis(50));
                     }
                 }
 
-                // Use the streaming result if available.
+                // Use the streaming result if available (feeder finished in time).
                 if let Ok(mut guard) = streaming_result.lock() {
                     if let Some(text) = guard.take() {
                         tracing::info!("[timing] STT (local qwen3-asr streaming): {:.0?}", stt_start.elapsed());
@@ -459,7 +465,8 @@ pub fn do_stop_recording(
                     }
                 }
 
-                // Fallback: batch inference.
+                // Batch fallback. The feeder has been signalled to cancel so it
+                // will not be holding qwen3_asr_ctx when we acquire it here.
                 tracing::info!("[streaming] using batch fallback");
                 let result = crate::qwen3_asr::transcribe_with_cached_qwen3_asr(
                     qwen3_asr_ctx,

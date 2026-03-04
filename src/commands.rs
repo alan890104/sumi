@@ -200,7 +200,9 @@ pub fn update_meeting_hotkey(
     // Re-register edit hotkey if set.
     if let Some(ref edit_hk) = settings.edit_hotkey {
         if let Some(shortcut) = parse_hotkey_string(edit_hk) {
-            let _ = app.global_shortcut().register(shortcut);
+            if let Err(e) = app.global_shortcut().register(shortcut) {
+                tracing::warn!("Failed to re-register edit hotkey: {}", e);
+            }
         }
     }
 
@@ -726,6 +728,7 @@ pub fn stop_recording(state: State<'_, AppState>) -> Result<String, String> {
         &state.vad_ctx,
         stt_config.vad_enabled,
         &state.streaming_active,
+        &state.streaming_cancelled,
         &state.streaming_result,
     )
     .map(|(text, _samples)| text)

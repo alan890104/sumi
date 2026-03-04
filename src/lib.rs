@@ -65,6 +65,7 @@ pub struct AppState {
     pub model_switching: AtomicBool,
     pub reconnecting: AtomicBool,
     pub streaming_active: AtomicBool,
+    pub streaming_cancelled: AtomicBool,
     pub streaming_result: Mutex<Option<String>>,
     pub meeting_active: AtomicBool,
     pub meeting_transcript: Mutex<String>,
@@ -166,6 +167,7 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
             &state.vad_ctx,
             stt_config.vad_enabled,
             &state.streaming_active,
+            &state.streaming_cancelled,
             &state.streaming_result,
         ) {
             Ok((text, samples_16k)) => {
@@ -472,6 +474,7 @@ fn stop_edit_and_replace(app: &AppHandle) {
             &state.vad_ctx,
             stt_config.vad_enabled,
             &state.streaming_active,
+            &state.streaming_cancelled,
             &state.streaming_result,
         ) {
             Ok((instruction, _samples)) => {
@@ -775,6 +778,7 @@ pub fn run() {
                 model_switching: AtomicBool::new(false),
                 reconnecting: AtomicBool::new(false),
                 streaming_active: AtomicBool::new(false),
+                streaming_cancelled: AtomicBool::new(false),
                 streaming_result: Mutex::new(None),
                 meeting_active: AtomicBool::new(false),
                 meeting_transcript: Mutex::new(String::new()),
@@ -1276,6 +1280,7 @@ pub fn run() {
                                         };
                                         if should_stream {
                                             state.streaming_active.store(true, Ordering::SeqCst);
+                                            state.streaming_cancelled.store(false, Ordering::SeqCst);
                                             if let Ok(mut r) = state.streaming_result.lock() {
                                                 *r = None;
                                             }
