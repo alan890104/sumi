@@ -1,9 +1,6 @@
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
-use std::time::Duration;
-
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 use crate::polisher::truncate_for_error;
 use crate::settings::models_dir;
@@ -546,248 +543,41 @@ pub fn run_cloud_stt(stt_cloud: &SttCloudConfig, samples_16k: &[f32], client: &r
 /// stateless `run_cloud_stt` HTTP calls for each silence-separated segment.
 /// API failures are logged and skipped (the meeting continues), preventing
 /// transient network issues from terminating the entire session.
+/// Meeting-mode feeder for continuous long-form transcription via cloud STT.
+///
+/// Delegates to `meeting_feeder::run_meeting_feeder` with a cloud STT transcription
+/// closure that uses the WAL context as a prompt hint.
 pub(crate) fn run_cloud_meeting_feeder_loop(
     app: AppHandle,
     cloud_config: SttCloudConfig,
     language: String,
     session_id: u64,
 ) {
-    // Apply the caller-provided language so cloud_config stays in sync
-    // regardless of how cloud_config.language was initialised.
     let mut cloud_config = cloud_config;
     cloud_config.language = language;
 
     let state = app.state::<crate::AppState>();
-    let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100);
+    let http_client = &state.http_client;
 
-    // File-based transcript: each segment is appended to a WAL file on disk
-    // so the backend never holds a growing String in memory.
-    let history_dir = crate::settings::history_dir();
-    let note_id: Option<String> = state
-        .active_meeting_note_id
-        .lock()
-        .ok()
-        .and_then(|nid| nid.clone());
-
-    let mut chunk_buf: Vec<f32> = Vec::new(); // 16 kHz samples for current segment
-    let mut silence_count: u32 = 0;
-    let mut had_speech_since_reset = false;
-    const RMS_FALLBACK: f32 = 0.003;
-
-    // O(1) spacing state.
-    let mut has_content = false;
-    let mut ends_with_space = false;
-
-    let mut last_tail: usize = 0;
-    let waveform_keep: usize = sr as usize * 2;
-
-    loop {
-        {
-            let guard = state.feeder_stop_mu.lock().unwrap_or_else(|e| e.into_inner());
-            let _ = state
-                .feeder_stop_cv
-                .wait_timeout(guard, Duration::from_millis(2000));
-        }
-
-        if !state.is_recording.load(Ordering::SeqCst) {
-            break;
-        }
-
-        // Session guard.
-        let current_session = state.meeting_session.load(Ordering::SeqCst);
-        if current_session != session_id {
-            tracing::warn!(
-                "[cloud-meeting] stale feeder (session {} vs current {}) — aborting",
-                session_id,
-                current_session
-            );
-            return;
-        }
-
-        // Drain new audio delta; partial-drain keeping waveform_keep for monitor.
-        let delta_raw: Vec<f32> = {
-            let mut buf = state.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            let tail = last_tail.min(buf.len());
-            let delta = buf[tail..].to_vec();
-            last_tail = buf.len();
-            if last_tail > waveform_keep {
-                let trim = last_tail - waveform_keep;
-                buf.drain(..trim);
-                last_tail -= trim;
-            }
-            delta
-        };
-
-        if delta_raw.is_empty() {
-            if had_speech_since_reset {
-                silence_count += 1;
-            }
-        } else {
-            let delta_16k = if sr != 16000 {
-                crate::audio::resample(&delta_raw, sr, 16000)
-            } else {
-                delta_raw
-            };
-
-            // Use Silero VAD (falls back to RMS if model unavailable).
-            if crate::transcribe::has_speech_vad(&state.vad_ctx, &delta_16k, RMS_FALLBACK) {
-                silence_count = 0;
-                had_speech_since_reset = true;
-            } else if had_speech_since_reset {
-                silence_count += 1;
-            }
-
-            chunk_buf.extend_from_slice(&delta_16k);
-        }
-
-        // Silence reset: ≥ 2 s of silence after speech → transcribe and reset chunk.
-        if silence_count >= 1 && had_speech_since_reset && !chunk_buf.is_empty() {
-            // Read previous text from WAL file for context prompt.
-            let prev_text = if let Some(ref id) = note_id {
-                let full = crate::meeting_notes::read_wal(&history_dir, id);
-                let trimmed = full.trim_end();
-                if trimmed.len() > 200 {
-                    trimmed[trimmed.len().saturating_sub(200)..].to_string()
-                } else {
-                    trimmed.to_string()
-                }
-            } else {
-                String::new()
-            };
+    crate::meeting_feeder::run_meeting_feeder(
+        app.clone(),
+        session_id,
+        "cloud-meeting",
+        None,
+        |samples, prev_text| {
             let prompt = if prev_text.is_empty() {
                 None
             } else {
-                Some(prev_text.as_str())
+                Some(prev_text)
             };
-
-            // Filter chunk through VAD before sending to STT.
-            let stt_samples = crate::transcribe::filter_with_vad(&state.vad_ctx, &chunk_buf)
-                .unwrap_or_else(|_| chunk_buf.clone());
-
-            let mut tick_delta = String::new();
-            if !stt_samples.is_empty() {
-                match run_cloud_stt(&cloud_config, &stt_samples, &state.http_client, prompt) {
-                    Ok(seg_text) if !seg_text.is_empty() => {
-                        if has_content && !ends_with_space && !seg_text.starts_with(' ') {
-                            tick_delta.push(' ');
-                        }
-                        tick_delta.push_str(&seg_text);
-                    }
-                    Err(e) => {
-                        tracing::warn!("[cloud-meeting] chunk transcription failed, skipping: {}", e);
-                    }
-                    _ => {}
-                }
-            }
-
-            if (has_content || !tick_delta.is_empty()) && !tick_delta.ends_with(' ') {
-                tick_delta.push(' ');
-            }
-
-            // Persist delta to WAL file and emit event.
-            if !tick_delta.is_empty() {
-                if let Some(ref id) = note_id {
-                    crate::meeting_notes::append_wal(&history_dir, id, &tick_delta);
-                    let duration = state
-                        .meeting_start_time
-                        .lock()
-                        .ok()
-                        .and_then(|st| *st)
-                        .map(|t| t.elapsed().as_secs_f64())
-                        .unwrap_or(0.0);
-                    let _ = app.emit(
-                        "meeting-note-updated",
-                        serde_json::json!({
-                            "id": id,
-                            "delta": &tick_delta,
-                            "duration_secs": duration,
-                        }),
-                    );
-                }
-                ends_with_space = tick_delta.ends_with(' ');
-                has_content = true;
-            }
-
-            chunk_buf.clear();
-            silence_count = 0;
-            had_speech_since_reset = false;
-        }
-    }
-
-    // ── Post-loop guards ─────────────────────────────────────────────────────
-
-    let current_session = state.meeting_session.load(Ordering::SeqCst);
-    if current_session != session_id {
-        tracing::warn!(
-            "[cloud-meeting] stale feeder (session {} vs current {}) — aborting post-loop",
-            session_id,
-            current_session
-        );
-        return;
-    }
-    if state.meeting_cancelled.load(Ordering::SeqCst) {
-        tracing::warn!("[cloud-meeting] feeder cancelled — partial transcript already persisted to file");
-        return;
-    }
-
-    // Flush remaining chunk.
-    if !chunk_buf.is_empty() {
-        let prev_text = if let Some(ref id) = note_id {
-            let full = crate::meeting_notes::read_wal(&history_dir, id);
-            let trimmed = full.trim_end();
-            if trimmed.len() > 200 {
-                trimmed[trimmed.len().saturating_sub(200)..].to_string()
-            } else {
-                trimmed.to_string()
-            }
-        } else {
-            String::new()
-        };
-        let prompt = if prev_text.is_empty() {
-            None
-        } else {
-            Some(prev_text.as_str())
-        };
-        let stt_samples = crate::transcribe::filter_with_vad(&state.vad_ctx, &chunk_buf)
-            .unwrap_or_else(|_| chunk_buf.clone());
-        if !stt_samples.is_empty() {
-            match run_cloud_stt(&cloud_config, &stt_samples, &state.http_client, prompt) {
-                Ok(seg_text) if !seg_text.is_empty() => {
-                    let mut final_delta = String::new();
-                    if has_content && !ends_with_space && !seg_text.starts_with(' ') {
-                        final_delta.push(' ');
-                    }
-                    final_delta.push_str(&seg_text);
-                    if let Some(ref id) = note_id {
-                        crate::meeting_notes::append_wal(&history_dir, id, &final_delta);
-                        let duration = state
-                            .meeting_start_time
-                            .lock()
-                            .ok()
-                            .and_then(|st| *st)
-                            .map(|t| t.elapsed().as_secs_f64())
-                            .unwrap_or(0.0);
-                        let _ = app.emit(
-                            "meeting-note-updated",
-                            serde_json::json!({
-                                "id": id,
-                                "delta": &final_delta,
-                                "duration_secs": duration,
-                            }),
-                        );
-                    }
-                }
+            match run_cloud_stt(&cloud_config, samples, http_client, prompt) {
+                Ok(t) => t,
                 Err(e) => {
-                    tracing::warn!("[cloud-meeting] final chunk transcription failed: {}", e);
+                    tracing::warn!("[cloud-meeting] transcription failed, skipping: {e}");
+                    String::new()
                 }
-                _ => {}
             }
-        }
-    }
-
-    tracing::info!("[cloud-meeting] feeder finished — transcript persisted to WAL file");
-
-    // Signal completion. stop_meeting_mode reads the transcript from the WAL file.
-    state.meeting_active.store(false, Ordering::SeqCst);
+        },
+    );
 }
 

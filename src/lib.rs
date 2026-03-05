@@ -1,10 +1,12 @@
 mod audio;
 mod audio_devices;
 mod commands;
+mod segment_spacing;
 mod context_detect;
 mod credentials;
 mod history;
 mod hotkey;
+mod meeting_feeder;
 mod meeting_notes;
 mod permissions;
 pub mod platform;

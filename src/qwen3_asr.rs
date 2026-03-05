@@ -1,7 +1,7 @@
 use std::sync::{atomic::Ordering, Mutex};
 use std::time::Duration;
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 use crate::stt::{qwen3_asr_model_dir, is_qwen3_asr_downloaded, Qwen3AsrModel};
 
@@ -263,20 +263,11 @@ pub(crate) fn run_feeder_loop(app: AppHandle, language: String, session_id: u64)
 
 /// Meeting mode feeder loop for continuous long-form transcription with Qwen3-ASR.
 ///
-/// Uses **batch transcription per silence-separated segment** (same architecture as
-/// Whisper and Cloud meeting feeders). This avoids the streaming API's O(n²)
-/// cumulative cost and eliminates snowball risk where inference falls behind audio.
-///
-/// * Every 2 s, drains new audio into a per-segment `chunk_buf`.
-/// * When VAD silence ≥ 2 s (1 tick) AND the chunk is non-empty: batch-transcribes
-///   the chunk via `transcribe_with_cached_qwen3_asr`, appends result to WAL file.
-/// * When `chunk_buf` exceeds `MAX_SEGMENT_SAMPLES` (120 s), forces a transcription
-///   even without silence to bound per-segment cost.
-/// * After `is_recording` becomes false, flushes the remaining chunk.
+/// Delegates to `meeting_feeder::run_meeting_feeder` with a Qwen3-ASR transcription
+/// closure.  Force-flushes segments at 120 s to bound per-segment inference cost.
 pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, session_id: u64) {
     let state = app.state::<crate::AppState>();
 
-    let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100);
     let model = {
         let settings = state.settings.lock().unwrap_or_else(|e| e.into_inner());
         settings.stt.qwen3_asr_model.clone()
@@ -291,215 +282,16 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
         }
     }
 
-    // File-based transcript: each segment is appended to a WAL file on disk
-    // so the backend never holds a growing String in memory.
-    let history_dir = crate::settings::history_dir();
-    let note_id: Option<String> = state
-        .active_meeting_note_id
-        .lock()
-        .ok()
-        .and_then(|nid| nid.clone());
-
-    let mut chunk_buf: Vec<f32> = Vec::new(); // 16 kHz samples for current segment
-    let mut silence_count: u32 = 0;
-    let mut had_speech_since_reset = false;
-    const RMS_FALLBACK: f32 = 0.003;
-    // Force-flush segments longer than 120 s to bound per-segment inference cost.
-    const MAX_SEGMENT_SAMPLES: usize = 120 * 16_000;
-
-    // O(1) spacing state.
-    let mut has_content = false;
-    let mut ends_with_space = false;
-
-    let mut last_tail: usize = 0;
-    let waveform_keep: usize = sr as usize * 2;
-
-    loop {
-        {
-            let guard = state.feeder_stop_mu.lock().unwrap_or_else(|e| e.into_inner());
-            let _ = state.feeder_stop_cv.wait_timeout(guard, Duration::from_millis(2000));
-        }
-
-        if !state.is_recording.load(Ordering::SeqCst) {
-            break;
-        }
-
-        // Session guard.
-        let current_session = state.meeting_session.load(Ordering::SeqCst);
-        if current_session != session_id {
-            tracing::warn!(
-                "[qwen3-meeting] stale feeder (session {} vs current {}) — aborting",
-                session_id,
-                current_session
-            );
-            return;
-        }
-
-        // Drain new audio delta; partial-drain keeping waveform_keep for monitor.
-        let delta_raw: Vec<f32> = {
-            let mut buf = state.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            let delta = buf[last_tail..].to_vec();
-            last_tail = buf.len();
-            if last_tail > waveform_keep {
-                let trim = last_tail - waveform_keep;
-                buf.drain(..trim);
-                last_tail -= trim;
-            }
-            delta
-        };
-
-        if delta_raw.is_empty() {
-            if had_speech_since_reset {
-                silence_count += 1;
-            }
-        } else {
-            let delta_16k = if sr != 16000 {
-                crate::audio::resample(&delta_raw, sr, 16000)
-            } else {
-                delta_raw
-            };
-
-            // Use Silero VAD (falls back to RMS if model unavailable).
-            if crate::transcribe::has_speech_vad(&state.vad_ctx, &delta_16k, RMS_FALLBACK) {
-                silence_count = 0;
-                had_speech_since_reset = true;
-            } else if had_speech_since_reset {
-                silence_count += 1;
-            }
-
-            chunk_buf.extend_from_slice(&delta_16k);
-        }
-
-        // Transcribe segment on silence (≥ 2 s) or max segment length exceeded.
-        let force_flush = chunk_buf.len() >= MAX_SEGMENT_SAMPLES;
-        if ((silence_count >= 1 && had_speech_since_reset) || force_flush) && !chunk_buf.is_empty() {
-            if force_flush {
-                tracing::info!(
-                    "[qwen3-meeting] segment reached {}s — force-flushing",
-                    chunk_buf.len() / 16_000
-                );
-            }
-
-            // Filter chunk through VAD before inference.
-            let stt_samples = crate::transcribe::filter_with_vad(&state.vad_ctx, &chunk_buf)
-                .unwrap_or_else(|_| chunk_buf.clone());
-
-            let seg_text = if stt_samples.is_empty() {
-                String::new()
-            } else {
-                transcribe_with_cached_qwen3_asr(
-                    &state.qwen3_asr_ctx,
-                    &stt_samples,
-                    &model,
-                    &language,
-                )
+    let qwen3_ctx = &state.qwen3_asr_ctx;
+    crate::meeting_feeder::run_meeting_feeder(
+        app.clone(),
+        session_id,
+        "qwen3-meeting",
+        Some(120 * 16_000),
+        |samples, _prev_text| {
+            transcribe_with_cached_qwen3_asr(qwen3_ctx, samples, &model, &language)
                 .unwrap_or_default()
-            };
-
-            let mut tick_delta = String::new();
-            if !seg_text.is_empty() {
-                if has_content && !ends_with_space && !seg_text.starts_with(' ') {
-                    tick_delta.push(' ');
-                }
-                tick_delta.push_str(&seg_text);
-            }
-
-            // Add trailing space so the next segment does not fuse with this one.
-            if (has_content || !tick_delta.is_empty()) && !tick_delta.ends_with(' ') {
-                tick_delta.push(' ');
-            }
-
-            // Persist delta to WAL file and emit event.
-            if !tick_delta.is_empty() {
-                if let Some(ref id) = note_id {
-                    crate::meeting_notes::append_wal(&history_dir, id, &tick_delta);
-                    let duration = state
-                        .meeting_start_time
-                        .lock()
-                        .ok()
-                        .and_then(|st| *st)
-                        .map(|t| t.elapsed().as_secs_f64())
-                        .unwrap_or(0.0);
-                    let _ = app.emit(
-                        "meeting-note-updated",
-                        serde_json::json!({
-                            "id": id,
-                            "delta": &tick_delta,
-                            "duration_secs": duration,
-                        }),
-                    );
-                }
-                ends_with_space = tick_delta.ends_with(' ');
-                has_content = true;
-            }
-
-            chunk_buf.clear();
-            silence_count = 0;
-            had_speech_since_reset = false;
-        }
-    }
-
-    // ── Post-loop guards (mirrors Whisper/Cloud meeting feeders) ───────────────
-
-    let current_session = state.meeting_session.load(Ordering::SeqCst);
-    if current_session != session_id {
-        tracing::warn!(
-            "[qwen3-meeting] stale feeder (session {} vs current {}) — aborting post-loop",
-            session_id,
-            current_session
-        );
-        return;
-    }
-    if state.meeting_cancelled.load(Ordering::SeqCst) {
-        tracing::warn!("[qwen3-meeting] feeder cancelled — partial transcript already persisted to file");
-        return;
-    }
-
-    // Flush remaining chunk (audio received after the last silence window).
-    if !chunk_buf.is_empty() {
-        let stt_samples = crate::transcribe::filter_with_vad(&state.vad_ctx, &chunk_buf)
-            .unwrap_or_else(|_| chunk_buf.clone());
-        let seg_text = if stt_samples.is_empty() {
-            String::new()
-        } else {
-            transcribe_with_cached_qwen3_asr(
-                &state.qwen3_asr_ctx,
-                &stt_samples,
-                &model,
-                &language,
-            )
-            .unwrap_or_default()
-        };
-        if !seg_text.is_empty() {
-            let mut final_delta = String::new();
-            if has_content && !ends_with_space && !seg_text.starts_with(' ') {
-                final_delta.push(' ');
-            }
-            final_delta.push_str(&seg_text);
-            if let Some(ref id) = note_id {
-                crate::meeting_notes::append_wal(&history_dir, id, &final_delta);
-                let duration = state
-                    .meeting_start_time
-                    .lock()
-                    .ok()
-                    .and_then(|st| *st)
-                    .map(|t| t.elapsed().as_secs_f64())
-                    .unwrap_or(0.0);
-                let _ = app.emit(
-                    "meeting-note-updated",
-                    serde_json::json!({
-                        "id": id,
-                        "delta": &final_delta,
-                        "duration_secs": duration,
-                    }),
-                );
-            }
-        }
-    }
-
-    tracing::info!("[qwen3-meeting] feeder finished — transcript persisted to WAL file");
-
-    // Signal completion. stop_meeting_mode reads the transcript from the WAL file.
-    state.meeting_active.store(false, Ordering::SeqCst);
+        },
+    );
 }
 

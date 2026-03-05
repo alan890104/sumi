@@ -341,6 +341,42 @@ pub fn do_stop_recording(
     // reducing transcription latency by up to 2 s on short recordings.
     state.feeder_stop_cv.notify_all();
 
+    // ── Wait for feeders BEFORE taking the buffer ────────────────────────
+    // The Qwen3-ASR feeder reads trailing audio from the shared buffer in
+    // its post-loop code. If we `take` the buffer first, the feeder sees
+    // an empty buffer and the last 0–2 s of audio is silently dropped.
+    // Waiting here ensures the feeder finishes its trailing feed before we
+    // drain the buffer for the batch fallback / history audio.
+    let mut qwen3_streaming_result: Option<String> = None;
+    if stt_config.mode == SttMode::Local && stt_config.local_engine == LocalSttEngine::Qwen3Asr
+        && state.streaming_active.load(Ordering::SeqCst)
+    {
+        let deadline = Instant::now() + std::time::Duration::from_millis(3000);
+        while state.streaming_active.load(Ordering::SeqCst) {
+            if Instant::now() >= deadline {
+                tracing::warn!("[streaming] feeder timeout — signalling cancel, falling back to batch");
+                state.streaming_cancelled.store(true, Ordering::SeqCst);
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        // Grab the streaming result now (feeder stored it before clearing streaming_active).
+        if let Ok(mut guard) = state.streaming_result.lock() {
+            qwen3_streaming_result = guard.take();
+        }
+    }
+    if stt_config.mode == SttMode::Local && stt_config.local_engine == LocalSttEngine::Whisper
+        && state.whisper_preview_active.load(Ordering::SeqCst)
+    {
+        let deadline = Instant::now() + std::time::Duration::from_millis(2000);
+        while state.whisper_preview_active.load(Ordering::SeqCst) && Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        if state.whisper_preview_active.load(Ordering::SeqCst) {
+            tracing::warn!("[whisper-preview] feeder still active after 2s wait — proceeding anyway");
+        }
+    }
+
     let samples: Vec<f32> = {
         let mut buf = state.buffer.lock().map_err(|e| e.to_string())?;
         std::mem::take(&mut *buf)
@@ -400,51 +436,19 @@ pub fn do_stop_recording(
     let text = match stt_config.mode {
         SttMode::Local => match stt_config.local_engine {
             LocalSttEngine::Whisper => {
-                // Wait for any in-progress preview inference to release whisper_ctx
-                // (max 2 s). The feeder uses try_lock, so once is_recording=false it
-                // will not start a new inference — we just wait for the current one
-                // to complete and the feeder to exit.
-                if state.whisper_preview_active.load(Ordering::SeqCst) {
-                    let deadline = Instant::now() + std::time::Duration::from_millis(2000);
-                    while state.whisper_preview_active.load(Ordering::SeqCst) && Instant::now() < deadline {
-                        std::thread::sleep(std::time::Duration::from_millis(50));
-                    }
-                    if state.whisper_preview_active.load(Ordering::SeqCst) {
-                        tracing::warn!("[whisper-preview] feeder still active after 2s wait — proceeding anyway");
-                    }
-                }
                 let result = transcribe_with_cached_whisper(&state.whisper_ctx, &samples_16k, &stt_config.whisper_model, language, app_name, dictionary_terms)?;
                 tracing::info!("[timing] STT (local whisper): {:.0?}", stt_start.elapsed());
                 result
             }
             LocalSttEngine::Qwen3Asr => {
-                // Wait for the streaming feeder thread to complete (max 3 s).
-                // On timeout, set streaming_cancelled so the feeder aborts its
-                // post-loop work (trailing feed + finish_streaming) without
-                // acquiring the engine lock, letting the batch fallback below
-                // proceed without contention.
-                if state.streaming_active.load(Ordering::SeqCst) {
-                    let deadline = Instant::now() + std::time::Duration::from_millis(3000);
-                    while state.streaming_active.load(Ordering::SeqCst) {
-                        if Instant::now() >= deadline {
-                            tracing::warn!("[streaming] feeder timeout — signalling cancel, falling back to batch");
-                            state.streaming_cancelled.store(true, Ordering::SeqCst);
-                            break;
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(50));
-                    }
-                }
-
-                // Use the streaming result if available (feeder finished in time).
-                if let Ok(mut guard) = state.streaming_result.lock() {
-                    if let Some(text) = guard.take() {
-                        tracing::info!("[timing] STT (local qwen3-asr streaming): {:.0?}", stt_start.elapsed());
-                        return if text.is_empty() {
-                            Err("no_speech".to_string())
-                        } else {
-                            Ok((text, samples_16k))
-                        };
-                    }
+                // Use the streaming result if the feeder finished in time.
+                if let Some(text) = qwen3_streaming_result {
+                    tracing::info!("[timing] STT (local qwen3-asr streaming): {:.0?}", stt_start.elapsed());
+                    return if text.is_empty() {
+                        Err("no_speech".to_string())
+                    } else {
+                        Ok((text, samples_16k))
+                    };
                 }
 
                 // Batch fallback. The feeder has been signalled to cancel so it
