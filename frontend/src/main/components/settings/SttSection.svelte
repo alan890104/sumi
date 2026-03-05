@@ -255,6 +255,10 @@
           qwen3Models = models;
           const backendActive = models.find(m => m.is_active);
           if (backendActive && backendActive.id !== sttConfig.qwen3_asr_model) {
+            // Intentionally no saveStt() here: settings.json is already
+            // authoritative (the backend read qwen3_asr_model from there
+            // when deciding which model to warm). We only sync the in-memory
+            // Svelte store so the UI reflects the backend's state.
             setSttQwen3AsrModel(backendActive.id as Qwen3AsrModelId);
           }
         }

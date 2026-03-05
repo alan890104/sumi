@@ -2502,6 +2502,10 @@ pub fn delete_qwen3_asr_model(
     *state.qwen3_ready_mu.lock().unwrap_or_else(|e| e.into_inner()) = false;
     // Invalidate Qwen3-ASR cache.
     qwen3::invalidate_qwen3_asr_cache(&state.qwen3_asr_ctx);
+    // Wake any wait_engine_ready waiter so it re-evaluates the deadline
+    // immediately rather than sleeping the full remaining timeout.
+    // (flag=false → it will not return true, but avoids an unnecessary 8 s stall.)
+    state.qwen3_ready_cv.notify_all();
 
     std::fs::remove_dir_all(&model_dir)
         .map_err(|e| format!("Failed to delete model directory: {}", e))?;
