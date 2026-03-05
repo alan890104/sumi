@@ -665,6 +665,75 @@ fn cleanup_old_logs(log_dir: &std::path::Path, keep_days: u64) {
     }
 }
 
+/// Remove model files / directories that are no longer part of the current
+/// model catalogue.  Runs in a background thread at startup so it never
+/// blocks the UI.
+///
+/// Strategy: build an allowlist of every filename / directory name that
+/// any currently-supported model variant can produce, then delete everything
+/// else found inside `models_dir`.
+fn cleanup_obsolete_models(models_dir: &std::path::Path) {
+    use std::collections::HashSet;
+
+    let mut known_files: HashSet<&str> = HashSet::new();
+    let mut known_dirs: HashSet<&str> = HashSet::new();
+
+    // Whisper — all 6 variants (including Medium/Small which are valid but
+    // unmanaged; we still want to keep them if the user downloaded them).
+    for model in &[
+        whisper_models::WhisperModel::LargeV3Turbo,
+        whisper_models::WhisperModel::LargeV3TurboQ5,
+        whisper_models::WhisperModel::Medium,
+        whisper_models::WhisperModel::Small,
+        whisper_models::WhisperModel::Base,
+        whisper_models::WhisperModel::LargeV3TurboZhTw,
+    ] {
+        known_files.insert(model.filename());
+    }
+
+    // Polish models — GGUF + optional tokenizer JSON.
+    for model in polisher::PolishModel::all() {
+        known_files.insert(model.filename());
+        if let Some(tok) = model.tokenizer_filename() {
+            known_files.insert(tok);
+        }
+    }
+
+    // VAD model.
+    known_files.insert("ggml-silero-v6.2.0.bin");
+
+    // Qwen3-ASR — stored as subdirectories.
+    for model in &[stt::Qwen3AsrModel::Qwen3Asr1_7B, stt::Qwen3AsrModel::Qwen3Asr0_6B] {
+        known_dirs.insert(model.model_dir_name());
+    }
+
+    let Ok(entries) = std::fs::read_dir(models_dir) else {
+        tracing::warn!("[model-cleanup] Cannot read models dir");
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|n| n.to_str()).map(str::to_owned) else {
+            continue;
+        };
+
+        if path.is_dir() {
+            if !known_dirs.contains(name.as_str()) {
+                match std::fs::remove_dir_all(&path) {
+                    Ok(()) => tracing::info!("[model-cleanup] Removed obsolete model dir: {name}"),
+                    Err(e) => tracing::warn!("[model-cleanup] Failed to remove dir {name}: {e}"),
+                }
+            }
+        } else if !known_files.contains(name.as_str()) {
+            match std::fs::remove_file(&path) {
+                Ok(()) => tracing::info!("[model-cleanup] Removed obsolete model file: {name}"),
+                Err(e) => tracing::warn!("[model-cleanup] Failed to remove file {name}: {e}"),
+            }
+        }
+    }
+}
+
 // ── App Entry ───────────────────────────────────────────────────────────────
 
 pub fn run() {
@@ -808,6 +877,12 @@ pub fn run() {
             // Init meeting notes schema & recover notes stuck from a previous crash
             meeting_notes::init_db(&history_dir());
             meeting_notes::recover_stuck_notes(&history_dir());
+
+            // Remove obsolete model files in the background (non-blocking).
+            {
+                let dir = models_dir();
+                std::thread::spawn(move || cleanup_obsolete_models(&dir));
+            }
 
             // Pre-initialise audio pipeline
             let is_recording = Arc::new(AtomicBool::new(false));
