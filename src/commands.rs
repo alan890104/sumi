@@ -2185,13 +2185,12 @@ pub async fn switch_qwen3_asr_model(
             }
         }
 
+        // Reset the readiness flag BEFORE invalidating the cache so the flag
+        // always accurately reflects whether the cache holds a warm engine.
+        // (flag=false → cache state unknown; flag=true → cache is valid)
+        *state.qwen3_ready_mu.lock().unwrap_or_else(|e| e.into_inner()) = false;
         // Invalidate stale cache so next transcription loads the new model.
         qwen3::invalidate_qwen3_asr_cache(&state.qwen3_asr_ctx);
-        // Reset the readiness flag so wait_engine_ready doesn't wake immediately
-        // and see a None cache if recording starts before the new model is warmed.
-        if let Ok(mut flag) = state.qwen3_ready_mu.lock() {
-            *flag = false;
-        }
 
         // Pre-warm inline if already downloaded.
         if crate::stt::is_qwen3_asr_downloaded(&model) {
@@ -2495,6 +2494,8 @@ pub fn delete_qwen3_asr_model(
         .map(|m| m.len())
         .sum();
 
+    // Reset flag before invalidating cache (same ordering as switch_qwen3_asr_model).
+    *state.qwen3_ready_mu.lock().unwrap_or_else(|e| e.into_inner()) = false;
     // Invalidate Qwen3-ASR cache.
     qwen3::invalidate_qwen3_asr_cache(&state.qwen3_asr_ctx);
 
