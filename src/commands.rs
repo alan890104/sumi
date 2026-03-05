@@ -604,48 +604,56 @@ pub struct TestPolishResult {
 }
 
 #[tauri::command]
-pub fn test_polish(
-    state: State<'_, AppState>,
+pub async fn test_polish(
+    app: AppHandle,
     test_text: String,
     custom_prompt: String,
 ) -> Result<TestPolishResult, String> {
-    let mut config = state.settings.lock().map_err(|e| e.to_string())?.polish.clone();
-    let model_dir = settings::models_dir();
-
-    if config.mode == polisher::PolishMode::Cloud {
-        let key = get_cached_api_key(&state.api_key_cache, config.cloud.provider.as_key());
-        if !key.is_empty() {
-            config.cloud.api_key = key;
+    let config = {
+        let state = app.state::<AppState>();
+        let mut config = state.settings.lock().map_err(|e| e.to_string())?.polish.clone();
+        if config.mode == polisher::PolishMode::Cloud {
+            let key = get_cached_api_key(&state.api_key_cache, config.cloud.provider.as_key());
+            if !key.is_empty() {
+                config.cloud.api_key = key;
+            }
         }
-    }
+        config
+    };
 
-    let default_tmpl = polisher::base_prompt_template();
-    let default_system_prompt = polisher::resolve_prompt(&default_tmpl);
-
+    let model_dir = settings::models_dir();
+    let default_system_prompt = polisher::resolve_prompt(&polisher::base_prompt_template());
     let custom_system_prompt = polisher::resolve_prompt(&custom_prompt);
 
-    let default_result = polisher::polish_with_prompt(
-        &state.llm_model,
-        &model_dir,
-        &config,
-        &default_system_prompt,
-        &test_text,
-        &state.http_client,
-    )?;
+    let app_clone = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_clone.state::<AppState>();
 
-    let custom_result = polisher::polish_with_prompt(
-        &state.llm_model,
-        &model_dir,
-        &config,
-        &custom_system_prompt,
-        &test_text,
-        &state.http_client,
-    )?;
+        let default_result = polisher::polish_with_prompt(
+            &state.llm_model,
+            &model_dir,
+            &config,
+            &default_system_prompt,
+            &test_text,
+            &state.http_client,
+        )?;
 
-    Ok(TestPolishResult {
-        current_result: default_result,
-        edited_result: custom_result,
+        let custom_result = polisher::polish_with_prompt(
+            &state.llm_model,
+            &model_dir,
+            &config,
+            &custom_system_prompt,
+            &test_text,
+            &state.http_client,
+        )?;
+
+        Ok(TestPolishResult {
+            current_result: default_result,
+            edited_result: custom_result,
+        })
     })
+    .await
+    .map_err(|e| format!("Test polish task failed: {}", e))?
 }
 
 // ── Voice Add Rule ────────────────────────────────────────────────────────
@@ -715,33 +723,40 @@ fn parse_generated_rule(raw: &str) -> Result<GeneratedRule, String> {
 }
 
 #[tauri::command]
-pub fn generate_rule_from_description(
-    state: State<'_, AppState>,
+pub async fn generate_rule_from_description(
+    app: AppHandle,
     description: String,
 ) -> Result<GeneratedRule, String> {
-    let mut config = state
-        .settings
-        .lock()
-        .map_err(|e| e.to_string())?
-        .polish
-        .clone();
-    let model_dir = settings::models_dir();
+    let (config, model_dir) = {
+        let state = app.state::<AppState>();
+        let mut config = state
+            .settings
+            .lock()
+            .map_err(|e| e.to_string())?
+            .polish
+            .clone();
 
-    if config.mode == polisher::PolishMode::Cloud {
-        let key = get_cached_api_key(&state.api_key_cache, config.cloud.provider.as_key());
-        if !key.is_empty() {
-            config.cloud.api_key = key;
+        if config.mode == polisher::PolishMode::Cloud {
+            let key = get_cached_api_key(&state.api_key_cache, config.cloud.provider.as_key());
+            if !key.is_empty() {
+                config.cloud.api_key = key;
+            }
         }
-    }
 
-    if !polisher::is_polish_ready(&model_dir, &config) {
-        return Err("LLM not configured".to_string());
-    }
+        let model_dir = settings::models_dir();
+        if !polisher::is_polish_ready(&model_dir, &config) {
+            return Err("LLM not configured".to_string());
+        }
+        (config, model_dir)
+    };
 
-    let lang_hint = "the same language the user uses";
+    let app_clone = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_clone.state::<AppState>();
 
-    let system_prompt = format!(
-        r#"You are a JSON generator. The user will describe a prompt rule for a speech-to-text app. Your job is to convert the description into a structured JSON object.
+        let lang_hint = "the same language the user uses";
+        let system_prompt = format!(
+            r#"You are a JSON generator. The user will describe a prompt rule for a speech-to-text app. Your job is to convert the description into a structured JSON object.
 
 Return ONLY a single JSON object with these fields:
 - "name": a short descriptive name for the rule (max 30 chars)
@@ -755,18 +770,21 @@ If you cannot determine the match target, leave match_value empty and use "app_n
 
 Write the "name" and "prompt" fields in {lang_hint}.
 Do NOT include any explanation, only the JSON object."#
-    );
+        );
 
-    let result = polisher::polish_with_prompt(
-        &state.llm_model,
-        &model_dir,
-        &config,
-        &system_prompt,
-        &description,
-        &state.http_client,
-    )?;
+        let result = polisher::polish_with_prompt(
+            &state.llm_model,
+            &model_dir,
+            &config,
+            &system_prompt,
+            &description,
+            &state.http_client,
+        )?;
 
-    parse_generated_rule(&result)
+        parse_generated_rule(&result)
+    })
+    .await
+    .map_err(|e| format!("Generate rule task failed: {}", e))?
 }
 
 #[tauri::command]
