@@ -10,6 +10,7 @@ pub mod models;
 mod polisher;
 mod qwen3_asr;
 pub mod settings;
+mod whisper_streaming;
 pub mod stt;
 mod transcribe;
 pub mod whisper_models;
@@ -94,6 +95,12 @@ pub struct AppState {
     /// Qwen3-ASR streaming feeder. Prevents a zombie feeder from a previous
     /// session from overwriting `streaming_result` for a later recording.
     pub streaming_session: AtomicU64,
+    /// True while the Whisper live-preview feeder thread is running.
+    pub whisper_preview_active: AtomicBool,
+    /// Monotonically increasing session counter for the Whisper preview feeder.
+    /// Prevents a zombie feeder from a previous recording from emitting stale
+    /// partial results into the current session's overlay.
+    pub whisper_preview_session: AtomicU64,
 }
 
 /// Restore original clipboard content from saved_clipboard.
@@ -823,6 +830,8 @@ pub fn run() {
                 meeting_transcript: Mutex::new(String::new()),
                 meeting_start_time: Mutex::new(None),
                 streaming_session: AtomicU64::new(0),
+                whisper_preview_active: AtomicBool::new(false),
+                whisper_preview_session: AtomicU64::new(0),
             });
 
             // Register a CoreAudio listener for default-input-device changes.
@@ -1364,6 +1373,29 @@ pub fn run() {
                                             });
                                         }
 
+                                        // ── Live-preview feeder (Whisper non-edit mode only) ──
+                                        let whisper_preview_config = if !is_edit_hotkey {
+                                            state.settings.lock().ok().and_then(|s| {
+                                                if s.stt.mode == SttMode::Local
+                                                    && s.stt.local_engine == stt::LocalSttEngine::Whisper
+                                                {
+                                                    Some(s.stt.language.clone())
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                        } else {
+                                            None
+                                        };
+                                        if let Some(preview_lang) = whisper_preview_config {
+                                            let preview_session_id = state.whisper_preview_session.fetch_add(1, Ordering::SeqCst) + 1;
+                                            state.whisper_preview_active.store(true, Ordering::SeqCst);
+                                            let preview_app = app.clone();
+                                            std::thread::spawn(move || {
+                                                whisper_streaming::run_whisper_preview_loop(preview_app, preview_lang, preview_session_id);
+                                            });
+                                        }
+
                                         if let Ok(mut ctx) = state.captured_context.lock() {
                                             *ctx = Some(captured_ctx);
                                         }
@@ -1470,20 +1502,21 @@ fn start_meeting_mode(app: &AppHandle) {
         *ctx = Some(captured_ctx);
     }
 
-    // Only Qwen3-ASR local mode is supported.
-    let (stt_mode, local_engine, qwen3_model, lang) = state
+    // Only Local STT mode is supported for meeting mode.
+    let (stt_mode, local_engine, qwen3_model, whisper_model, lang) = state
         .settings
         .lock()
         .map(|s| (
             s.stt.mode.clone(),
             s.stt.local_engine.clone(),
             s.stt.qwen3_asr_model.clone(),
+            s.stt.whisper_model.clone(),
             s.stt.language.clone(),
         ))
         .unwrap_or_default();
 
-    if stt_mode != SttMode::Local || local_engine != stt::LocalSttEngine::Qwen3Asr {
-        tracing::warn!("Meeting mode requires Qwen3-ASR local engine");
+    if stt_mode != SttMode::Local {
+        tracing::warn!("Meeting mode requires Local STT engine");
         if let Some(overlay) = app.get_webview_window("overlay") {
             let _ = overlay.emit("recording-status", "error");
             if let Ok(Some(monitor)) = overlay.current_monitor() {
@@ -1570,55 +1603,92 @@ fn start_meeting_mode(app: &AppHandle) {
     // Audio level monitor thread.
     spawn_audio_level_monitor(app.clone(), AudioMonitorMode::Meeting);
 
-    // Spawn meeting feeder after engine is warm (max 8 s wait).
-    // Also trigger warm proactively so the engine starts loading in parallel.
+    // Spawn meeting feeder based on active local STT engine.
     let feeder_app = app.clone();
-    std::thread::spawn(move || {
-        let fstate = feeder_app.state::<AppState>();
+    match local_engine {
+        stt::LocalSttEngine::Qwen3Asr => {
+            std::thread::spawn(move || {
+                let fstate = feeder_app.state::<AppState>();
 
-        // Proactively trigger model warm-up (no-op if already loaded).
-        if let Err(e) = qwen3_asr::warm_qwen3_asr(&fstate.qwen3_asr_ctx, &qwen3_model) {
-            tracing::warn!("Meeting mode: engine warm failed: {}", e);
-        }
+                // Proactively trigger model warm-up (no-op if already loaded).
+                if let Err(e) = qwen3_asr::warm_qwen3_asr(&fstate.qwen3_asr_ctx, &qwen3_model) {
+                    tracing::warn!("Meeting mode: engine warm failed: {}", e);
+                }
 
-        // Wait for engine to be ready (up to 8 s total, warm already started above).
-        let mut waited = 0u64;
-        while waited < 8000 {
-            let ready = fstate
-                .qwen3_asr_ctx
-                .lock()
-                .ok()
-                .and_then(|g| g.as_ref().map(|c| c.model == qwen3_model))
-                .unwrap_or(false);
-            if ready {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(200));
-            waited += 200;
+                // Wait for engine to be ready (up to 8 s total, warm already started above).
+                let mut waited = 0u64;
+                while waited < 8000 {
+                    let ready = fstate
+                        .qwen3_asr_ctx
+                        .lock()
+                        .ok()
+                        .and_then(|g| g.as_ref().map(|c| c.model == qwen3_model))
+                        .unwrap_or(false);
+                    if ready {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                    waited += 200;
+                }
+                let ready = fstate
+                    .qwen3_asr_ctx
+                    .lock()
+                    .ok()
+                    .and_then(|g| g.as_ref().map(|c| c.model == qwen3_model))
+                    .unwrap_or(false);
+                if !ready {
+                    tracing::warn!("Meeting mode: engine not ready after 8s, aborting");
+                    fstate.meeting_active.store(false, Ordering::SeqCst);
+                    fstate.is_recording.store(false, Ordering::SeqCst);
+                    // Clear audio captured during the failed warm-up window to prevent
+                    // stale samples from being prepended to the next recording session.
+                    if let Ok(mut buf) = fstate.buffer.lock() {
+                        buf.clear();
+                    }
+                    if let Some(ov) = feeder_app.get_webview_window("overlay") {
+                        let _ = ov.emit("recording-status", "error");
+                    }
+                    hide_overlay_delayed(&feeder_app, 2000);
+                    return;
+                }
+                qwen3_asr::run_meeting_feeder_loop(feeder_app, lang, session_id);
+            });
         }
-        let ready = fstate
-            .qwen3_asr_ctx
-            .lock()
-            .ok()
-            .and_then(|g| g.as_ref().map(|c| c.model == qwen3_model))
-            .unwrap_or(false);
-        if !ready {
-            tracing::warn!("Meeting mode: engine not ready after 8s, aborting");
-            fstate.meeting_active.store(false, Ordering::SeqCst);
-            fstate.is_recording.store(false, Ordering::SeqCst);
-            // Clear audio captured during the failed warm-up window to prevent
-            // stale samples from being prepended to the next recording session.
-            if let Ok(mut buf) = fstate.buffer.lock() {
-                buf.clear();
+        stt::LocalSttEngine::Whisper => {
+            // Check model is downloaded before spawning the feeder thread.
+            if transcribe::whisper_model_path_for(&whisper_model).is_err() {
+                tracing::warn!("Meeting mode: Whisper model not downloaded");
+                state.meeting_active.store(false, Ordering::SeqCst);
+                state.is_recording.store(false, Ordering::SeqCst);
+                if let Ok(mut buf) = state.buffer.lock() {
+                    buf.clear();
+                }
+                if let Some(ov) = app.get_webview_window("overlay") {
+                    let _ = ov.emit("recording-status", "error");
+                }
+                hide_overlay_delayed(app, 2000);
+                return;
             }
-            if let Some(ov) = feeder_app.get_webview_window("overlay") {
-                let _ = ov.emit("recording-status", "error");
-            }
-            hide_overlay_delayed(&feeder_app, 2000);
-            return;
+            std::thread::spawn(move || {
+                let fstate = feeder_app.state::<AppState>();
+                // Warm the model (fast for Whisper, typically < 2 s).
+                if let Err(e) = transcribe::warm_whisper_cache(&fstate.whisper_ctx, &whisper_model) {
+                    tracing::warn!("[whisper-meeting] warm failed: {}", e);
+                    fstate.meeting_active.store(false, Ordering::SeqCst);
+                    fstate.is_recording.store(false, Ordering::SeqCst);
+                    if let Ok(mut buf) = fstate.buffer.lock() {
+                        buf.clear();
+                    }
+                    if let Some(ov) = feeder_app.get_webview_window("overlay") {
+                        let _ = ov.emit("recording-status", "error");
+                    }
+                    hide_overlay_delayed(&feeder_app, 2000);
+                    return;
+                }
+                whisper_streaming::run_whisper_meeting_feeder_loop(feeder_app, lang, session_id);
+            });
         }
-        qwen3_asr::run_meeting_feeder_loop(feeder_app, lang, session_id);
-    });
+    }
 }
 
 fn stop_meeting_mode(app: &AppHandle) {
