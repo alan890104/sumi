@@ -346,6 +346,6 @@
   "sttModel.qwen3Asr06B.desc": "Fast. Outperforms Whisper on Chinese & noisy speech",
   "overlay.meetingRecording": "Meeting…",
   "settings.shortcuts.meetingHotkey": "Meeting Mode",
-  "settings.shortcuts.meetingHotkeyDesc": "Long-form meeting transcription (Qwen3-ASR only)",
+  "settings.shortcuts.meetingHotkeyDesc": "장시간 회의 텍스트 변환",
   "settings.shortcuts.meetingNotSet": "Not configured"
 }

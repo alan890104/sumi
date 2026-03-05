@@ -353,6 +353,6 @@
   "promptRules.or": "OR",
   "overlay.meetingRecording": "Meeting…",
   "settings.shortcuts.meetingHotkey": "Meeting Mode",
-  "settings.shortcuts.meetingHotkeyDesc": "Long-form meeting transcription (Qwen3-ASR only)",
+  "settings.shortcuts.meetingHotkeyDesc": "Long-form meeting transcription",
   "settings.shortcuts.meetingNotSet": "Not configured"
 }
