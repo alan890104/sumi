@@ -906,10 +906,21 @@ pub fn get_mic_status(state: State<'_, AppState>) -> MicStatus {
     use cpal::traits::{DeviceTrait, HostTrait};
     let host = cpal::default_host();
     let default_device = host.default_input_device().and_then(|d| d.name().ok());
-    let devices: Vec<String> = host
-        .input_devices()
-        .map(|devs| devs.filter_map(|d| d.name().ok()).collect())
-        .unwrap_or_default();
+    // Use CoreAudio to filter out virtual audio devices (e.g. BlackHole,
+    // Loopback, Speaker Audio Recorder) on macOS. Fall back to cpal's
+    // list with name-based filtering on other platforms.
+    let physical = crate::audio_devices::list_physical_input_device_names();
+    let devices: Vec<String> = if !physical.is_empty() {
+        physical
+    } else {
+        host.input_devices()
+            .map(|devs| {
+                devs.filter_map(|d| d.name().ok())
+                    .filter(|name| !crate::audio_devices::is_known_virtual_device(name))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
 
     // Auto-reconnect: if mic was unavailable at startup but devices exist now, try to connect.
     let mut connected = state.mic_available.load(Ordering::SeqCst);
@@ -2575,14 +2586,12 @@ pub async fn polish_meeting_note(
     }
 
     // Extract config and validate before spawning the blocking task.
-    let (config, model_dir) = {
+    let (config, model_dir, stt_language) = {
         let state = app.state::<AppState>();
-        let mut config = state
-            .settings
-            .lock()
-            .map_err(|e| e.to_string())?
-            .polish
-            .clone();
+        let settings = state.settings.lock().map_err(|e| e.to_string())?;
+        let mut config = settings.polish.clone();
+        let stt_language = settings.stt.language.clone();
+        drop(settings);
 
         if config.mode == polisher::PolishMode::Cloud {
             let key = get_cached_api_key(&state.api_key_cache, config.cloud.provider.as_key());
@@ -2595,7 +2604,7 @@ pub async fn polish_meeting_note(
         if !polisher::is_polish_ready(&model_dir, &config) {
             return Err("LLM not configured".to_string());
         }
-        (config, model_dir)
+        (config, model_dir, stt_language)
     };
 
     let transcript = note.transcript.clone();
@@ -2606,19 +2615,32 @@ pub async fn polish_meeting_note(
     let parsed = tauri::async_runtime::spawn_blocking(move || {
         let state = app_clone.state::<AppState>();
 
-        let system_prompt = r#"You are a meeting notes assistant. Given a raw speech-to-text transcript, generate:
+        let lang_name = language_display_name(&stt_language);
+        let system_prompt = format!(
+            r#"You are a meeting notes assistant. Given a raw speech-to-text transcript, generate:
 1. A concise, descriptive title (max 60 chars)
-2. An organized summary with: key discussion points (bullet "- "), action items, decisions
+2. A well-structured Markdown summary with these sections:
 
-Return ONLY a JSON object: {"title": "...", "summary": "..."}
-Use newlines and "- " bullets in the summary field.
-Write in the same language as the transcript."#;
+## Key Points
+- Main discussion topics and highlights
+
+## Action Items
+- Specific tasks, owners if mentioned
+
+## Decisions
+- What was agreed upon or decided
+
+Omit any section that has no relevant content.
+Return ONLY a JSON object: {{"title": "...", "summary": "..."}}
+The summary field must contain valid Markdown.
+Write entirely in {lang_name}."#
+        );
 
         let result = polisher::polish_with_prompt(
             &state.llm_model,
             &model_dir,
             &config,
-            system_prompt,
+            &system_prompt,
             &transcript,
             &state.http_client,
         )?;
@@ -2631,6 +2653,43 @@ Write in the same language as the transcript."#;
     meeting_notes::save_summary(&history_dir, &id, &parsed.title, &parsed.summary)?;
 
     Ok(parsed)
+}
+
+fn language_display_name(bcp47: &str) -> &'static str {
+    match bcp47 {
+        "zh-TW" => "繁體中文 (Traditional Chinese)",
+        "zh-CN" | "zh" => "简体中文 (Simplified Chinese)",
+        "en" => "English",
+        "ja" => "日本語 (Japanese)",
+        "ko" => "한국어 (Korean)",
+        "es" => "Español (Spanish)",
+        "fr" => "Français (French)",
+        "de" => "Deutsch (German)",
+        "pt" => "Português (Portuguese)",
+        "it" => "Italiano (Italian)",
+        "ru" => "Русский (Russian)",
+        "ar" => "العربية (Arabic)",
+        "hi" => "हिन्दी (Hindi)",
+        "th" => "ไทย (Thai)",
+        "vi" => "Tiếng Việt (Vietnamese)",
+        "id" => "Bahasa Indonesia (Indonesian)",
+        "ms" => "Bahasa Melayu (Malay)",
+        "nl" => "Nederlands (Dutch)",
+        "pl" => "Polski (Polish)",
+        "tr" => "Türkçe (Turkish)",
+        "uk" => "Українська (Ukrainian)",
+        "sv" => "Svenska (Swedish)",
+        "da" => "Dansk (Danish)",
+        "fi" => "Suomi (Finnish)",
+        "no" => "Norsk (Norwegian)",
+        "cs" => "Čeština (Czech)",
+        "ro" => "Română (Romanian)",
+        "hu" => "Magyar (Hungarian)",
+        "el" => "Ελληνικά (Greek)",
+        "he" => "עברית (Hebrew)",
+        "auto" | "" => "the same language as the transcript",
+        _ => "the same language as the transcript",
+    }
 }
 
 fn parse_polish_json(raw: &str, fallback_title: &str) -> PolishedMeetingNote {

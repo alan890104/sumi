@@ -336,6 +336,7 @@ const K_ELEMENT_MAIN: u32              = 0;
 const K_TRANSPORT_BLUETOOTH: u32        = 0x626c7565; // 'blue'
 const K_TRANSPORT_BLUETOOTH_LE: u32     = 0x626c6574; // 'blet'
 const K_TRANSPORT_BUILT_IN: u32         = 0x626c746e; // 'bltn'
+const K_TRANSPORT_VIRTUAL: u32          = 0x7672746c; // 'vrtl'
 const K_CF_STRING_UTF8: u32             = 0x08000100;
 
 /// Convert a CFStringRef to a Rust `String`.
@@ -373,7 +374,7 @@ pub fn is_default_input_bluetooth() -> bool {
         );
         if status != 0 || device_id == 0 { return false; }
 
-        // Get transport type of that device
+        // Method 1: transport type (works on macOS ≤ 15).
         let addr_t = AudioObjectPropertyAddress {
             selector: K_AUDIO_PROP_TRANSPORT_TYPE,
             scope: K_SCOPE_GLOBAL,
@@ -386,8 +387,22 @@ pub fn is_default_input_bluetooth() -> bool {
             0, std::ptr::null(),
             &mut size2, &mut transport as *mut u32 as *mut c_void,
         );
-        if status2 != 0 { return false; }
-        transport == K_TRANSPORT_BLUETOOTH || transport == K_TRANSPORT_BLUETOOTH_LE
+        if status2 == 0 {
+            return transport == K_TRANSPORT_BLUETOOTH || transport == K_TRANSPORT_BLUETOOTH_LE;
+        }
+
+        // Method 2: UID heuristic (macOS 16+ where transport type is unavailable).
+        // Bluetooth devices have UIDs like "XX-XX-XX-XX-XX-XX:input" where the
+        // prefix is a MAC address (6 colon-separated hex pairs when decoded).
+        let uid = get_cfstring_property(device_id, K_AUDIO_PROP_UID);
+        if let Some(prefix) = uid.split(':').next() {
+            // MAC address format: 12 hex chars with dashes, e.g. "50-F3-51-E6-A1-09"
+            let parts: Vec<&str> = prefix.split('-').collect();
+            if parts.len() == 6 && parts.iter().all(|p| p.len() == 2 && p.chars().all(|c| c.is_ascii_hexdigit())) {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -395,7 +410,6 @@ pub fn is_default_input_bluetooth() -> bool {
 /// with at least one input stream). Returns `None` if none exists.
 pub fn get_builtin_input_device_name() -> Option<String> {
     unsafe {
-        // Enumerate all device IDs
         let addr_devs = AudioObjectPropertyAddress {
             selector: K_AUDIO_PROP_DEVICES,
             scope: K_SCOPE_GLOBAL,
@@ -419,20 +433,7 @@ pub fn get_builtin_input_device_name() -> Option<String> {
         if s2 != 0 { return None; }
 
         for &dev_id in &ids {
-            // Must be built-in transport
-            let addr_t = AudioObjectPropertyAddress {
-                selector: K_AUDIO_PROP_TRANSPORT_TYPE,
-                scope: K_SCOPE_GLOBAL,
-                element: K_ELEMENT_MAIN,
-            };
-            let mut transport: u32 = 0;
-            let mut ts = std::mem::size_of::<u32>() as u32;
-            let r = AudioObjectGetPropertyData(
-                dev_id, &addr_t,
-                0, std::ptr::null(),
-                &mut ts, &mut transport as *mut u32 as *mut c_void,
-            );
-            if r != 0 || transport != K_TRANSPORT_BUILT_IN { continue; }
+            if !is_builtin_device(dev_id) { continue; }
 
             // Must have at least one input stream
             let addr_streams = AudioObjectPropertyAddress {
@@ -447,7 +448,143 @@ pub fn get_builtin_input_device_name() -> Option<String> {
             );
             if rs != 0 || stream_size == 0 { continue; }
 
-            // Get device name (returned as CFStringRef)
+            let name = get_cfstring_property(dev_id, K_AUDIO_PROP_NAME);
+            if !name.is_empty() { return Some(name); }
+        }
+        None
+    }
+}
+
+/// Check whether a CoreAudio device is built-in.
+unsafe fn is_builtin_device(dev_id: u32) -> bool {
+    // Method 1: transport type (works on macOS ≤ 15).
+    let addr_t = AudioObjectPropertyAddress {
+        selector: K_AUDIO_PROP_TRANSPORT_TYPE,
+        scope: K_SCOPE_GLOBAL,
+        element: K_ELEMENT_MAIN,
+    };
+    let mut transport: u32 = 0;
+    let mut ts = std::mem::size_of::<u32>() as u32;
+    let r = AudioObjectGetPropertyData(
+        dev_id, &addr_t,
+        0, std::ptr::null(),
+        &mut ts, &mut transport as *mut u32 as *mut c_void,
+    );
+    if r == 0 {
+        return transport == K_TRANSPORT_BUILT_IN;
+    }
+
+    // Method 2: UID heuristic (macOS 16+).
+    let uid = get_cfstring_property(dev_id, K_AUDIO_PROP_UID);
+    uid.starts_with("BuiltIn")
+}
+
+const K_AUDIO_PROP_UID: u32             = 0x75696420; // 'uid '
+const K_AUDIO_PROP_MANUFACTURER: u32    = 0x6c6d616b; // 'lmak'
+
+/// Check whether a CoreAudio device is virtual (loopback driver).
+///
+/// Uses a two-tier strategy:
+/// 1. `kAudioDevicePropertyTransportType == 'vrtl'` (works on macOS ≤ 15)
+/// 2. Fallback (macOS 16+, where transport type is unavailable): checks that
+///    the manufacturer is NOT "Apple Inc." and the UID lacks hardware
+///    identifiers (MAC-address pattern, "BuiltIn" prefix, or UUID dashes).
+unsafe fn is_virtual_device(dev_id: u32) -> bool {
+    // Method 1: transport type (reliable on older macOS).
+    let addr_t = AudioObjectPropertyAddress {
+        selector: K_AUDIO_PROP_TRANSPORT_TYPE,
+        scope: K_SCOPE_GLOBAL,
+        element: K_ELEMENT_MAIN,
+    };
+    let mut transport: u32 = 0;
+    let mut ts = std::mem::size_of::<u32>() as u32;
+    let r = AudioObjectGetPropertyData(
+        dev_id, &addr_t,
+        0, std::ptr::null(),
+        &mut ts, &mut transport as *mut u32 as *mut c_void,
+    );
+    if r == 0 {
+        return transport == K_TRANSPORT_VIRTUAL;
+    }
+
+    // Method 2: manufacturer + UID heuristic (macOS 16+).
+    let uid = get_cfstring_property(dev_id, K_AUDIO_PROP_UID);
+    let mfr = get_cfstring_property(dev_id, K_AUDIO_PROP_MANUFACTURER);
+
+    let is_apple = mfr == "Apple Inc.";
+    // Physical devices typically have hardware UIDs: "XX-XX-XX:input", "BuiltIn*", or UUID-style dashes.
+    let has_hw_uid = uid.contains(':') || uid.starts_with("BuiltIn") || uid.contains('-');
+
+    !is_apple && !has_hw_uid
+}
+
+/// Read a CFString property from a CoreAudio object.
+unsafe fn get_cfstring_property(dev_id: u32, selector: u32) -> String {
+    let addr = AudioObjectPropertyAddress {
+        selector,
+        scope: K_SCOPE_GLOBAL,
+        element: K_ELEMENT_MAIN,
+    };
+    let mut cf_str: *mut c_void = std::ptr::null_mut();
+    let mut sz = std::mem::size_of::<*mut c_void>() as u32;
+    let r = AudioObjectGetPropertyData(
+        dev_id, &addr,
+        0, std::ptr::null(),
+        &mut sz, &mut cf_str as *mut *mut c_void as *mut c_void,
+    );
+    if r != 0 || cf_str.is_null() { return String::new(); }
+    let s = cfstring_to_string(cf_str);
+    CFRelease(cf_str);
+    s
+}
+
+/// List names of all non-virtual audio input devices (i.e. physical mics).
+///
+/// Filters out virtual loopback drivers (BlackHole, Loopback, Speaker Audio
+/// Recorder, etc.) using transport type on macOS ≤ 15 and a manufacturer/UID
+/// heuristic on macOS 16+ where transport type is unavailable.
+pub fn list_physical_input_device_names() -> Vec<String> {
+    unsafe {
+        let addr_devs = AudioObjectPropertyAddress {
+            selector: K_AUDIO_PROP_DEVICES,
+            scope: K_SCOPE_GLOBAL,
+            element: K_ELEMENT_MAIN,
+        };
+        let mut data_size: u32 = 0;
+        let s = AudioObjectGetPropertyDataSize(
+            K_AUDIO_OBJECT_SYSTEM, &addr_devs,
+            0, std::ptr::null(), &mut data_size,
+        );
+        if s != 0 || data_size == 0 { return Vec::new(); }
+
+        let count = data_size as usize / std::mem::size_of::<u32>();
+        let mut ids: Vec<u32> = vec![0u32; count];
+        let mut actual = data_size;
+        let s2 = AudioObjectGetPropertyData(
+            K_AUDIO_OBJECT_SYSTEM, &addr_devs,
+            0, std::ptr::null(),
+            &mut actual, ids.as_mut_ptr() as *mut c_void,
+        );
+        if s2 != 0 { return Vec::new(); }
+
+        let mut names = Vec::new();
+        for &dev_id in &ids {
+            if is_virtual_device(dev_id) { continue; }
+
+            // Must have at least one input stream.
+            let addr_streams = AudioObjectPropertyAddress {
+                selector: K_AUDIO_PROP_STREAMS,
+                scope: K_SCOPE_INPUT,
+                element: K_ELEMENT_MAIN,
+            };
+            let mut stream_size: u32 = 0;
+            let rs = AudioObjectGetPropertyDataSize(
+                dev_id, &addr_streams,
+                0, std::ptr::null(), &mut stream_size,
+            );
+            if rs != 0 || stream_size == 0 { continue; }
+
+            // Get device name.
             let addr_name = AudioObjectPropertyAddress {
                 selector: K_AUDIO_PROP_NAME,
                 scope: K_SCOPE_GLOBAL,
@@ -464,9 +601,9 @@ pub fn get_builtin_input_device_name() -> Option<String> {
 
             let name = cfstring_to_string(cf_str);
             CFRelease(cf_str);
-            if !name.is_empty() { return Some(name); }
+            if !name.is_empty() { names.push(name); }
         }
-        None
+        names
     }
 }
 

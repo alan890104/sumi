@@ -31,31 +31,6 @@ impl AudioThreadControl {
     }
 }
 
-/// Resolve the effective microphone device name, applying Bluetooth avoidance
-/// when the user has not made an explicit device selection.
-///
-/// - `preferred = Some(name)` → user chose a specific device; always honoured.
-/// - `preferred = None` (Auto) → if the system default input is a Bluetooth
-///   device, return the name of the built-in microphone instead. This prevents
-///   macOS from switching the Bluetooth headset from A2DP → HFP (which causes
-///   the microphone to sound dramatically louder and degrades audio output
-///   quality). If no built-in mic exists, falls back to `None` (cpal default).
-pub fn resolve_input_device(preferred: Option<String>) -> Option<String> {
-    if preferred.is_some() {
-        return preferred;
-    }
-    if crate::platform::is_default_input_bluetooth() {
-        let builtin = crate::platform::get_builtin_input_device_name();
-        if builtin.is_none() {
-            tracing::warn!("Default input is Bluetooth but no built-in mic found — recording from BT device");
-        } else {
-            tracing::info!("Default input is Bluetooth — routing to built-in mic: {:?}", builtin);
-        }
-        return builtin; // None = let cpal pick system default (safe fallback)
-    }
-    None
-}
-
 /// Spawn a persistent audio thread that builds and immediately starts the cpal
 /// input stream.  The stream runs for the entire app lifetime — the callback
 /// checks `is_recording` atomically and discards samples when false.
@@ -69,7 +44,7 @@ pub fn spawn_audio_thread(
     device_name: Option<String>,
 ) -> Result<(u32, AudioThreadControl), String> {
     // Apply Bluetooth avoidance when in Auto mode (device_name == None).
-    let device_name = resolve_input_device(device_name);
+    let device_name = crate::audio_devices::resolve_input_device(device_name);
     // Clone the resolved name before it is moved into the spawned thread,
     // so we can record it on AudioThreadControl for the mismatch check.
     let resolved_device_name = device_name.clone();
@@ -308,7 +283,7 @@ pub fn do_start_recording(
     // (device_name = None → recorded as None on AudioThreadControl), the
     // wanted device is now Some("MacBook Pro Microphone") — a mismatch.
     // Reconnect *before* setting is_recording so the race window is zero.
-    let wanted = resolve_input_device(device_name.clone());
+    let wanted = crate::audio_devices::resolve_input_device(device_name.clone());
     if wanted.is_some() {
         let current = audio_thread.lock().ok()
             .and_then(|g| g.as_ref().map(|c| c.device_name.clone()))

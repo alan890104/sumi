@@ -1,4 +1,5 @@
 mod audio;
+mod audio_devices;
 mod commands;
 mod context_detect;
 mod credentials;
@@ -877,7 +878,7 @@ pub fn run() {
             // built-in mic (via resolve_input_device), preventing an A2DP → HFP switch.
             {
                 let app_for_listener = app.handle().clone();
-                platform::add_default_input_listener(move || {
+                audio_devices::add_default_input_listener(move || {
                     let state = app_for_listener.state::<AppState>();
 
                     // If the user chose an explicit mic device, never interfere.
@@ -897,7 +898,7 @@ pub fn run() {
                     // our cpal stream is already on the built-in mic — no action needed.
                     // (If the BT stream dies, the error callback will set stream_alive=false
                     //  and do_start_recording will trigger a lazy reconnect.)
-                    if !platform::is_default_input_bluetooth() {
+                    if !crate::audio_devices::is_default_input_bluetooth() {
                         tracing::info!("Default input changed to non-BT device — stream already correct, skipping reconnect");
                         return;
                     }
