@@ -24,9 +24,9 @@ serde_json = "1"
 cpal = "0.15"
 whisper-rs = "0.15"
 reqwest = { version = "0.12", features = ["blocking", "multipart"] }
-candle-core = { git = "https://github.com/huggingface/candle.git", rev = "38e7202145a8d264cf78e824edf2c31f6a438cdf" }
-candle-nn = { git = "https://github.com/huggingface/candle.git", rev = "38e7202145a8d264cf78e824edf2c31f6a438cdf" }
-candle-transformers = { git = "https://github.com/huggingface/candle.git", rev = "38e7202145a8d264cf78e824edf2c31f6a438cdf" }
+candle-core = "0.9.2"
+candle-nn = "0.9.2"
+candle-transformers = "0.9.2"
 qwen3-asr = { version = "0.2.1", default-features = false }
 tokenizers = { version = "0.22", features = ["onig"] }
 hound = "3"

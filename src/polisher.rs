@@ -5,7 +5,6 @@ use std::sync::Mutex;
 use unicode_segmentation::UnicodeSegmentation;
 
 use candle_core::quantized::gguf_file;
-use candle_core::quantized::tokenizer::TokenizerFromGguf;
 use candle_core::{Device, Tensor};
 use candle_transformers::generation::{LogitsProcessor, Sampling};
 
@@ -224,7 +223,8 @@ impl PolishModel {
     pub fn tokenizer_filename(&self) -> Option<&'static str> {
         match self {
             PolishModel::Phi4Mm | PolishModel::Unknown => Some("phi4_mini_tokenizer.json"),
-            PolishModel::Qwen3_4B | PolishModel::Ministral3B => None,
+            PolishModel::Qwen3_4B => Some("qwen3_4b_tokenizer.json"),
+            PolishModel::Ministral3B => Some("ministral3b_tokenizer.json"),
         }
     }
 
@@ -234,7 +234,12 @@ impl PolishModel {
             PolishModel::Phi4Mm | PolishModel::Unknown => Some(
                 "https://huggingface.co/microsoft/Phi-4-mini-instruct/resolve/main/tokenizer.json",
             ),
-            PolishModel::Qwen3_4B | PolishModel::Ministral3B => None,
+            PolishModel::Qwen3_4B => Some(
+                "https://huggingface.co/Qwen/Qwen3-4B/resolve/main/tokenizer.json",
+            ),
+            PolishModel::Ministral3B => Some(
+                "https://huggingface.co/mistralai/Ministral-3B-Instruct-2410/resolve/main/tokenizer.json",
+            ),
         }
     }
 }
@@ -1461,13 +1466,12 @@ fn ensure_llm_loaded(
 
         // Load tokenizer — from external JSON for models with non-gpt2 GGUF tokenizers
         // (e.g. Phi-3.5-mini uses SentencePiece/llama type), else from GGUF metadata.
-        let tokenizer = if let Some(tok_filename) = polish_model.tokenizer_filename() {
+        let tokenizer = {
+            let tok_filename = polish_model.tokenizer_filename()
+                .ok_or("Model has no tokenizer configured")?;
             let tok_path = model_path.parent().unwrap_or(model_path).join(tok_filename);
             tokenizers::Tokenizer::from_file(&tok_path)
                 .map_err(|e| format!("Load tokenizer from {}: {}", tok_path.display(), e))?
-        } else {
-            tokenizers::Tokenizer::from_gguf(&content)
-                .map_err(|e| format!("Load tokenizer from GGUF: {}", e))?
         };
 
         // Load model weights (consumes content; file reader is positioned at tensor data)
