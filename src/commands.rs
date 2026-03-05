@@ -2203,7 +2203,7 @@ pub async fn switch_qwen3_asr_model(
 
             // Pre-warm. Use catch_unwind so model_switching is always cleared on panic.
             let warm_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model)
+                qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model, Some(&state.engine_ready_cv))
             }));
 
             // Emit "done" and hide overlay on the main thread, then clear the flag.
@@ -2374,7 +2374,7 @@ pub fn download_qwen3_asr_model(
             .map(|s| s.stt.qwen3_asr_model.clone())
             .unwrap_or_default();
         if active_model == model {
-            if let Err(e) = qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model) {
+            if let Err(e) = qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model, Some(&state.engine_ready_cv)) {
                 tracing::warn!("download_qwen3_asr_model: post-download warm failed: {}", e);
             }
         }

@@ -1,4 +1,4 @@
-use std::sync::{atomic::Ordering, Mutex};
+use std::sync::{atomic::Ordering, Condvar, Mutex};
 use std::time::Duration;
 
 use tauri::{AppHandle, Manager};
@@ -18,10 +18,15 @@ pub struct Qwen3AsrCache {
 
 /// Load (or reuse) the Qwen3-ASR engine for `model`.
 ///
+/// If `ready_cv` is provided, `notify_all` is called after the cache is
+/// populated so that `wait_engine_ready` can wake up immediately instead of
+/// burning a 200 ms poll cycle.
+///
 /// Returns an error string if the model files are missing or loading fails.
 pub fn warm_qwen3_asr(
     cache: &Mutex<Option<Qwen3AsrCache>>,
     model: &Qwen3AsrModel,
+    ready_cv: Option<&Condvar>,
 ) -> Result<(), String> {
     let mut guard = cache.lock().unwrap_or_else(|e| {
         tracing::warn!("Qwen3-ASR cache mutex was poisoned; recovering from potentially inconsistent state");
@@ -51,6 +56,10 @@ pub fn warm_qwen3_asr(
 
     tracing::info!("Qwen3-ASR {} loaded in {:.1?}", model.display_name(), t0.elapsed());
     *guard = Some(Qwen3AsrCache { engine, model: model.clone() });
+    drop(guard); // release lock before notifying so waiters can acquire it immediately
+    if let Some(cv) = ready_cv {
+        cv.notify_all();
+    }
     Ok(())
 }
 
@@ -61,7 +70,7 @@ pub fn transcribe_with_cached_qwen3_asr(
     model: &Qwen3AsrModel,
     language: &str,
 ) -> Result<String, String> {
-    warm_qwen3_asr(cache, model)?;
+    warm_qwen3_asr(cache, model, None)?;
 
     let guard = cache.lock().unwrap_or_else(|e| {
         tracing::warn!("Qwen3-ASR cache mutex was poisoned; recovering from potentially inconsistent state");
@@ -87,26 +96,33 @@ pub fn transcribe_with_cached_qwen3_asr(
     Ok(result.text)
 }
 
-/// Poll until the cached Qwen3-ASR engine matches `model`, or `timeout_ms` elapses.
+/// Wait until the cached Qwen3-ASR engine matches `model`, or `timeout_ms` elapses.
+///
+/// Uses a `Condvar` to sleep without burning CPU; wakes immediately when
+/// `warm_qwen3_asr` signals `ready_cv` after populating the cache.
 ///
 /// Returns `true` if the engine is ready, `false` on timeout.
 pub(crate) fn wait_engine_ready(
     ctx: &Mutex<Option<Qwen3AsrCache>>,
     model: &Qwen3AsrModel,
+    ready_cv: &Condvar,
+    ready_mu: &Mutex<()>,
     timeout_ms: u64,
 ) -> bool {
-    let mut waited = 0u64;
-    while waited < timeout_ms {
-        let ready = ctx
-            .lock()
-            .ok()
-            .and_then(|g| g.as_ref().map(|c| c.model == *model))
-            .unwrap_or(false);
-        if ready {
-            return true;
+    let deadline = std::time::Instant::now() + Duration::from_millis(timeout_ms);
+    loop {
+        {
+            let guard = ctx.lock().ok();
+            if guard.and_then(|g| g.as_ref().map(|c| c.model == *model)).unwrap_or(false) {
+                return true;
+            }
         }
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        waited += 200;
+        let remaining = match deadline.checked_duration_since(std::time::Instant::now()) {
+            Some(d) => d,
+            None => break,
+        };
+        let mu_guard = ready_mu.lock().unwrap_or_else(|e| e.into_inner());
+        let _ = ready_cv.wait_timeout(mu_guard, remaining);
     }
     // Final check after timeout.
     ctx.lock()
