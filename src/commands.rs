@@ -182,6 +182,9 @@ pub fn update_edit_hotkey(
         }
     }
 
+    *state.registered_edit_shortcut.lock().map_err(|e| e.to_string())? =
+        settings.edit_hotkey.as_deref().and_then(parse_hotkey_string);
+
     settings::save_settings_to_disk(&settings);
     tracing::info!("Edit hotkey updated to: {:?}", settings.edit_hotkey);
     Ok(())
@@ -259,6 +262,9 @@ pub fn update_meeting_hotkey(
         }
     }
 
+    *state.registered_meeting_shortcut.lock().map_err(|e| e.to_string())? =
+        settings.meeting_hotkey.as_deref().and_then(parse_hotkey_string);
+
     settings::save_settings_to_disk(&settings);
     tracing::info!("Meeting hotkey updated to: {:?}", settings.meeting_hotkey);
     Ok(())
@@ -289,6 +295,8 @@ pub fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
     let mut fresh = settings::load_settings();
     settings::apply_locale_defaults(&mut fresh);
     let default_hotkey = fresh.hotkey.clone();
+    let default_edit_hotkey = fresh.edit_hotkey.clone();
+    let default_meeting_hotkey = fresh.meeting_hotkey.clone();
 
     {
         let mut current = state.settings.lock().map_err(|e| e.to_string())?;
@@ -305,6 +313,21 @@ pub fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
     app.global_shortcut()
         .register(shortcut)
         .map_err(|e| format!("Failed to register shortcut: {}", e))?;
+
+    // Re-register edit hotkey if the default settings include one.
+    if let Some(ref edit_hk) = default_edit_hotkey {
+        if let Some(s) = parse_hotkey_string(edit_hk) {
+            if let Err(e) = app.global_shortcut().register(s) {
+                tracing::warn!("Failed to re-register edit hotkey after reset: {}", e);
+            }
+        }
+    }
+
+    // Update shortcut identity caches to match the newly registered shortcuts.
+    *state.registered_edit_shortcut.lock().map_err(|e| e.to_string())? =
+        default_edit_hotkey.as_deref().and_then(parse_hotkey_string);
+    *state.registered_meeting_shortcut.lock().map_err(|e| e.to_string())? =
+        default_meeting_hotkey.as_deref().and_then(parse_hotkey_string);
 
     let label = hotkey_display_label(&default_hotkey);
     if let Some(tray) = app.tray_by_id("main-tray") {

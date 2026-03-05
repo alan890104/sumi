@@ -101,6 +101,13 @@ pub struct AppState {
     /// Prevents a zombie feeder from a previous recording from emitting stale
     /// partial results into the current session's overlay.
     pub whisper_preview_session: AtomicU64,
+    /// Cached `Shortcut` for the edit-by-voice hotkey, set at registration time.
+    /// The handler compares directly against this instead of re-parsing
+    /// `settings.edit_hotkey` on every keypress, eliminating the TOCTOU race
+    /// where settings and the registered shortcut could briefly diverge.
+    pub registered_edit_shortcut: Mutex<Option<Shortcut>>,
+    /// Cached `Shortcut` for the meeting hotkey. Same rationale as above.
+    pub registered_meeting_shortcut: Mutex<Option<Shortcut>>,
 }
 
 /// Restore original clipboard content from saved_clipboard.
@@ -834,6 +841,12 @@ pub fn run() {
                 streaming_session: AtomicU64::new(0),
                 whisper_preview_active: AtomicBool::new(false),
                 whisper_preview_session: AtomicU64::new(0),
+                registered_edit_shortcut: Mutex::new(
+                    settings.edit_hotkey.as_deref().and_then(parse_hotkey_string),
+                ),
+                registered_meeting_shortcut: Mutex::new(
+                    settings.meeting_hotkey.as_deref().and_then(parse_hotkey_string),
+                ),
             });
 
             // Register a CoreAudio listener for default-input-device changes.
@@ -1063,18 +1076,16 @@ pub fn run() {
 
                             let state = app.state::<AppState>();
 
-                            let (is_meeting_hotkey, is_edit_hotkey) = state.settings.lock()
+                            let is_edit_hotkey = state.registered_edit_shortcut
+                                .lock()
                                 .ok()
-                                .map(|s| {
-                                    let meeting = s.meeting_hotkey.as_deref()
-                                        .and_then(parse_hotkey_string)
-                                        .is_some_and(|ms| *shortcut == ms);
-                                    let edit = s.edit_hotkey.as_deref()
-                                        .and_then(parse_hotkey_string)
-                                        .is_some_and(|es| *shortcut == es);
-                                    (meeting, edit)
-                                })
-                                .unwrap_or((false, false));
+                                .and_then(|g| g.as_ref().map(|s| s == shortcut))
+                                .unwrap_or(false);
+                            let is_meeting_hotkey = state.registered_meeting_shortcut
+                                .lock()
+                                .ok()
+                                .and_then(|g| g.as_ref().map(|s| s == shortcut))
+                                .unwrap_or(false);
 
                             if state.test_mode.load(Ordering::SeqCst) {
                                 if let Some(main_win) = app.get_webview_window("main") {
