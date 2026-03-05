@@ -17,8 +17,14 @@ fn read_wal_context(history_dir: &std::path::Path, note_id: &Option<String>) -> 
     if let Some(ref id) = note_id {
         let full = crate::meeting_notes::read_wal(history_dir, id);
         let trimmed = full.trim_end();
-        if trimmed.len() > 200 {
-            trimmed[trimmed.len().saturating_sub(200)..].to_string()
+        // Use char-aware slicing to avoid panics on multi-byte UTF-8 (Chinese, etc.)
+        let char_count = trimmed.chars().count();
+        if char_count > 200 {
+            trimmed.char_indices()
+                .nth(char_count - 200)
+                .map(|(i, _)| &trimmed[i..])
+                .unwrap_or(trimmed)
+                .to_string()
         } else {
             trimmed.to_string()
         }

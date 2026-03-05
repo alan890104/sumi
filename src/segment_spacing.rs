@@ -38,8 +38,9 @@ impl SpacingState {
             delta.push_str(seg_text);
         }
 
-        // Add trailing space so the next segment does not fuse with this one.
-        if (self.has_content || !delta.is_empty()) && !delta.ends_with(' ') {
+        // Add trailing space so the next segment does not fuse with this one,
+        // but only when this tick actually produced text.
+        if !delta.is_empty() && !delta.ends_with(' ') {
             delta.push(' ');
         }
 
@@ -119,10 +120,8 @@ mod tests {
         let mut s = SpacingState::new();
         s.build_tick_delta("hello");
         let d = s.build_tick_delta("");
-        // has_content is true but delta is empty → trailing space guard
-        // (has_content || !delta.is_empty()) && !delta.ends_with(' ')
-        // has_content=true, delta="" → ends_with(' ') on "" is false → push ' '
-        assert_eq!(d, " ");
+        // Empty segment should produce nothing — no stray spaces in WAL.
+        assert_eq!(d, "");
     }
 
     #[test]
@@ -204,14 +203,11 @@ mod tests {
 
         // Tick 1: speech
         transcript.push_str(&s.build_tick_delta("Hello"));
-        // Tick 2: silence (empty)
+        // Tick 2: silence (empty) — should produce nothing
         transcript.push_str(&s.build_tick_delta(""));
-        // Tick 3: speech resumes
+        // Tick 3: speech resumes — previous ended with space, no extra needed
         transcript.push_str(&s.build_tick_delta("world"));
 
-        // Should be "Hello  world " — the silence tick inserted one space
-        // and the next tick's trailing space is already there.
-        // Let's verify: "Hello " + " " + "world "
-        assert_eq!(transcript, "Hello  world ");
+        assert_eq!(transcript, "Hello world ");
     }
 }

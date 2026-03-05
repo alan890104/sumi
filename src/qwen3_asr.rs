@@ -157,7 +157,10 @@ pub(crate) fn run_feeder_loop(app: AppHandle, language: String, session_id: u64)
             qwen3_asr::StreamingOptions::default()
         };
         c.engine.init_streaming(opts)
-        // lock released here
+        // Lock released here. Safety: qwen3-asr StreamingState is fully owned
+        // (contains tensor buffers + KV cache, no references to AsrInference).
+        // A concurrent model switch will drop the old engine, but sstate remains
+        // valid because it does not borrow from the engine.
     };
 
     let mut last_tail: usize = 0;

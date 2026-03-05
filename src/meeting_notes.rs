@@ -138,6 +138,10 @@ pub fn list_notes(history_dir: &Path) -> Vec<MeetingNote> {
 // On crash: startup recovery reads the file back into SQLite.
 
 fn wal_path(history_dir: &Path, id: &str) -> PathBuf {
+    debug_assert!(
+        !id.contains('/') && !id.contains('\\') && !id.contains(".."),
+        "meeting note id must not contain path separators: {id}"
+    );
     history_dir.join(format!("{}.meeting_wal", id))
 }
 
