@@ -528,6 +528,21 @@ pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, 
             final_delta.push_str(&seg_text);
             if let Some(ref id) = note_id {
                 crate::meeting_notes::append_wal(&history_dir, id, &final_delta);
+                let duration = state
+                    .meeting_start_time
+                    .lock()
+                    .ok()
+                    .and_then(|st| *st)
+                    .map(|t| t.elapsed().as_secs_f64())
+                    .unwrap_or(0.0);
+                let _ = app.emit(
+                    "meeting-note-updated",
+                    serde_json::json!({
+                        "id": id,
+                        "delta": &final_delta,
+                        "duration_secs": duration,
+                    }),
+                );
             }
         }
     }

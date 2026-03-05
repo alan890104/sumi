@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
+  import { marked } from 'marked';
   import { t } from '$lib/stores/i18n.svelte';
   import { showConfirm } from '$lib/stores/ui.svelte';
   import {
     listMeetingNotes,
     getActiveMeetingNoteId,
+    getMeetingNote,
     renameMeetingNote,
     deleteMeetingNote,
     polishMeetingNote,
@@ -36,6 +38,9 @@
   let copied = $state(false);
   let copiedTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  // Split copy dropdown
+  let copyMenuOpen = $state(false);
+
   // Context menu
   let contextMenuId = $state<string | null>(null);
   let contextMenuX = $state(0);
@@ -44,6 +49,10 @@
   let unlisteners: UnlistenFn[] = [];
 
   let selectedNote = $derived(notes.find((n) => n.id === selectedId) ?? null);
+
+  function renderMarkdown(md: string): string {
+    return marked.parse(md, { async: false }) as string;
+  }
 
   // Auto-set active tab when note changes
   $effect(() => {
@@ -157,19 +166,46 @@
 
 
   // ── Copy ──
-  async function handleCopy() {
-    if (!selectedNote) return;
-    const text = activeTab === 'summary' && selectedNote.summary
-      ? selectedNote.summary
-      : selectedNote.transcript;
+  function stripMarkdown(md: string): string {
+    return md
+      .replace(/^#{1,6}\s+/gm, '')  // headings
+      .replace(/\*\*(.+?)\*\*/g, '$1')  // bold
+      .replace(/\*(.+?)\*/g, '$1')  // italic
+      .replace(/`(.+?)`/g, '$1')  // inline code
+      .replace(/^\s*[-*]\s+/gm, '- ')  // normalize bullets
+      .replace(/\n{3,}/g, '\n\n')  // collapse blank lines
+      .trim();
+  }
+
+  async function copyText(text: string) {
     try {
       await navigator.clipboard.writeText(text);
       copied = true;
+      copyMenuOpen = false;
       if (copiedTimeout) clearTimeout(copiedTimeout);
-      copiedTimeout = setTimeout(() => (copied = false), 2000);
+      copiedTimeout = setTimeout(() => (copied = false), 1500);
     } catch (e) {
       console.error('Copy failed:', e);
     }
+  }
+
+  async function handleCopy() {
+    if (!selectedNote) return;
+    if (activeTab === 'summary' && selectedNote.summary) {
+      await copyText(stripMarkdown(selectedNote.summary));
+    } else {
+      await copyText(selectedNote.transcript);
+    }
+  }
+
+  async function handleCopyMarkdown() {
+    if (!selectedNote?.summary) return;
+    await copyText(selectedNote.summary);
+  }
+
+  function toggleCopyMenu(e: MouseEvent) {
+    e.stopPropagation();
+    copyMenuOpen = !copyMenuOpen;
   }
 
   // ── Polish ──
@@ -208,6 +244,7 @@
 
   function closeContextMenu() {
     contextMenuId = null;
+    copyMenuOpen = false;
   }
 
   // ── Lifecycle ──
@@ -246,11 +283,23 @@
       }
     });
 
-    const u3 = await onMeetingNoteFinalized((p) => {
-      const n = notes.find((x) => x.id === p.id);
-      if (n) {
-        n.is_recording = false;
-        notes = [...notes];
+    const u3 = await onMeetingNoteFinalized(async (p) => {
+      try {
+        // Re-fetch from SQLite to get the authoritative transcript
+        // (includes post-loop flush text that may not have been emitted as a delta).
+        const fresh = await getMeetingNote(p.id);
+        const idx = notes.findIndex((x) => x.id === p.id);
+        if (idx !== -1) {
+          notes[idx] = fresh;
+          notes = [...notes];
+        }
+      } catch {
+        // Fallback: just flip the flag
+        const n = notes.find((x) => x.id === p.id);
+        if (n) {
+          n.is_recording = false;
+          notes = [...notes];
+        }
       }
     });
 
@@ -392,7 +441,7 @@
       >
         {#if activeTab === 'summary'}
           {#if selectedNote.summary}
-            <div class="summary-text">{selectedNote.summary}</div>
+            <div class="summary-text markdown-body">{@html renderMarkdown(selectedNote.summary)}</div>
           {:else}
             <p class="no-content">{t('meeting.noSummaryYet')}</p>
           {/if}
@@ -419,19 +468,39 @@
           <span class="meta-sep">·</span>
           <span>{formatDate(selectedNote.created_at)} {formatTime(selectedNote.created_at)}</span>
         </div>
-        <button
-          class="copy-btn"
-          onclick={handleCopy}
-          disabled={activeTab === 'summary' ? !selectedNote.summary : !selectedNote.transcript}
-        >
-          {#if copied}
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            {t('meeting.copied')}
-          {:else}
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            {t('meeting.copyTranscript')}
+        <div class="copy-btn-group">
+          <button
+            class="copy-btn"
+            onclick={handleCopy}
+            disabled={activeTab === 'summary' ? !selectedNote.summary : !selectedNote.transcript}
+          >
+            {#if copied}
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              {t('meeting.copied')}
+            {:else}
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              {activeTab === 'summary' ? t('meeting.copy') : t('meeting.copyTranscript')}
+            {/if}
+          </button>
+          {#if activeTab === 'summary' && selectedNote.summary}
+            <button
+              class="copy-chevron-btn"
+              onclick={toggleCopyMenu}
+              disabled={!selectedNote.summary}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            {#if copyMenuOpen}
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <div class="copy-dropdown" onclick={(e: MouseEvent) => e.stopPropagation()}>
+                <button onclick={handleCopyMarkdown}>
+                  {t('meeting.copyAsMarkdown')}
+                </button>
+              </div>
+            {/if}
           {/if}
-        </button>
+        </div>
       </div>
     {:else if !loading}
       <div class="content-empty">
@@ -737,6 +806,13 @@
     animation: dotPulse 1.8s ease-in-out infinite;
   }
 
+  .copy-btn-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
   .copy-btn {
     display: flex;
     align-items: center;
@@ -753,6 +829,15 @@
     transition: all 0.15s;
     flex-shrink: 0;
   }
+  .copy-btn-group .copy-btn {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: none;
+  }
+  .copy-btn-group .copy-btn:only-child {
+    border-radius: 6px;
+    border-right: 1px solid var(--border-subtle);
+  }
   .copy-btn:hover:not(:disabled) {
     background: var(--bg-active);
     color: var(--text-primary);
@@ -760,6 +845,59 @@
   .copy-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .copy-chevron-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 6px;
+    border-radius: 0 6px 6px 0;
+    border: 1px solid var(--border-subtle);
+    border-left: 1px solid var(--border-divider);
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    align-self: stretch;
+  }
+  .copy-chevron-btn:hover:not(:disabled) {
+    background: var(--bg-active);
+    color: var(--text-primary);
+  }
+  .copy-chevron-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .copy-dropdown {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 4px;
+    background: var(--bg-sidebar, #1c1c20);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    min-width: 160px;
+  }
+  .copy-dropdown button {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .copy-dropdown button:hover {
+    background: var(--bg-hover);
   }
 
   .polish-btn {
@@ -826,8 +964,47 @@
     font-size: 14px;
     line-height: 1.7;
     color: var(--text-primary);
-    white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  /* ── Markdown rendered summary ── */
+  .summary-text.markdown-body :global(h2) {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 20px 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-divider);
+  }
+  .summary-text.markdown-body :global(h2:first-child) {
+    margin-top: 0;
+  }
+  .summary-text.markdown-body :global(h3) {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 16px 0 6px;
+  }
+  .summary-text.markdown-body :global(ul) {
+    margin: 4px 0 12px;
+    padding-left: 20px;
+  }
+  .summary-text.markdown-body :global(li) {
+    margin-bottom: 4px;
+    line-height: 1.6;
+  }
+  .summary-text.markdown-body :global(p) {
+    margin: 8px 0;
+  }
+  .summary-text.markdown-body :global(strong) {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .summary-text.markdown-body :global(code) {
+    font-size: 13px;
+    background: var(--bg-hover);
+    padding: 1px 4px;
+    border-radius: 3px;
   }
 
   .content-empty {
