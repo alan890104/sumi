@@ -347,5 +347,19 @@
   "overlay.meetingRecording": "Meeting…",
   "settings.shortcuts.meetingHotkey": "Meeting Mode",
   "settings.shortcuts.meetingHotkeyDesc": "長時間の会議文字起こし",
-  "settings.shortcuts.meetingNotSet": "Not configured"
+  "settings.shortcuts.meetingNotSet": "Not configured",
+  "nav.meeting": "会議",
+  "meeting.emptyTitle": "会議メモはまだありません",
+  "meeting.emptyHint": "会議録音を開始すると、ここにメモが表示されます",
+  "meeting.delete": "メモを削除",
+  "meeting.deleteConfirm": "この会議メモを削除しますか？",
+  "meeting.deleteAll": "すべて削除",
+  "meeting.deleteAllConfirm": "すべての会議メモを削除しますか？この操作は元に戻せません。",
+  "meeting.rename": "名前変更",
+  "meeting.recording": "録音中",
+  "meeting.words": "語",
+  "meeting.noContent": "文字起こしはまだありません",
+  "meeting.copyTranscript": "文字起こしをコピー",
+  "meeting.copied": "コピーしました！",
+  "overlay.meetingStopped": "会議を保存しました"
 }

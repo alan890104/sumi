@@ -30,6 +30,7 @@
     | 'recording'
     | 'edit_recording'
     | 'meeting_recording'
+    | 'meeting_stopped'
     | 'processing'
     | 'transcribing'
     | 'polishing'
@@ -78,7 +79,9 @@
       case 'edit_recording':
         return 'capsule edit-recording';
       case 'meeting_recording':
-        return partialText.length > 0 ? 'capsule meeting-recording has-partial' : 'capsule meeting-recording';
+        return 'capsule meeting-recording';
+      case 'meeting_stopped':
+        return 'capsule result success';
       case 'processing':
         return 'capsule processing';
       case 'transcribing':
@@ -112,6 +115,8 @@
         return t('overlay.editRecording');
       case 'meeting_recording':
         return t('overlay.meetingRecording');
+      case 'meeting_stopped':
+        return t('overlay.meetingStopped');
       case 'processing':
       case 'transcribing':
         return t('overlay.transcribing');
@@ -145,11 +150,11 @@
   let showDot: boolean = $derived.by(() => false); // dot is never shown in practice (CSS handles it on .recording)
   let showSpinner: boolean = $derived.by(() => is('preparing', 'processing', 'transcribing', 'polishing', 'switching'));
   let showWaveform: boolean = $derived.by(() => is('recording', 'edit_recording', 'meeting_recording'));
-  let showIconResult: boolean = $derived.by(() => is('pasted', 'copied', 'error', 'edit_requires_polish', 'edited'));
+  let showIconResult: boolean = $derived.by(() => is('pasted', 'copied', 'error', 'edit_requires_polish', 'edited', 'meeting_stopped'));
   let showTimer: boolean = $derived.by(() => is('recording', 'edit_recording', 'meeting_recording'));
   let showUndoIcon: boolean = $derived.by(() => is('undo'));
   let showUndoBar: boolean = $derived.by(() => is('undo'));
-  let isCheckIcon: boolean = $derived.by(() => is('pasted', 'copied', 'edited'));
+  let isCheckIcon: boolean = $derived.by(() => is('pasted', 'copied', 'edited', 'meeting_stopped'));
   let isErrorIcon: boolean = $derived.by(() => is('error', 'edit_requires_polish'));
   let isPolishSpinner: boolean = $derived.by(() => is('polishing'));
   let isSwitchingSpinner: boolean = $derived.by(() => is('switching'));
@@ -158,7 +163,7 @@
   // Maximum characters shown in the live-preview label. Displays the trailing
   // PARTIAL_MAX-1 chars with a leading '…' when the transcript exceeds this.
   const PARTIAL_MAX = 30;
-  let showingPartial: boolean = $derived.by(() => is('recording', 'meeting_recording') && partialText.length > 0);
+  let showingPartial: boolean = $derived.by(() => is('recording') && partialText.length > 0);
   let displayLabelText: string = $derived(
     showingPartial
       ? ([...partialText].length > PARTIAL_MAX
@@ -288,6 +293,11 @@
     startWaveform();
   }
 
+  function setMeetingStopped() {
+    clearCommon();
+    phase = 'meeting_stopped';
+  }
+
   function setProcessing() {
     clearCommon();
     phase = 'processing';
@@ -384,6 +394,9 @@
         break;
       case 'meeting_recording':
         setMeetingRecording();
+        break;
+      case 'meeting_stopped':
+        setMeetingStopped();
         break;
       case 'processing':
         setProcessing();
@@ -483,7 +496,7 @@
       }
     });
     const u5 = await onTranscriptionPartial((payload) => {
-      if (phase === 'recording' || phase === 'meeting_recording') {
+      if (phase === 'recording') {
         partialText = payload.text;
       }
     });

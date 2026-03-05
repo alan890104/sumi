@@ -3,7 +3,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::polisher::truncate_for_error;
 use crate::settings::models_dir;
@@ -551,11 +551,23 @@ pub(crate) fn run_cloud_meeting_feeder_loop(
     let state = app.state::<crate::AppState>();
     let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100);
 
-    let mut accumulated = String::new();
+    // File-based transcript: each segment is appended to a WAL file on disk
+    // so the backend never holds a growing String in memory.
+    let history_dir = crate::settings::history_dir();
+    let note_id: Option<String> = state
+        .active_meeting_note_id
+        .lock()
+        .ok()
+        .and_then(|nid| nid.clone());
+
     let mut chunk_buf: Vec<f32> = Vec::new(); // 16 kHz samples for current segment
     let mut silence_count: u32 = 0;
     let mut had_speech_since_reset = false;
     const RMS_THRESHOLD: f32 = 0.003;
+
+    // O(1) spacing state.
+    let mut has_content = false;
+    let mut ends_with_space = false;
 
     let mut last_tail: usize = 0;
     let waveform_keep: usize = sr as usize * 2;
@@ -623,16 +635,13 @@ pub(crate) fn run_cloud_meeting_feeder_loop(
 
         // Silence reset: ≥ 4 s of silence after speech → transcribe and reset chunk.
         if silence_count >= 2 && had_speech_since_reset && !chunk_buf.is_empty() {
+            let mut tick_delta = String::new();
             match run_cloud_stt(&cloud_config, &chunk_buf, &state.http_client) {
                 Ok(seg_text) if !seg_text.is_empty() => {
-                    if !accumulated.is_empty()
-                        && !accumulated.ends_with(' ')
-                        && !seg_text.starts_with(' ')
-                    {
-                        accumulated.push(' ');
+                    if has_content && !ends_with_space && !seg_text.starts_with(' ') {
+                        tick_delta.push(' ');
                     }
-                    accumulated.push_str(&seg_text);
-                    crate::emit_transcription_partial(&app, &accumulated);
+                    tick_delta.push_str(&seg_text);
                 }
                 Err(e) => {
                     tracing::warn!("[cloud-meeting] chunk transcription failed, skipping: {}", e);
@@ -640,17 +649,37 @@ pub(crate) fn run_cloud_meeting_feeder_loop(
                 _ => {}
             }
 
-            if !accumulated.is_empty() && !accumulated.ends_with(' ') {
-                accumulated.push(' ');
+            if (has_content || !tick_delta.is_empty()) && !tick_delta.ends_with(' ') {
+                tick_delta.push(' ');
             }
+
+            // Persist delta to WAL file and emit event.
+            if !tick_delta.is_empty() {
+                if let Some(ref id) = note_id {
+                    crate::meeting_notes::append_wal(&history_dir, id, &tick_delta);
+                    let duration = state
+                        .meeting_start_time
+                        .lock()
+                        .ok()
+                        .and_then(|st| *st)
+                        .map(|t| t.elapsed().as_secs_f64())
+                        .unwrap_or(0.0);
+                    let _ = app.emit(
+                        "meeting-note-updated",
+                        serde_json::json!({
+                            "id": id,
+                            "delta": &tick_delta,
+                            "duration_secs": duration,
+                        }),
+                    );
+                }
+                ends_with_space = tick_delta.ends_with(' ');
+                has_content = true;
+            }
+
             chunk_buf.clear();
             silence_count = 0;
             had_speech_since_reset = false;
-        }
-
-        // Persist accumulated transcript every tick.
-        if let Ok(mut t) = state.meeting_transcript.lock() {
-            t.clone_from(&accumulated);
         }
     }
 
@@ -666,10 +695,7 @@ pub(crate) fn run_cloud_meeting_feeder_loop(
         return;
     }
     if state.meeting_cancelled.load(Ordering::SeqCst) {
-        tracing::warn!(
-            "[cloud-meeting] feeder cancelled — partial transcript already persisted ({} chars)",
-            accumulated.len()
-        );
+        tracing::warn!("[cloud-meeting] feeder cancelled — partial transcript already persisted to file");
         return;
     }
 
@@ -677,13 +703,14 @@ pub(crate) fn run_cloud_meeting_feeder_loop(
     if !chunk_buf.is_empty() {
         match run_cloud_stt(&cloud_config, &chunk_buf, &state.http_client) {
             Ok(seg_text) if !seg_text.is_empty() => {
-                if !accumulated.is_empty()
-                    && !accumulated.ends_with(' ')
-                    && !seg_text.starts_with(' ')
-                {
-                    accumulated.push(' ');
+                let mut final_delta = String::new();
+                if has_content && !ends_with_space && !seg_text.starts_with(' ') {
+                    final_delta.push(' ');
                 }
-                accumulated.push_str(&seg_text);
+                final_delta.push_str(&seg_text);
+                if let Some(ref id) = note_id {
+                    crate::meeting_notes::append_wal(&history_dir, id, &final_delta);
+                }
             }
             Err(e) => {
                 tracing::warn!("[cloud-meeting] final chunk transcription failed: {}", e);
@@ -692,11 +719,9 @@ pub(crate) fn run_cloud_meeting_feeder_loop(
         }
     }
 
-    tracing::info!("[cloud-meeting] finish: {} chars", accumulated.len());
+    tracing::info!("[cloud-meeting] feeder finished — transcript persisted to WAL file");
 
-    if let Ok(mut t) = state.meeting_transcript.lock() {
-        t.clone_from(&accumulated);
-    }
+    // Signal completion. stop_meeting_mode reads the transcript from the WAL file.
     state.meeting_active.store(false, Ordering::SeqCst);
 }
 

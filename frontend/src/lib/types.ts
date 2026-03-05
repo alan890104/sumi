@@ -229,6 +229,20 @@ export interface DownloadProgress {
   message?: string;
 }
 
+// ── Meeting Notes ──
+
+export interface MeetingNote {
+  id: string;
+  title: string;
+  transcript: string;
+  created_at: number;
+  updated_at: number;
+  duration_secs: number;
+  stt_model: string;
+  is_recording: boolean;
+  word_count: number;
+}
+
 // ── Pages ──
 
 export type Page =
@@ -236,6 +250,7 @@ export type Page =
   | 'settings'
   | 'promptRules'
   | 'dictionary'
+  | 'meeting'
   | 'history'
   | 'about'
   | 'test';
@@ -253,6 +268,7 @@ export type OverlayStatus =
   | 'recording'
   | 'edit_recording'
   | 'meeting_recording'
+  | 'meeting_stopped'
   | 'processing'
   | 'transcribing'
   | 'polishing'

@@ -7,7 +7,7 @@ use crate::qwen3_asr as qwen3;
 use crate::settings::{self, Settings};
 use crate::stt::{Qwen3AsrModel, Qwen3AsrModelInfo, SttMode};
 use crate::whisper_models::{self, WhisperModel, WhisperModelInfo, SystemInfo};
-use crate::{history, AppState};
+use crate::{history, meeting_notes, AppState};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
@@ -384,39 +384,60 @@ pub struct HistoryPage {
 }
 
 #[tauri::command]
-pub fn get_history_page(before_timestamp: Option<i64>, limit: Option<u32>) -> HistoryPage {
-    let limit = limit.unwrap_or(10);
-    let (entries, has_more) =
-        history::load_history_page(&settings::history_dir(), before_timestamp, limit);
-    HistoryPage { entries, has_more }
+pub async fn get_history_page(
+    before_timestamp: Option<i64>,
+    limit: Option<u32>,
+) -> Result<HistoryPage, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let limit = limit.unwrap_or(10);
+        let (entries, has_more) =
+            history::load_history_page(&settings::history_dir(), before_timestamp, limit);
+        HistoryPage { entries, has_more }
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn get_history_stats() -> history::HistoryStats {
-    history::get_stats(&settings::history_dir())
+pub async fn get_history_stats() -> Result<history::HistoryStats, String> {
+    tauri::async_runtime::spawn_blocking(move || history::get_stats(&settings::history_dir()))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn get_history() -> Vec<history::HistoryEntry> {
-    history::load_history(&settings::history_dir())
+pub async fn get_history() -> Result<Vec<history::HistoryEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || history::load_history(&settings::history_dir()))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn delete_history_entry(id: String) -> Result<(), String> {
-    history::delete_entry(&settings::history_dir(), &settings::audio_dir(), &id);
-    Ok(())
+pub async fn delete_history_entry(id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        history::delete_entry(&settings::history_dir(), &settings::audio_dir(), &id);
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn export_history_audio(id: String) -> Result<String, String> {
-    let dest = history::export_audio(&settings::audio_dir(), &id)?;
-    Ok(dest.to_string_lossy().to_string())
+pub async fn export_history_audio(id: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dest = history::export_audio(&settings::audio_dir(), &id)?;
+        Ok(dest.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn clear_all_history() -> Result<(), String> {
-    history::clear_all(&settings::history_dir(), &settings::audio_dir());
-    Ok(())
+pub async fn clear_all_history() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        history::clear_all(&settings::history_dir(), &settings::audio_dir());
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1301,32 +1322,37 @@ pub fn list_polish_models(state: State<'_, AppState>) -> Vec<PolishModelInfo> {
 }
 
 #[tauri::command]
-pub fn switch_polish_model(state: State<'_, AppState>, model: polisher::PolishModel) -> Result<(), String> {
-    // Guard: refuse if recording or processing is already in progress.
-    if state.is_recording.load(Ordering::SeqCst) || state.is_processing.load(Ordering::SeqCst) {
-        return Err("Cannot switch model while recording or processing".to_string());
-    }
-
-    {
-        let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
-        settings.polish.model = model.clone();
-        settings::save_settings_to_disk(&settings);
-    }
-
-    // Invalidate and pre-warm the new model if it's already downloaded
-    polisher::invalidate_cache(&state.llm_model);
-    let model_dir = settings::models_dir();
-    if model_dir.join(model.filename()).exists() {
-        if let Err(e) = polisher::warm_llm_cache(&state.llm_model, &model_dir, &model) {
-            tracing::error!("Failed to pre-warm LLM: {}", e);
+pub async fn switch_polish_model(app: AppHandle, model: polisher::PolishModel) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        // Guard: refuse if recording or processing is already in progress.
+        if state.is_recording.load(Ordering::SeqCst) || state.is_processing.load(Ordering::SeqCst) {
+            return Err("Cannot switch model while recording or processing".to_string());
         }
-    }
-    tracing::info!(
-        "Polish model switched to {}",
-        model.display_name()
-    );
 
-    Ok(())
+        {
+            let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+            settings.polish.model = model.clone();
+            settings::save_settings_to_disk(&settings);
+        }
+
+        // Invalidate and pre-warm the new model if it's already downloaded
+        polisher::invalidate_cache(&state.llm_model);
+        let model_dir = settings::models_dir();
+        if model_dir.join(model.filename()).exists() {
+            if let Err(e) = polisher::warm_llm_cache(&state.llm_model, &model_dir, &model) {
+                tracing::error!("Failed to pre-warm LLM: {}", e);
+            }
+        }
+        tracing::info!(
+            "Polish model switched to {}",
+            model.display_name()
+        );
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -1546,67 +1572,72 @@ pub fn get_whisper_model_recommendation(state: State<'_, AppState>) -> WhisperMo
 }
 
 #[tauri::command]
-pub fn switch_whisper_model(app: AppHandle, state: State<'_, AppState>, model: WhisperModel) -> Result<(), String> {
-    // Atomically claim the switching slot — prevents concurrent calls from racing.
-    if state.model_switching.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
-        return Err("Model switch already in progress".to_string());
-    }
-
-    // Guard: refuse if recording or processing is already in progress.
-    if state.is_recording.load(Ordering::SeqCst) || state.is_processing.load(Ordering::SeqCst) {
-        state.model_switching.store(false, Ordering::SeqCst);
-        return Err("Cannot switch model while recording or processing".to_string());
-    }
-
-    match state.settings.lock() {
-        Ok(mut s) => {
-            s.stt.whisper_model = model.clone();
-            settings::save_settings_to_disk(&s);
+pub async fn switch_whisper_model(app: AppHandle, model: WhisperModel) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        // Atomically claim the switching slot — prevents concurrent calls from racing.
+        if state.model_switching.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+            return Err("Model switch already in progress".to_string());
         }
-        Err(e) => {
+
+        // Guard: refuse if recording or processing is already in progress.
+        if state.is_recording.load(Ordering::SeqCst) || state.is_processing.load(Ordering::SeqCst) {
             state.model_switching.store(false, Ordering::SeqCst);
-            return Err(e.to_string());
+            return Err("Cannot switch model while recording or processing".to_string());
         }
-    }
 
-    // Show overlay on main thread (Cocoa APIs are thread-affine).
-    {
-        let app2 = app.clone();
-        let _ = app.run_on_main_thread(move || {
-            if let Some(ov) = app2.get_webview_window("overlay") {
-                platform::show_overlay(&ov);
-                let _ = ov.emit("model-switching", serde_json::json!({"status": "start"}));
+        match state.settings.lock() {
+            Ok(mut s) => {
+                s.stt.whisper_model = model.clone();
+                settings::save_settings_to_disk(&s);
             }
-        });
-    }
-
-    // Pre-warm the new model. Use catch_unwind so model_switching is always cleared
-    // even if whisper-rs panics on a corrupt model file.
-    let warm_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        crate::transcribe::warm_whisper_cache(&state.whisper_ctx, &model)
-    }));
-
-    // Emit "done" and hide overlay on the main thread, then clear the flag —
-    // keeping model_switching=true until the UI transition is finished so the
-    // hotkey cannot fire in the gap between warm completion and overlay hide.
-    {
-        let app2 = app.clone();
-        let _ = app.run_on_main_thread(move || {
-            if let Some(ov) = app2.get_webview_window("overlay") {
-                let _ = ov.emit("model-switching", serde_json::json!({"status": "done"}));
-                platform::hide_overlay(&ov);
+            Err(e) => {
+                state.model_switching.store(false, Ordering::SeqCst);
+                return Err(e.to_string());
             }
-            app2.state::<AppState>().model_switching.store(false, Ordering::SeqCst);
-        });
-    }
+        }
 
-    match warm_result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => tracing::error!("Failed to pre-warm whisper model: {}", e),
-        Err(_) => tracing::error!("Whisper model pre-warm panicked"),
-    }
+        // Show overlay on main thread (Cocoa APIs are thread-affine).
+        {
+            let app2 = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                if let Some(ov) = app2.get_webview_window("overlay") {
+                    platform::show_overlay(&ov);
+                    let _ = ov.emit("model-switching", serde_json::json!({"status": "start"}));
+                }
+            });
+        }
 
-    Ok(())
+        // Pre-warm the new model. Use catch_unwind so model_switching is always cleared
+        // even if whisper-rs panics on a corrupt model file.
+        let warm_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::transcribe::warm_whisper_cache(&state.whisper_ctx, &model)
+        }));
+
+        // Emit "done" and hide overlay on the main thread, then clear the flag —
+        // keeping model_switching=true until the UI transition is finished so the
+        // hotkey cannot fire in the gap between warm completion and overlay hide.
+        {
+            let app2 = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                if let Some(ov) = app2.get_webview_window("overlay") {
+                    let _ = ov.emit("model-switching", serde_json::json!({"status": "done"}));
+                    platform::hide_overlay(&ov);
+                }
+                app2.state::<AppState>().model_switching.store(false, Ordering::SeqCst);
+            });
+        }
+
+        match warm_result {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => tracing::error!("Failed to pre-warm whisper model: {}", e),
+            Err(_) => tracing::error!("Whisper model pre-warm panicked"),
+        }
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -2089,76 +2120,80 @@ pub fn list_qwen3_asr_models(state: State<'_, AppState>) -> Vec<Qwen3AsrModelInf
 }
 
 #[tauri::command]
-pub fn switch_qwen3_asr_model(
+pub async fn switch_qwen3_asr_model(
     app: AppHandle,
-    state: State<'_, AppState>,
     model: Qwen3AsrModel,
 ) -> Result<(), String> {
-    // Atomically claim the switching slot — prevents concurrent calls from racing.
-    if state.model_switching.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
-        return Err("Model switch already in progress".to_string());
-    }
-
-    // Guard: refuse if recording or processing is already in progress.
-    if state.is_recording.load(Ordering::SeqCst) || state.is_processing.load(Ordering::SeqCst) {
-        state.model_switching.store(false, Ordering::SeqCst);
-        return Err("Cannot switch model while recording or processing".to_string());
-    }
-
-    match state.settings.lock() {
-        Ok(mut s) => {
-            s.stt.qwen3_asr_model = model.clone();
-            settings::save_settings_to_disk(&s);
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        // Atomically claim the switching slot — prevents concurrent calls from racing.
+        if state.model_switching.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+            return Err("Model switch already in progress".to_string());
         }
-        Err(e) => {
+
+        // Guard: refuse if recording or processing is already in progress.
+        if state.is_recording.load(Ordering::SeqCst) || state.is_processing.load(Ordering::SeqCst) {
             state.model_switching.store(false, Ordering::SeqCst);
-            return Err(e.to_string());
-        }
-    }
-
-    // Invalidate stale cache so next transcription loads the new model.
-    qwen3::invalidate_qwen3_asr_cache(&state.qwen3_asr_ctx);
-
-    // Pre-warm inline if already downloaded.
-    if crate::stt::is_qwen3_asr_downloaded(&model) {
-        // Show overlay on main thread (Cocoa APIs are thread-affine).
-        {
-            let app2 = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                if let Some(ov) = app2.get_webview_window("overlay") {
-                    platform::show_overlay(&ov);
-                    let _ = ov.emit("model-switching", serde_json::json!({"status": "start"}));
-                }
-            });
+            return Err("Cannot switch model while recording or processing".to_string());
         }
 
-        // Pre-warm. Use catch_unwind so model_switching is always cleared on panic.
-        let warm_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model)
-        }));
-
-        // Emit "done" and hide overlay on the main thread, then clear the flag.
-        {
-            let app2 = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                if let Some(ov) = app2.get_webview_window("overlay") {
-                    let _ = ov.emit("model-switching", serde_json::json!({"status": "done"}));
-                    platform::hide_overlay(&ov);
-                }
-                app2.state::<AppState>().model_switching.store(false, Ordering::SeqCst);
-            });
+        match state.settings.lock() {
+            Ok(mut s) => {
+                s.stt.qwen3_asr_model = model.clone();
+                settings::save_settings_to_disk(&s);
+            }
+            Err(e) => {
+                state.model_switching.store(false, Ordering::SeqCst);
+                return Err(e.to_string());
+            }
         }
 
-        match warm_result {
-            Ok(Ok(())) => {}
-            Ok(Err(e)) => tracing::warn!("switch_qwen3_asr_model: pre-warm failed: {}", e),
-            Err(_) => tracing::error!("switch_qwen3_asr_model: pre-warm panicked"),
+        // Invalidate stale cache so next transcription loads the new model.
+        qwen3::invalidate_qwen3_asr_cache(&state.qwen3_asr_ctx);
+
+        // Pre-warm inline if already downloaded.
+        if crate::stt::is_qwen3_asr_downloaded(&model) {
+            // Show overlay on main thread (Cocoa APIs are thread-affine).
+            {
+                let app2 = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    if let Some(ov) = app2.get_webview_window("overlay") {
+                        platform::show_overlay(&ov);
+                        let _ = ov.emit("model-switching", serde_json::json!({"status": "start"}));
+                    }
+                });
+            }
+
+            // Pre-warm. Use catch_unwind so model_switching is always cleared on panic.
+            let warm_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model)
+            }));
+
+            // Emit "done" and hide overlay on the main thread, then clear the flag.
+            {
+                let app2 = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    if let Some(ov) = app2.get_webview_window("overlay") {
+                        let _ = ov.emit("model-switching", serde_json::json!({"status": "done"}));
+                        platform::hide_overlay(&ov);
+                    }
+                    app2.state::<AppState>().model_switching.store(false, Ordering::SeqCst);
+                });
+            }
+
+            match warm_result {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => tracing::warn!("switch_qwen3_asr_model: pre-warm failed: {}", e),
+                Err(_) => tracing::error!("switch_qwen3_asr_model: pre-warm panicked"),
+            }
+        } else {
+            // Model not yet downloaded — clear the flag immediately (no overlay needed).
+            state.model_switching.store(false, Ordering::SeqCst);
         }
-    } else {
-        // Model not yet downloaded — clear the flag immediately (no overlay needed).
-        state.model_switching.store(false, Ordering::SeqCst);
-    }
-    Ok(())
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -2318,4 +2353,40 @@ pub fn download_qwen3_asr_model(
     });
 
     Ok(())
+}
+
+// ── Meeting Notes ──
+
+#[tauri::command]
+pub fn list_meeting_notes() -> Vec<meeting_notes::MeetingNote> {
+    meeting_notes::list_notes(&settings::history_dir())
+}
+
+#[tauri::command]
+pub fn get_meeting_note(id: String) -> Result<meeting_notes::MeetingNote, String> {
+    meeting_notes::get_note(&settings::history_dir(), &id)
+}
+
+#[tauri::command]
+pub fn rename_meeting_note(id: String, title: String) -> Result<(), String> {
+    meeting_notes::rename_note(&settings::history_dir(), &id, &title)
+}
+
+#[tauri::command]
+pub fn delete_meeting_note(id: String) -> Result<(), String> {
+    meeting_notes::delete_note(&settings::history_dir(), &id)
+}
+
+#[tauri::command]
+pub fn delete_all_meeting_notes() -> Result<(), String> {
+    meeting_notes::delete_all_notes(&settings::history_dir())
+}
+
+#[tauri::command]
+pub fn get_active_meeting_note_id(state: State<'_, AppState>) -> Option<String> {
+    state
+        .active_meeting_note_id
+        .lock()
+        .ok()
+        .and_then(|nid| nid.clone())
 }

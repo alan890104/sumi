@@ -21,6 +21,7 @@ import type {
   Qwen3AsrModelInfo,
   Qwen3AsrModelId,
   TranscriptionPartialPayload,
+  MeetingNote,
 } from './types';
 
 // ── Settings ──
@@ -254,3 +255,40 @@ export const onModelSwitching = (
   cb: (p: { status: 'start' | 'done' }) => void,
 ): Promise<UnlistenFn> =>
   listen('model-switching', (e) => cb(e.payload as { status: 'start' | 'done' }));
+
+// ── Meeting Notes ──
+
+export const listMeetingNotes = () =>
+  invoke<MeetingNote[]>('list_meeting_notes');
+
+export const getMeetingNote = (id: string) =>
+  invoke<MeetingNote>('get_meeting_note', { id });
+
+export const renameMeetingNote = (id: string, title: string) =>
+  invoke<void>('rename_meeting_note', { id, title });
+
+export const deleteMeetingNote = (id: string) =>
+  invoke<void>('delete_meeting_note', { id });
+
+export const deleteAllMeetingNotes = () =>
+  invoke<void>('delete_all_meeting_notes');
+
+export const getActiveMeetingNoteId = () =>
+  invoke<string | null>('get_active_meeting_note_id');
+
+export const onMeetingNoteCreated = (
+  cb: (p: { id: string; note: MeetingNote }) => void,
+): Promise<UnlistenFn> =>
+  listen('meeting-note-created', (e) => cb(e.payload as { id: string; note: MeetingNote }));
+
+export const onMeetingNoteUpdated = (
+  cb: (p: { id: string; delta: string; duration_secs: number }) => void,
+): Promise<UnlistenFn> =>
+  listen('meeting-note-updated', (e) =>
+    cb(e.payload as { id: string; delta: string; duration_secs: number }),
+  );
+
+export const onMeetingNoteFinalized = (
+  cb: (p: { id: string }) => void,
+): Promise<UnlistenFn> =>
+  listen('meeting-note-finalized', (e) => cb(e.payload as { id: string }));

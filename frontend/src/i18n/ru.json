@@ -347,5 +347,19 @@
   "overlay.meetingRecording": "Meeting…",
   "settings.shortcuts.meetingHotkey": "Meeting Mode",
   "settings.shortcuts.meetingHotkeyDesc": "Long-form meeting transcription",
-  "settings.shortcuts.meetingNotSet": "Not configured"
+  "settings.shortcuts.meetingNotSet": "Not configured",
+  "nav.meeting": "Встреча",
+  "meeting.emptyTitle": "Заметок о встречах пока нет",
+  "meeting.emptyHint": "Начните запись встречи, чтобы увидеть заметки здесь",
+  "meeting.delete": "Удалить заметку",
+  "meeting.deleteConfirm": "Вы уверены, что хотите удалить эту заметку?",
+  "meeting.deleteAll": "Удалить всё",
+  "meeting.deleteAllConfirm": "Удалить все заметки о встречах? Это действие нельзя отменить.",
+  "meeting.rename": "Переименовать",
+  "meeting.recording": "Запись",
+  "meeting.words": "слов",
+  "meeting.noContent": "Транскрипция пока отсутствует",
+  "meeting.copyTranscript": "Копировать транскрипцию",
+  "meeting.copied": "Скопировано!",
+  "overlay.meetingStopped": "Встреча сохранена"
 }

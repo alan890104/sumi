@@ -354,5 +354,19 @@
   "overlay.meetingRecording": "會議中…",
   "settings.shortcuts.meetingHotkey": "會議模式",
   "settings.shortcuts.meetingHotkeyDesc": "长时间会议逐字稿",
-  "settings.shortcuts.meetingNotSet": "未設定"
+  "settings.shortcuts.meetingNotSet": "未設定",
+  "nav.meeting": "会议",
+  "meeting.emptyTitle": "还没有会议笔记",
+  "meeting.emptyHint": "开始会议录音后，笔记会显示在这里",
+  "meeting.delete": "删除笔记",
+  "meeting.deleteConfirm": "确定要删除这条会议笔记吗？",
+  "meeting.deleteAll": "删除所有笔记",
+  "meeting.deleteAllConfirm": "确定要删除所有会议笔记吗？此操作无法撤销。",
+  "meeting.rename": "重命名",
+  "meeting.recording": "录音中",
+  "meeting.words": "字",
+  "meeting.noContent": "暂无转录内容",
+  "meeting.copyTranscript": "复制转录内容",
+  "meeting.copied": "已复制！",
+  "overlay.meetingStopped": "会议已保存"
 }

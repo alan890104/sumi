@@ -4,6 +4,7 @@ mod context_detect;
 mod credentials;
 mod history;
 mod hotkey;
+mod meeting_notes;
 mod permissions;
 pub mod platform;
 pub mod models;
@@ -91,6 +92,7 @@ pub struct AppState {
     pub meeting_session: AtomicU64,
     pub meeting_transcript: Mutex<String>,
     pub meeting_start_time: Mutex<Option<std::time::Instant>>,
+    pub active_meeting_note_id: Mutex<Option<String>>,
     /// Monotonically increasing session counter for the normal (non-meeting)
     /// Qwen3-ASR streaming feeder. Prevents a zombie feeder from a previous
     /// session from overwriting `streaming_result` for a later recording.
@@ -728,6 +730,12 @@ pub fn run() {
             commands::switch_qwen3_asr_model,
             commands::download_qwen3_asr_model,
             commands::update_meeting_hotkey,
+            commands::list_meeting_notes,
+            commands::get_meeting_note,
+            commands::rename_meeting_note,
+            commands::delete_meeting_note,
+            commands::delete_all_meeting_notes,
+            commands::get_active_meeting_note_id,
         ])
         .setup(|app| {
             // Initialize logger
@@ -786,8 +794,12 @@ pub fn run() {
             settings::apply_locale_defaults(&mut settings);
             let hotkey_str = settings.hotkey.clone();
 
-            // Migrate legacy JSON history to SQLite
+            // Migrate legacy JSON history to SQLite, then run schema migrations
             history::migrate_from_json(&history_dir(), &audio_dir());
+            history::init_db(&history_dir());
+
+            // Recover meeting notes stuck in is_recording=1 from a previous crash
+            meeting_notes::recover_stuck_notes(&history_dir());
 
             // Pre-initialise audio pipeline
             let is_recording = Arc::new(AtomicBool::new(false));
@@ -843,6 +855,7 @@ pub fn run() {
                 meeting_session: AtomicU64::new(0),
                 meeting_transcript: Mutex::new(String::new()),
                 meeting_start_time: Mutex::new(None),
+                active_meeting_note_id: Mutex::new(None),
                 streaming_session: AtomicU64::new(0),
                 whisper_preview_active: AtomicBool::new(false),
                 whisper_preview_session: AtomicU64::new(0),
@@ -1542,6 +1555,47 @@ fn start_meeting_mode(app: &AppHandle) {
         *st = Some(std::time::Instant::now());
     }
 
+    // Create a meeting note in SQLite and store the note_id.
+    {
+        let model_label = match stt_mode {
+            SttMode::Cloud => format!("Cloud (Meeting) – {}", cloud_config.provider.as_key()),
+            SttMode::Local => match local_engine {
+                stt::LocalSttEngine::Qwen3Asr => {
+                    format!("Qwen3-ASR (Meeting) – {}", qwen3_model.display_name())
+                }
+                stt::LocalSttEngine::Whisper => {
+                    format!("Whisper (Meeting) – {}", whisper_model.display_name())
+                }
+            },
+        };
+        let note_id = history::generate_id();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+        let note = meeting_notes::MeetingNote {
+            id: note_id.clone(),
+            title: String::new(),
+            transcript: String::new(),
+            created_at: now,
+            updated_at: now,
+            duration_secs: 0.0,
+            stt_model: model_label,
+            is_recording: true,
+            word_count: 0,
+        };
+        if let Err(e) = meeting_notes::create_note(&settings::history_dir(), &note) {
+            tracing::error!("Failed to create meeting note: {}", e);
+        }
+        if let Ok(mut nid) = state.active_meeting_note_id.lock() {
+            *nid = Some(note_id.clone());
+        }
+        let _ = app.emit("meeting-note-created", serde_json::json!({
+            "id": note_id,
+            "note": note,
+        }));
+    }
+
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.emit("recording-status", "meeting_recording");
         let _ = overlay.emit("recording-max-duration", 0u64); // 0 = unlimited
@@ -1686,13 +1740,6 @@ fn stop_meeting_mode(app: &AppHandle) {
         return;
     }
 
-    let transcript = state
-        .meeting_transcript
-        .lock()
-        .ok()
-        .map(|g| g.clone())
-        .unwrap_or_default();
-
     let duration_secs = state
         .meeting_start_time
         .lock()
@@ -1700,6 +1747,33 @@ fn stop_meeting_mode(app: &AppHandle) {
         .and_then(|st| *st)
         .map(|t| t.elapsed().as_secs_f64())
         .unwrap_or(0.0);
+
+    // Finalize the meeting note in SQLite (mark is_recording=0).
+    // The transcript is read from the WAL file (the sole source of truth during recording).
+    let note_id = state
+        .active_meeting_note_id
+        .lock()
+        .ok()
+        .and_then(|nid| nid.clone());
+    let hdir = settings::history_dir();
+    let transcript = note_id
+        .as_deref()
+        .map(|id| meeting_notes::read_wal(&hdir, id))
+        .unwrap_or_default();
+    if let Some(ref id) = note_id {
+        if let Err(e) = meeting_notes::finalize_note(&hdir, id, &transcript, duration_secs) {
+            tracing::error!("Failed to finalize meeting note: {}", e);
+        }
+        meeting_notes::remove_wal(&hdir, id);
+        let _ = app.emit(
+            "meeting-note-finalized",
+            serde_json::json!({ "id": id }),
+        );
+    }
+    // Clear the active note id.
+    if let Ok(mut nid) = state.active_meeting_note_id.lock() {
+        *nid = None;
+    }
 
     if transcript.is_empty() {
         tracing::info!("Meeting mode stopped — no transcript");
@@ -1711,66 +1785,8 @@ fn stop_meeting_mode(app: &AppHandle) {
         return;
     }
 
-    // Copy to clipboard. Meeting mode intentionally ignores `auto_paste`:
-    // auto-pasting a full meeting transcript at the cursor would be disruptive
-    // and almost never what the user wants. Clipboard-only is the safe default.
-    if let Ok(mut clipboard) = arboard::Clipboard::new() {
-        if let Err(e) = clipboard.set_text(&transcript) {
-            tracing::error!("Meeting clipboard error: {}", e);
-        }
-    }
-
-    // Save history entry (no audio file).
-    {
-        let (retention_days, meeting_stt_model) = state
-            .settings
-            .lock()
-            .map(|s| {
-                let model_label = match s.stt.local_engine {
-                    stt::LocalSttEngine::Qwen3Asr => {
-                        format!("Qwen3-ASR (Meeting) – {}", s.stt.qwen3_asr_model.display_name())
-                    }
-                    stt::LocalSttEngine::Whisper => {
-                        format!("Whisper (Meeting) – {}", s.stt.whisper_model.display_name())
-                    }
-                };
-                (s.history_retention_days, model_label)
-            })
-            .unwrap_or_else(|_| (0, "Meeting".to_string()));
-        let ctx = state
-            .captured_context
-            .lock()
-            .ok()
-            .and_then(|c| c.clone())
-            .unwrap_or_default();
-        let word_count = history::count_words(&transcript) as u64;
-        let entry_id = history::generate_id();
-        let entry = history::HistoryEntry {
-            id: entry_id,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as i64,
-            text: transcript.clone(),
-            raw_text: transcript.clone(),
-            reasoning: None,
-            stt_model: meeting_stt_model,
-            polish_model: "None".to_string(),
-            duration_secs,
-            has_audio: false,
-            stt_elapsed_ms: 0, // streaming mode — no single STT duration
-            polish_elapsed_ms: None,
-            total_elapsed_ms: (duration_secs * 1000.0) as u64,
-            app_name: ctx.app_name.clone(),
-            bundle_id: ctx.bundle_id.clone(),
-            chars_per_sec: 0.0,
-            word_count,
-        };
-        history::add_entry(&history_dir(), &audio_dir(), entry, retention_days);
-    }
-
     if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.emit("recording-status", "copied");
+        let _ = overlay.emit("recording-status", "meeting_stopped");
     }
     hide_overlay_delayed(app, 2000);
     // meeting_active is already false: either the feeder set it to false when

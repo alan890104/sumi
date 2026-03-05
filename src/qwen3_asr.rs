@@ -1,7 +1,7 @@
 use std::sync::{atomic::Ordering, Mutex};
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::stt::{qwen3_asr_model_dir, is_qwen3_asr_downloaded, Qwen3AsrModel};
 
@@ -300,12 +300,26 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
         }
     };
 
-    let mut accumulated = String::new();
+    // File-based transcript: each new text segment is appended to a WAL file on
+    // disk so the backend never holds a growing String in memory.
+    let history_dir = crate::settings::history_dir();
+    let note_id: Option<String> = state
+        .active_meeting_note_id
+        .lock()
+        .ok()
+        .and_then(|nid| nid.clone());
+
     let mut silence_count: u32 = 0;
     // Only trigger a silence-reset after real speech has been received since
     // the last reset, preventing repeated resets on empty/silent sessions.
     let mut had_speech_since_reset = false;
     const RMS_THRESHOLD: f32 = 0.003;
+
+    // O(1) spacing state — tracks whether the WAL file has content and whether
+    // the last written character is a space, so we can insert separators between
+    // segments without reading the file back.
+    let mut has_content = false;
+    let mut ends_with_space = false;
 
     // Tracks how far into the shared buffer we have consumed.
     // We do a partial front-trim every tick to prevent the 10M sample safety cap
@@ -323,6 +337,9 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
         if !state.is_recording.load(Ordering::SeqCst) {
             break;
         }
+
+        // New text produced this tick — bounded by ~2 s of speech, freed at end of iteration.
+        let mut tick_delta = String::new();
 
         // Read new audio since last tick, then trim the front of the buffer so it
         // never exceeds waveform_keep + (one tick of audio) ≈ 4 s at 44.1 kHz.
@@ -373,8 +390,7 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
 
             if let Some(Ok(Some(result))) = partial {
                 if !result.text.is_empty() {
-                    accumulated.push_str(&result.text);
-                    crate::emit_transcription_partial(&app, &accumulated);
+                    tick_delta.push_str(&result.text);
                 }
             }
         }
@@ -393,25 +409,21 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
                     .map(|r| r.text)
                     .unwrap_or_default();
                 if !seg_text.is_empty() {
-                    // Insert a space before seg_text if accumulated already has
-                    // content and neither side provides whitespace — prevents
-                    // segment fusion when the model omits trailing spaces on
-                    // partial results and does not include a leading space in the
-                    // final flush tokens.
-                    if !accumulated.is_empty()
-                        && !accumulated.ends_with(' ')
+                    // Insert a space to prevent segment fusion.
+                    if (has_content || !tick_delta.is_empty())
+                        && !ends_with_space
+                        && !tick_delta.ends_with(' ')
                         && !seg_text.starts_with(' ')
                     {
-                        accumulated.push(' ');
+                        tick_delta.push(' ');
                     }
-                    accumulated.push_str(&seg_text);
-                    crate::emit_transcription_partial(&app, &accumulated);
+                    tick_delta.push_str(&seg_text);
                 }
 
                 // Add a trailing space so the NEXT segment does not fuse with
                 // this one even if its first partial token lacks a leading space.
-                if !accumulated.is_empty() && !accumulated.ends_with(' ') {
-                    accumulated.push(' ');
+                if (has_content || !tick_delta.is_empty()) && !tick_delta.ends_with(' ') {
+                    tick_delta.push(' ');
                 }
                 match guard.as_ref() {
                     Some(c) => {
@@ -432,10 +444,29 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
             }
         }
 
-        // Persist accumulated transcript every tick so stop_meeting_mode can
-        // read it immediately even when the feeder times out mid-session.
-        if let Ok(mut t) = state.meeting_transcript.lock() {
-            t.clone_from(&accumulated);
+        // Append this tick's new text to the WAL file and emit a delta event.
+        // The tick_delta String is bounded by ~2 s of speech and freed each iteration.
+        if !tick_delta.is_empty() {
+            if let Some(ref id) = note_id {
+                crate::meeting_notes::append_wal(&history_dir, id, &tick_delta);
+                let duration = state
+                    .meeting_start_time
+                    .lock()
+                    .ok()
+                    .and_then(|st| *st)
+                    .map(|t| t.elapsed().as_secs_f64())
+                    .unwrap_or(0.0);
+                let _ = app.emit(
+                    "meeting-note-updated",
+                    serde_json::json!({
+                        "id": id,
+                        "delta": &tick_delta,
+                        "duration_secs": duration,
+                    }),
+                );
+            }
+            ends_with_space = tick_delta.ends_with(' ');
+            has_content = true;
         }
     }
 
@@ -462,10 +493,7 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
         return;
     }
     if state.meeting_cancelled.load(Ordering::SeqCst) {
-        tracing::warn!(
-            "[meeting] Feeder cancelled (timeout) — partial transcript already persisted ({} chars)",
-            accumulated.len()
-        );
+        tracing::warn!("[meeting] Feeder cancelled (timeout) — partial transcript already persisted to file");
         return;
     }
 
@@ -497,16 +525,22 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
             .map(|r| r.text)
             .unwrap_or_default()
     };
+
+    // Append final segment to WAL file.
     if !final_seg.is_empty() {
-        accumulated.push_str(&final_seg);
+        let mut final_delta = String::new();
+        if has_content && !ends_with_space && !final_seg.starts_with(' ') {
+            final_delta.push(' ');
+        }
+        final_delta.push_str(&final_seg);
+        if let Some(ref id) = note_id {
+            crate::meeting_notes::append_wal(&history_dir, id, &final_delta);
+        }
     }
 
-    tracing::info!("[meeting] Feeder finished. Total transcript length: {} chars", accumulated.len());
+    tracing::info!("[meeting] Feeder finished — transcript persisted to WAL file");
 
-    // Store transcript and signal completion.
-    if let Ok(mut t) = state.meeting_transcript.lock() {
-        *t = accumulated;
-    }
+    // Signal completion. stop_meeting_mode reads the transcript from the WAL file.
     state.meeting_active.store(false, Ordering::SeqCst);
 }
 

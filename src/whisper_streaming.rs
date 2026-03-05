@@ -1,7 +1,7 @@
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use whisper_rs::{FullParams, SamplingStrategy};
 
 // ══ WhisperPreviewFeeder ══════════════════════════════════════════════════════
@@ -306,13 +306,25 @@ pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, 
     let state = app.state::<crate::AppState>();
     let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100);
 
-    let mut accumulated = String::new();
+    // File-based transcript: each segment is appended to a WAL file on disk
+    // so the backend never holds a growing String in memory.
+    let history_dir = crate::settings::history_dir();
+    let note_id: Option<String> = state
+        .active_meeting_note_id
+        .lock()
+        .ok()
+        .and_then(|nid| nid.clone());
+
     let mut chunk_buf: Vec<f32> = Vec::new(); // 16 kHz samples for current segment
     let mut silence_count: u32 = 0;
     // Only trigger a silence-reset after real speech has been received since
     // the last reset, preventing repeated resets on empty/silent sessions.
     let mut had_speech_since_reset = false;
     const RMS_THRESHOLD: f32 = 0.003;
+
+    // O(1) spacing state.
+    let mut has_content = false;
+    let mut ends_with_space = false;
 
     let mut last_tail: usize = 0;
     // Keep 2 s of native-rate samples for the waveform level monitor.
@@ -384,7 +396,19 @@ pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, 
 
         // Silence reset: ≥ 4 s of silence after speech → transcribe and reset chunk.
         if silence_count >= 2 && had_speech_since_reset && !chunk_buf.is_empty() {
-            let prev_text = accumulated.trim_end().to_string();
+            // Read last ~200 chars from WAL file for Whisper context prompt.
+            let prev_text = if let Some(ref id) = note_id {
+                let full = crate::meeting_notes::read_wal(&history_dir, id);
+                let trimmed = full.trim_end();
+                if trimmed.len() > 200 {
+                    trimmed[trimmed.len().saturating_sub(200)..].to_string()
+                } else {
+                    trimmed.to_string()
+                }
+            } else {
+                String::new()
+            };
+
             let seg_text = {
                 let ctx_guard = state.whisper_ctx.lock().unwrap_or_else(|e| e.into_inner());
                 transcribe_meeting_chunk(
@@ -400,31 +424,47 @@ pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, 
                 .unwrap_or_default()
             };
 
+            let mut tick_delta = String::new();
             if !seg_text.is_empty() {
                 // Insert a space to prevent segment fusion.
-                if !accumulated.is_empty()
-                    && !accumulated.ends_with(' ')
-                    && !seg_text.starts_with(' ')
-                {
-                    accumulated.push(' ');
+                if has_content && !ends_with_space && !seg_text.starts_with(' ') {
+                    tick_delta.push(' ');
                 }
-                accumulated.push_str(&seg_text);
-                crate::emit_transcription_partial(&app, &accumulated);
+                tick_delta.push_str(&seg_text);
             }
 
             // Add trailing space so the next segment does not fuse with this one.
-            if !accumulated.is_empty() && !accumulated.ends_with(' ') {
-                accumulated.push(' ');
+            if (has_content || !tick_delta.is_empty()) && !tick_delta.ends_with(' ') {
+                tick_delta.push(' ');
             }
+
+            // Persist delta to WAL file and emit event.
+            if !tick_delta.is_empty() {
+                if let Some(ref id) = note_id {
+                    crate::meeting_notes::append_wal(&history_dir, id, &tick_delta);
+                    let duration = state
+                        .meeting_start_time
+                        .lock()
+                        .ok()
+                        .and_then(|st| *st)
+                        .map(|t| t.elapsed().as_secs_f64())
+                        .unwrap_or(0.0);
+                    let _ = app.emit(
+                        "meeting-note-updated",
+                        serde_json::json!({
+                            "id": id,
+                            "delta": &tick_delta,
+                            "duration_secs": duration,
+                        }),
+                    );
+                }
+                ends_with_space = tick_delta.ends_with(' ');
+                has_content = true;
+            }
+
             chunk_buf.clear();
             silence_count = 0;
             had_speech_since_reset = false;
-        }
-
-        // Persist accumulated transcript every tick so stop_meeting_mode can
-        // read it immediately even when the feeder times out mid-session.
-        if let Ok(mut t) = state.meeting_transcript.lock() {
-            t.clone_from(&accumulated);
         }
     }
 
@@ -440,16 +480,25 @@ pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, 
         return;
     }
     if state.meeting_cancelled.load(Ordering::SeqCst) {
-        tracing::warn!(
-            "[whisper-meeting] feeder cancelled — partial transcript already persisted ({} chars)",
-            accumulated.len()
-        );
+        tracing::warn!("[whisper-meeting] feeder cancelled — partial transcript already persisted to file");
         return;
     }
 
     // Flush remaining chunk (audio received after the last 4 s silence window).
     if !chunk_buf.is_empty() {
-        let prev_text = accumulated.trim_end().to_string();
+        // Read last ~200 chars from WAL file for Whisper context prompt.
+        let prev_text = if let Some(ref id) = note_id {
+            let full = crate::meeting_notes::read_wal(&history_dir, id);
+            let trimmed = full.trim_end();
+            if trimmed.len() > 200 {
+                trimmed[trimmed.len().saturating_sub(200)..].to_string()
+            } else {
+                trimmed.to_string()
+            }
+        } else {
+            String::new()
+        };
+
         let seg_text = {
             let ctx_guard = state.whisper_ctx.lock().unwrap_or_else(|e| e.into_inner());
             transcribe_meeting_chunk(
@@ -465,23 +514,19 @@ pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, 
             .unwrap_or_default()
         };
         if !seg_text.is_empty() {
-            if !accumulated.is_empty()
-                && !accumulated.ends_with(' ')
-                && !seg_text.starts_with(' ')
-            {
-                accumulated.push(' ');
+            let mut final_delta = String::new();
+            if has_content && !ends_with_space && !seg_text.starts_with(' ') {
+                final_delta.push(' ');
             }
-            accumulated.push_str(&seg_text);
+            final_delta.push_str(&seg_text);
+            if let Some(ref id) = note_id {
+                crate::meeting_notes::append_wal(&history_dir, id, &final_delta);
+            }
         }
     }
 
-    tracing::info!(
-        "[whisper-meeting] finish: {} chars",
-        accumulated.len()
-    );
+    tracing::info!("[whisper-meeting] feeder finished — transcript persisted to WAL file");
 
-    if let Ok(mut t) = state.meeting_transcript.lock() {
-        t.clone_from(&accumulated);
-    }
+    // Signal completion. stop_meeting_mode reads the transcript from the WAL file.
     state.meeting_active.store(false, Ordering::SeqCst);
 }

@@ -354,5 +354,19 @@
   "overlay.meetingRecording": "Meeting…",
   "settings.shortcuts.meetingHotkey": "Meeting Mode",
   "settings.shortcuts.meetingHotkeyDesc": "Long-form meeting transcription",
-  "settings.shortcuts.meetingNotSet": "Not configured"
+  "settings.shortcuts.meetingNotSet": "Not configured",
+  "nav.meeting": "Meeting",
+  "meeting.emptyTitle": "No meeting notes yet",
+  "meeting.emptyHint": "Start a meeting recording to see your notes here",
+  "meeting.delete": "Delete Note",
+  "meeting.deleteConfirm": "Are you sure you want to delete this meeting note?",
+  "meeting.deleteAll": "Delete All Notes",
+  "meeting.deleteAllConfirm": "Are you sure you want to delete all meeting notes? This cannot be undone.",
+  "meeting.rename": "Rename",
+  "meeting.recording": "Recording",
+  "meeting.words": "words",
+  "meeting.noContent": "No transcript yet",
+  "meeting.copyTranscript": "Copy Transcript",
+  "meeting.copied": "Copied!",
+  "overlay.meetingStopped": "Meeting saved"
 }

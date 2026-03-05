@@ -347,5 +347,19 @@
   "overlay.meetingRecording": "Meeting…",
   "settings.shortcuts.meetingHotkey": "Meeting Mode",
   "settings.shortcuts.meetingHotkeyDesc": "Long-form meeting transcription",
-  "settings.shortcuts.meetingNotSet": "Not configured"
+  "settings.shortcuts.meetingNotSet": "Not configured",
+  "nav.meeting": "Meeting",
+  "meeting.emptyTitle": "Noch keine Meetingnotizen",
+  "meeting.emptyHint": "Starten Sie eine Meeting-Aufnahme, um Notizen zu sehen",
+  "meeting.delete": "Notiz löschen",
+  "meeting.deleteConfirm": "Möchten Sie diese Meetingnotiz wirklich löschen?",
+  "meeting.deleteAll": "Alle löschen",
+  "meeting.deleteAllConfirm": "Alle Meetingnotizen löschen? Dies kann nicht rückgängig gemacht werden.",
+  "meeting.rename": "Umbenennen",
+  "meeting.recording": "Aufnahme",
+  "meeting.words": "Wörter",
+  "meeting.noContent": "Noch kein Transkript",
+  "meeting.copyTranscript": "Transkript kopieren",
+  "meeting.copied": "Kopiert!",
+  "overlay.meetingStopped": "Meeting gespeichert"
 }

@@ -13,6 +13,7 @@
   import SettingsPage from './pages/SettingsPage.svelte';
   import PromptRulesPage from './pages/PromptRulesPage.svelte';
   import DictionaryPage from './pages/DictionaryPage.svelte';
+  import MeetingPage from './pages/MeetingPage.svelte';
   import HistoryPage from './pages/HistoryPage.svelte';
   import AboutPage from './pages/AboutPage.svelte';
   import TestWizard from './pages/TestWizard.svelte';
@@ -46,7 +47,7 @@
     <Sidebar {version} />
     <div class="content-area">
       <div class="content-drag"></div>
-      <div class="content-scroll">
+      <div class="content-scroll" class:no-padding={getCurrentPage() === 'meeting'}>
         {#if getCurrentPage() === 'stats'}
           <StatsPage />
         {:else if getCurrentPage() === 'settings'}
@@ -55,6 +56,8 @@
           <PromptRulesPage />
         {:else if getCurrentPage() === 'dictionary'}
           <DictionaryPage />
+        {:else if getCurrentPage() === 'meeting'}
+          <MeetingPage />
         {:else if getCurrentPage() === 'history'}
           <HistoryPage />
         {:else if getCurrentPage() === 'about'}
@@ -95,5 +98,10 @@
     flex: 1;
     overflow-y: auto;
     padding: 0 var(--content-padding, 44px) 44px;
+  }
+
+  .content-scroll.no-padding {
+    padding: 0;
+    overflow: hidden;
   }
 </style>

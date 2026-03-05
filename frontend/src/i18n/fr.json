@@ -347,5 +347,19 @@
   "overlay.meetingRecording": "Meeting…",
   "settings.shortcuts.meetingHotkey": "Meeting Mode",
   "settings.shortcuts.meetingHotkeyDesc": "Long-form meeting transcription",
-  "settings.shortcuts.meetingNotSet": "Not configured"
+  "settings.shortcuts.meetingNotSet": "Not configured",
+  "nav.meeting": "Réunion",
+  "meeting.emptyTitle": "Aucune note de réunion",
+  "meeting.emptyHint": "Démarrez un enregistrement de réunion pour voir vos notes ici",
+  "meeting.delete": "Supprimer la note",
+  "meeting.deleteConfirm": "Voulez-vous vraiment supprimer cette note de réunion ?",
+  "meeting.deleteAll": "Tout supprimer",
+  "meeting.deleteAllConfirm": "Supprimer toutes les notes de réunion ? Cette action est irréversible.",
+  "meeting.rename": "Renommer",
+  "meeting.recording": "Enregistrement",
+  "meeting.words": "mots",
+  "meeting.noContent": "Pas encore de transcription",
+  "meeting.copyTranscript": "Copier la transcription",
+  "meeting.copied": "Copié !",
+  "overlay.meetingStopped": "Réunion enregistrée"
 }

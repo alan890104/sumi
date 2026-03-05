@@ -52,10 +52,17 @@ fn validate_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
-    let _ = std::fs::create_dir_all(history_dir);
-    let conn = Connection::open(db_path(history_dir))?;
-    conn.execute_batch("PRAGMA journal_mode=WAL;")?;
+/// Run schema creation and migrations. Call once at app startup.
+pub fn init_db(history_dir: &Path) {
+    match open_db_and_migrate(history_dir) {
+        Ok(_) => tracing::info!("History DB initialized"),
+        Err(e) => tracing::error!("Failed to initialize history DB: {}", e),
+    }
+}
+
+/// Open + full migration — used only by `init_db` at startup.
+fn open_db_and_migrate(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
+    let conn = open_db(history_dir)?;
     // Validate schema: if the table exists but is missing expected columns, drop and recreate.
     let has_table: bool = conn.query_row(
         "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='history'",
@@ -130,6 +137,14 @@ fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
             )?;
         }
     }
+    Ok(conn)
+}
+
+/// Lightweight connection opener — no migrations, just WAL pragma.
+fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
+    let _ = std::fs::create_dir_all(history_dir);
+    let conn = Connection::open(db_path(history_dir))?;
+    conn.execute_batch("PRAGMA journal_mode=WAL;")?;
     Ok(conn)
 }
 
