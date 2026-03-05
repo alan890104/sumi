@@ -2185,6 +2185,10 @@ pub async fn switch_qwen3_asr_model(
             }
         }
 
+        // Reset the readiness flag BEFORE invalidating the cache so the flag
+        // always accurately reflects whether the cache holds a warm engine.
+        // (flag=false → cache state unknown; flag=true → cache is valid)
+        *state.qwen3_ready_mu.lock().unwrap_or_else(|e| e.into_inner()) = false;
         // Invalidate stale cache so next transcription loads the new model.
         qwen3::invalidate_qwen3_asr_cache(&state.qwen3_asr_ctx);
 
@@ -2203,7 +2207,7 @@ pub async fn switch_qwen3_asr_model(
 
             // Pre-warm. Use catch_unwind so model_switching is always cleared on panic.
             let warm_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model)
+                qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model, Some((&state.qwen3_ready_cv, &state.qwen3_ready_mu)))
             }));
 
             // Emit "done" and hide overlay on the main thread, then clear the flag.
@@ -2374,7 +2378,11 @@ pub fn download_qwen3_asr_model(
             .map(|s| s.stt.qwen3_asr_model.clone())
             .unwrap_or_default();
         if active_model == model {
-            if let Err(e) = qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model) {
+            // Reset flag before warm (consistent with switch_qwen3_asr_model /
+            // delete_qwen3_asr_model) so warm_qwen3_asr always transitions
+            // flag false → true, making wait_engine_ready's flag-check reliable.
+            *state.qwen3_ready_mu.lock().unwrap_or_else(|e| e.into_inner()) = false;
+            if let Err(e) = qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model, Some((&state.qwen3_ready_cv, &state.qwen3_ready_mu))) {
                 tracing::warn!("download_qwen3_asr_model: post-download warm failed: {}", e);
             }
         }
@@ -2490,8 +2498,19 @@ pub fn delete_qwen3_asr_model(
         .map(|m| m.len())
         .sum();
 
+    // Reset flag before invalidating cache (same ordering as switch_qwen3_asr_model).
+    *state.qwen3_ready_mu.lock().unwrap_or_else(|e| e.into_inner()) = false;
     // Invalidate Qwen3-ASR cache.
     qwen3::invalidate_qwen3_asr_cache(&state.qwen3_asr_ctx);
+    // Wake any wait_engine_ready waiter so it re-evaluates the deadline
+    // immediately rather than sleeping the full remaining timeout.
+    // (flag=false → it will not return true, but avoids an unnecessary 8 s stall.)
+    // Nudge any wait_engine_ready waiter so it skips the rest of its current
+    // wait_timeout slice and re-evaluates the deadline immediately.
+    // flag=false means it will loop back to sleep (or break if deadline passed),
+    // not return true. This is called without holding qwen3_ready_mu, which is
+    // valid per std::sync::Condvar: notify_all does not require the lock.
+    state.qwen3_ready_cv.notify_all();
 
     std::fs::remove_dir_all(&model_dir)
         .map_err(|e| format!("Failed to delete model directory: {}", e))?;
