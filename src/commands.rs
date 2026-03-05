@@ -2378,6 +2378,10 @@ pub fn download_qwen3_asr_model(
             .map(|s| s.stt.qwen3_asr_model.clone())
             .unwrap_or_default();
         if active_model == model {
+            // Reset flag before warm (consistent with switch_qwen3_asr_model /
+            // delete_qwen3_asr_model) so warm_qwen3_asr always transitions
+            // flag false → true, making wait_engine_ready's flag-check reliable.
+            *state.qwen3_ready_mu.lock().unwrap_or_else(|e| e.into_inner()) = false;
             if let Err(e) = qwen3::warm_qwen3_asr(&state.qwen3_asr_ctx, &model, Some((&state.qwen3_ready_cv, &state.qwen3_ready_mu))) {
                 tracing::warn!("download_qwen3_asr_model: post-download warm failed: {}", e);
             }

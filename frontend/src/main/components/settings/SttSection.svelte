@@ -242,11 +242,22 @@
 
     if (unlisten) { unlisten(); unlisten = null; }
 
-    unlisten = await onQwen3AsrDownloadProgress((d) => {
+    unlisten = await onQwen3AsrDownloadProgress(async (d) => {
       if (d.status === 'complete') {
         downloadingModelId = null;
         if (unlisten) { unlisten(); unlisten = null; }
-        loadQwen3Models();
+        // Refresh model list and sync active model from backend.
+        // The backend may have warmed a model that is already set as active in
+        // settings.json but whose selection is stale in the Svelte store
+        // (e.g. set during onboarding but not reflected in the current session).
+        const models = await listQwen3AsrModels().catch(() => null);
+        if (models) {
+          qwen3Models = models;
+          const backendActive = models.find(m => m.is_active);
+          if (backendActive && backendActive.id !== sttConfig.qwen3_asr_model) {
+            setSttQwen3AsrModel(backendActive.id as Qwen3AsrModelId);
+          }
+        }
       } else if (d.status === 'error') {
         downloadingModelId = null;
         downloadErrorModelId = modelId;

@@ -36,6 +36,16 @@ pub fn warm_qwen3_asr(
 
     if let Some(ref c) = *guard {
         if &c.model == model {
+            // Cache already hot — still notify so any concurrent wait_engine_ready
+            // wakes up even if this warm was triggered after the flag was reset
+            // (e.g., a future caller that resets the flag without invalidating).
+            drop(guard);
+            if let Some((cv, mu)) = ready {
+                let mut flag = mu.lock().unwrap_or_else(|e| e.into_inner());
+                *flag = true;
+                drop(flag);
+                cv.notify_all();
+            }
             return Ok(());
         }
     }
