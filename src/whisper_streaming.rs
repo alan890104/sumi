@@ -301,7 +301,7 @@ fn transcribe_meeting_chunk<'a>(
 ///   the chunk with the previous accumulated text as `initial_prompt`, appends
 ///   to `accumulated`, emits `"transcription-partial"`.
 /// * After `is_recording` becomes false, flushes the remaining chunk and writes
-///   `meeting_transcript` before clearing `meeting_active`.
+///   the transcript to SQLite via `finalize_note` before clearing `meeting_active`.
 pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, session_id: u64) {
     let state = app.state::<crate::AppState>();
     let sr = state.sample_rate.lock().ok().and_then(|v| *v).unwrap_or(44100);

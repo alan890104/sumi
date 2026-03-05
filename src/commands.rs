@@ -199,7 +199,6 @@ pub fn update_meeting_hotkey(
     state: State<'_, AppState>,
     hotkey: Option<String>,
 ) -> Result<(), String> {
-    use std::sync::atomic::Ordering;
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
     // Refuse if a meeting is in progress — unregistering the active hotkey
@@ -322,6 +321,15 @@ pub fn reset_settings(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
         if let Some(s) = parse_hotkey_string(edit_hk) {
             if let Err(e) = app.global_shortcut().register(s) {
                 tracing::warn!("Failed to re-register edit hotkey after reset: {}", e);
+            }
+        }
+    }
+
+    // Re-register meeting hotkey if the default settings include one.
+    if let Some(ref meeting_hk) = default_meeting_hotkey {
+        if let Some(s) = parse_hotkey_string(meeting_hk) {
+            if let Err(e) = app.global_shortcut().register(s) {
+                tracing::warn!("Failed to re-register meeting hotkey after reset: {}", e);
             }
         }
     }
@@ -2373,7 +2381,18 @@ pub fn rename_meeting_note(id: String, title: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn delete_meeting_note(id: String) -> Result<(), String> {
+pub fn delete_meeting_note(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    let active_id = state
+        .active_meeting_note_id
+        .lock()
+        .ok()
+        .and_then(|n| n.clone());
+    if active_id.as_deref() == Some(&id) {
+        return Err("Cannot delete the currently-recording meeting note".to_string());
+    }
     meeting_notes::delete_note(&settings::history_dir(), &id)
 }
 

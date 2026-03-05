@@ -282,15 +282,6 @@
     return parts.join('+');
   });
 
-  async function clearMeetingHotkey() {
-    try {
-      await updateMeetingHotkey(null);
-      setMeetingHotkey(null);
-    } catch (e) {
-      console.error('Failed to clear meeting hotkey:', e);
-    }
-  }
-
   // Cleanup on destroy
   onDestroy(() => {
     if (isCapturing) cancelCapture();
@@ -384,12 +375,7 @@
         {:else}
           <span class="not-set">{t('settings.shortcuts.meetingNotSet')}</span>
         {/if}
-        <div style="display: flex; gap: 8px; align-items: center;">
-          {#if getMeetingHotkey()}
-            <button class="hotkey-btn" onclick={clearMeetingHotkey}>{t('settings.shortcuts.clear')}</button>
-          {/if}
-          <button class="hotkey-btn" onclick={startMeetingCapture}>{t('settings.shortcuts.change')}</button>
-        </div>
+        <button class="hotkey-btn" onclick={startMeetingCapture}>{t('settings.shortcuts.change')}</button>
       </div>
       {#if meetingCaptureError}
         <div class="capture-error">{meetingCaptureError}</div>

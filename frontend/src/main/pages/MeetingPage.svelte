@@ -7,7 +7,6 @@
     getActiveMeetingNoteId,
     renameMeetingNote,
     deleteMeetingNote,
-    deleteAllMeetingNotes,
     onMeetingNoteCreated,
     onMeetingNoteUpdated,
     onMeetingNoteFinalized,
@@ -144,22 +143,6 @@
     );
   }
 
-  async function handleDeleteAll() {
-    showConfirm(
-      t('meeting.deleteAll'),
-      t('meeting.deleteAllConfirm'),
-      t('meeting.deleteAll'),
-      async () => {
-        try {
-          await deleteAllMeetingNotes();
-          notes = [];
-          selectedId = null;
-        } catch (e) {
-          console.error('Delete all failed:', e);
-        }
-      },
-    );
-  }
 
   // ── Copy ──
   async function handleCopy() {
@@ -251,11 +234,6 @@
   <div class="note-list-panel">
     <div class="list-header">
       <h2>{t('nav.meeting')}</h2>
-      {#if notes.length > 0}
-        <button class="delete-all-btn" onclick={handleDeleteAll} title={t('meeting.deleteAll')}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
-      {/if}
     </div>
 
     <div class="note-list">
@@ -271,28 +249,42 @@
       {:else}
         {#each notes as note (note.id)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <button
-            class="note-item"
+          <div
+            class="note-item-wrapper"
             class:active={selectedId === note.id}
-            onclick={() => {
-              selectedId = note.id;
-              userScrolledUp = false;
-            }}
-            oncontextmenu={(e) => handleContextMenu(e, note.id)}
           >
-            <div class="note-item-top">
-              {#if note.is_recording}
-                <span class="recording-dot"></span>
-              {/if}
-              <span class="note-title">{defaultTitle(note)}</span>
-            </div>
-            <div class="note-item-meta">
-              <span>{formatDate(note.created_at)}</span>
-              <span class="meta-sep">·</span>
-              <span>{formatDuration(note.duration_secs)}</span>
-            </div>
-            <div class="note-item-preview">{preview(note.transcript)}</div>
-          </button>
+            <button
+              class="note-item"
+              class:active={selectedId === note.id}
+              onclick={() => {
+                selectedId = note.id;
+                userScrolledUp = false;
+              }}
+              oncontextmenu={(e) => handleContextMenu(e, note.id)}
+            >
+              <div class="note-item-top">
+                {#if note.is_recording}
+                  <span class="recording-dot"></span>
+                {/if}
+                <span class="note-title">{defaultTitle(note)}</span>
+              </div>
+              <div class="note-item-meta">
+                <span>{formatDate(note.created_at)}</span>
+                <span class="meta-sep">·</span>
+                <span>{formatDuration(note.duration_secs)}</span>
+              </div>
+              <div class="note-item-preview">{preview(note.transcript)}</div>
+            </button>
+            {#if !note.is_recording}
+              <button
+                class="note-delete-btn"
+                onclick={(e) => { e.stopPropagation(); handleDelete(note.id); }}
+                title={t('meeting.delete')}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            {/if}
+          </div>
         {/each}
       {/if}
     </div>
@@ -392,7 +384,6 @@
     display: flex;
     height: 100%;
     min-height: 0;
-    margin: 0 calc(-1 * var(--content-padding, 44px)) -44px;
   }
 
   /* ── Left panel ── */
@@ -418,21 +409,6 @@
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
-  }
-
-  .delete-all-btn {
-    background: none;
-    border: none;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-  }
-  .delete-all-btn:hover {
-    color: #ff3b30;
-    background: var(--bg-hover);
   }
 
   .note-list {
@@ -463,6 +439,22 @@
     margin: 0;
   }
 
+  .note-item-wrapper {
+    position: relative;
+    border-radius: var(--radius-md, 8px);
+    transition: background 0.15s;
+  }
+  .note-item-wrapper:hover {
+    background: var(--bg-hover);
+  }
+  .note-item-wrapper.active {
+    background: var(--bg-active);
+  }
+
+  .note-item-wrapper:hover .note-delete-btn {
+    opacity: 1;
+  }
+
   .note-item {
     width: 100%;
     text-align: left;
@@ -472,13 +464,26 @@
     border-radius: var(--radius-md, 8px);
     cursor: pointer;
     font-family: inherit;
-    transition: background 0.15s;
   }
-  .note-item:hover {
+
+  .note-delete-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .note-delete-btn:hover {
+    color: #ff3b30;
     background: var(--bg-hover);
-  }
-  .note-item.active {
-    background: var(--bg-active);
   }
 
   .note-item-top {

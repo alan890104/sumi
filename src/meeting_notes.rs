@@ -16,24 +16,35 @@ pub struct MeetingNote {
     pub word_count: u64,
 }
 
+/// Run schema migrations. Called once at app startup.
+pub fn init_db(history_dir: &Path) {
+    match open_db(history_dir) {
+        Ok(conn) => {
+            if let Err(e) = conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS meeting_notes (
+                    id            TEXT PRIMARY KEY,
+                    title         TEXT NOT NULL,
+                    transcript    TEXT NOT NULL DEFAULT '',
+                    created_at    INTEGER NOT NULL,
+                    updated_at    INTEGER NOT NULL,
+                    duration_secs REAL NOT NULL DEFAULT 0.0,
+                    stt_model     TEXT NOT NULL DEFAULT '',
+                    is_recording  INTEGER NOT NULL DEFAULT 0,
+                    word_count    INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS idx_meeting_notes_created ON meeting_notes(created_at DESC);",
+            ) {
+                tracing::error!("Failed to init meeting_notes schema: {}", e);
+            }
+        }
+        Err(e) => tracing::error!("Failed to open DB for meeting_notes init: {}", e),
+    }
+}
+
 fn open_db(history_dir: &Path) -> Result<Connection, rusqlite::Error> {
     let _ = std::fs::create_dir_all(history_dir);
     let conn = Connection::open(history_dir.join("history.db"))?;
     conn.execute_batch("PRAGMA journal_mode=WAL;")?;
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS meeting_notes (
-            id            TEXT PRIMARY KEY,
-            title         TEXT NOT NULL,
-            transcript    TEXT NOT NULL DEFAULT '',
-            created_at    INTEGER NOT NULL,
-            updated_at    INTEGER NOT NULL,
-            duration_secs REAL NOT NULL DEFAULT 0.0,
-            stt_model     TEXT NOT NULL DEFAULT '',
-            is_recording  INTEGER NOT NULL DEFAULT 0,
-            word_count    INTEGER NOT NULL DEFAULT 0
-        );
-        CREATE INDEX IF NOT EXISTS idx_meeting_notes_created ON meeting_notes(created_at DESC);",
-    )?;
     Ok(conn)
 }
 
@@ -183,13 +194,28 @@ pub fn delete_note(history_dir: &Path, id: &str) -> Result<(), String> {
     let conn = open_db(history_dir).map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM meeting_notes WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    // Best-effort cleanup of the WAL file (may not exist for finalized notes).
+    remove_wal(history_dir, id);
     Ok(())
 }
 
 pub fn delete_all_notes(history_dir: &Path) -> Result<(), String> {
     let conn = open_db(history_dir).map_err(|e| e.to_string())?;
+    // Collect IDs before deleting so we can clean up WAL files.
+    let mut stmt = conn
+        .prepare("SELECT id FROM meeting_notes")
+        .map_err(|e| e.to_string())?;
+    let ids: Vec<String> = stmt
+        .query_map([], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    drop(stmt);
     conn.execute("DELETE FROM meeting_notes", [])
         .map_err(|e| e.to_string())?;
+    for id in &ids {
+        remove_wal(history_dir, id);
+    }
     Ok(())
 }
 

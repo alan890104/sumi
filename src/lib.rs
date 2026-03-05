@@ -90,7 +90,6 @@ pub struct AppState {
     /// zombie feeder from the previous timed-out session from corrupting the
     /// new session's transcript or forcing `meeting_active` to false.
     pub meeting_session: AtomicU64,
-    pub meeting_transcript: Mutex<String>,
     pub meeting_start_time: Mutex<Option<std::time::Instant>>,
     pub active_meeting_note_id: Mutex<Option<String>>,
     /// Monotonically increasing session counter for the normal (non-meeting)
@@ -798,7 +797,8 @@ pub fn run() {
             history::migrate_from_json(&history_dir(), &audio_dir());
             history::init_db(&history_dir());
 
-            // Recover meeting notes stuck in is_recording=1 from a previous crash
+            // Init meeting notes schema & recover notes stuck from a previous crash
+            meeting_notes::init_db(&history_dir());
             meeting_notes::recover_stuck_notes(&history_dir());
 
             // Pre-initialise audio pipeline
@@ -853,7 +853,6 @@ pub fn run() {
                 meeting_cancelled: AtomicBool::new(false),
                 meeting_stopping: AtomicBool::new(false),
                 meeting_session: AtomicU64::new(0),
-                meeting_transcript: Mutex::new(String::new()),
                 meeting_start_time: Mutex::new(None),
                 active_meeting_note_id: Mutex::new(None),
                 streaming_session: AtomicU64::new(0),
@@ -1374,6 +1373,7 @@ pub fn run() {
                                             std::thread::spawn(move || {
                                                 let fstate = feeder_app.state::<AppState>();
                                                 if !qwen3_asr::wait_engine_ready(&fstate.qwen3_asr_ctx, &feeder_model, 8000) {
+                                                    tracing::warn!("[streaming] engine warm-up timed out after 8s — no live preview");
                                                     fstate.streaming_active.store(false, Ordering::SeqCst);
                                                     return;
                                                 }
@@ -1537,6 +1537,19 @@ fn start_meeting_mode(app: &AppHandle) {
     ) {
         tracing::error!("Meeting mode start failed: {}", e);
         state.meeting_active.store(false, Ordering::SeqCst);
+        if let Some(overlay) = app.get_webview_window("overlay") {
+            let _ = overlay.emit("recording-status", "error");
+            let app_for_hide = app.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                let app_inner = app_for_hide.clone();
+                let _ = app_for_hide.run_on_main_thread(move || {
+                    if let Some(ov) = app_inner.get_webview_window("overlay") {
+                        platform::hide_overlay(&ov);
+                    }
+                });
+            });
+        }
         return;
     }
     // Advance the session generation counter. The feeder captures this value
@@ -1547,9 +1560,6 @@ fn start_meeting_mode(app: &AppHandle) {
     state.streaming_active.store(false, Ordering::SeqCst);
     if let Ok(mut r) = state.streaming_result.lock() {
         *r = None;
-    }
-    if let Ok(mut t) = state.meeting_transcript.lock() {
-        t.clear();
     }
     if let Ok(mut st) = state.meeting_start_time.lock() {
         *st = Some(std::time::Instant::now());

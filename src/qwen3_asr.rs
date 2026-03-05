@@ -273,8 +273,8 @@ pub(crate) fn run_feeder_loop(app: AppHandle, language: String, session_id: u64)
 /// inference segment short (~30–60 s) without requiring an additional VAD model.
 ///
 /// When `is_recording` becomes false, the loop exits, the final segment is flushed,
-/// and the full transcript is written to `AppState.meeting_transcript` before
-/// `meeting_active` is set to false.
+/// and the full transcript is finalized to SQLite before `meeting_active` is
+/// set to false.
 pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, session_id: u64) {
     let state = app.state::<crate::AppState>();
 
@@ -479,8 +479,8 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
     //
     // Guard 2 — Cancelled (same session, timeout path, no new session yet):
     //   stop_meeting_mode timed out and set meeting_cancelled=true but the user
-    //   has not started another session. meeting_transcript is already current
-    //   via the incremental per-tick write inside the main loop.
+    //   has not started another session. The WAL file is already current
+    //   via the incremental per-tick append inside the main loop.
     //
     // Both cases are safe to abort here — transcript has been persisted.
     let current_session = state.meeting_session.load(Ordering::SeqCst);
