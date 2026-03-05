@@ -12,8 +12,10 @@ pub struct Qwen3AsrCache {
     pub model: Qwen3AsrModel,
 }
 
-// SAFETY: AsrInference holds candle tensors that are not Send; we guard all
-// access with the Mutex in AppState, so only one thread touches it at a time.
+// AsrInference contains Mutex<AsrInferenceInner> where AsrInferenceInner has
+// `unsafe impl Send` (candle Metal tensors use Arc-managed heap, not TLS).
+// AsrInference therefore auto-derives Send+Sync, making this explicit impl
+// redundant — retained for clarity that cross-thread use is intentional.
 unsafe impl Send for Qwen3AsrCache {}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
