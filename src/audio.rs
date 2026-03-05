@@ -5,9 +5,8 @@ use std::sync::{
 };
 use std::time::Instant;
 
-use crate::qwen3_asr::Qwen3AsrCache;
 use crate::stt::{LocalSttEngine, SttConfig, SttMode};
-use crate::transcribe::{transcribe_with_cached_whisper, WhisperContextCache, VadContextCache};
+use crate::transcribe::transcribe_with_cached_whisper;
 
 /// Handle to control (stop) a running audio thread.
 pub struct AudioThreadControl {
@@ -344,32 +343,19 @@ pub fn do_start_recording(
 }
 
 /// Stop recording, transcribe, and return the text + 16 kHz samples for history.
-#[allow(clippy::too_many_arguments)]
 pub fn do_stop_recording(
-    is_recording: &AtomicBool,
-    sample_rate_mutex: &Mutex<Option<u32>>,
-    buffer: &Arc<Mutex<Vec<f32>>>,
-    whisper_ctx: &Mutex<Option<WhisperContextCache>>,
-    qwen3_asr_ctx: &Mutex<Option<Qwen3AsrCache>>,
-    http_client: &reqwest::blocking::Client,
+    state: &crate::AppState,
     stt_config: &SttConfig,
     language: &str,
     app_name: &str,
     dictionary_terms: &[String],
-    vad_ctx: &Mutex<Option<VadContextCache>>,
-    vad_enabled: bool,
-    streaming_active: &AtomicBool,
-    streaming_cancelled: &AtomicBool,
-    streaming_result: &Mutex<Option<String>>,
-    feeder_stop_cv: &std::sync::Condvar,
-    whisper_preview_active: &AtomicBool,
 ) -> Result<(String, Vec<f32>), String> {
-    let sample_rate = sample_rate_mutex
+    let sample_rate = state.sample_rate
         .lock()
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "No microphone available".to_string())?;
 
-    if is_recording
+    if state.is_recording
         .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
@@ -378,10 +364,10 @@ pub fn do_stop_recording(
     // Wake the streaming feeder immediately so it exits its 2 s sleep and
     // starts post-loop work (trailing feed + finish_streaming) right away,
     // reducing transcription latency by up to 2 s on short recordings.
-    feeder_stop_cv.notify_all();
+    state.feeder_stop_cv.notify_all();
 
     let samples: Vec<f32> = {
-        let mut buf = buffer.lock().map_err(|e| e.to_string())?;
+        let mut buf = state.buffer.lock().map_err(|e| e.to_string())?;
         std::mem::take(&mut *buf)
     };
 
@@ -406,10 +392,11 @@ pub fn do_stop_recording(
     };
 
     // ── VAD or RMS trimming ─────────────────────────────────────────────
+    let vad_enabled = stt_config.vad_enabled;
     let vad_model_exists = crate::transcribe::vad_model_path().exists();
     if vad_enabled && vad_model_exists {
         // Use Silero VAD to extract speech segments
-        match crate::transcribe::filter_with_vad(vad_ctx, &samples_16k) {
+        match crate::transcribe::filter_with_vad(&state.vad_ctx, &samples_16k) {
             Ok(speech) if speech.is_empty() => {
                 tracing::info!("VAD: no speech segments found");
                 return Err("no_speech".to_string());
@@ -442,16 +429,16 @@ pub fn do_stop_recording(
                 // (max 2 s). The feeder uses try_lock, so once is_recording=false it
                 // will not start a new inference — we just wait for the current one
                 // to complete and the feeder to exit.
-                if whisper_preview_active.load(Ordering::SeqCst) {
+                if state.whisper_preview_active.load(Ordering::SeqCst) {
                     let deadline = Instant::now() + std::time::Duration::from_millis(2000);
-                    while whisper_preview_active.load(Ordering::SeqCst) && Instant::now() < deadline {
+                    while state.whisper_preview_active.load(Ordering::SeqCst) && Instant::now() < deadline {
                         std::thread::sleep(std::time::Duration::from_millis(50));
                     }
-                    if whisper_preview_active.load(Ordering::SeqCst) {
+                    if state.whisper_preview_active.load(Ordering::SeqCst) {
                         tracing::warn!("[whisper-preview] feeder still active after 2s wait — proceeding anyway");
                     }
                 }
-                let result = transcribe_with_cached_whisper(whisper_ctx, &samples_16k, &stt_config.whisper_model, language, app_name, dictionary_terms)?;
+                let result = transcribe_with_cached_whisper(&state.whisper_ctx, &samples_16k, &stt_config.whisper_model, language, app_name, dictionary_terms)?;
                 tracing::info!("[timing] STT (local whisper): {:.0?}", stt_start.elapsed());
                 result
             }
@@ -461,12 +448,12 @@ pub fn do_stop_recording(
                 // post-loop work (trailing feed + finish_streaming) without
                 // acquiring the engine lock, letting the batch fallback below
                 // proceed without contention.
-                if streaming_active.load(Ordering::SeqCst) {
+                if state.streaming_active.load(Ordering::SeqCst) {
                     let deadline = Instant::now() + std::time::Duration::from_millis(3000);
-                    while streaming_active.load(Ordering::SeqCst) {
+                    while state.streaming_active.load(Ordering::SeqCst) {
                         if Instant::now() >= deadline {
                             tracing::warn!("[streaming] feeder timeout — signalling cancel, falling back to batch");
-                            streaming_cancelled.store(true, Ordering::SeqCst);
+                            state.streaming_cancelled.store(true, Ordering::SeqCst);
                             break;
                         }
                         std::thread::sleep(std::time::Duration::from_millis(50));
@@ -474,7 +461,7 @@ pub fn do_stop_recording(
                 }
 
                 // Use the streaming result if available (feeder finished in time).
-                if let Ok(mut guard) = streaming_result.lock() {
+                if let Ok(mut guard) = state.streaming_result.lock() {
                     if let Some(text) = guard.take() {
                         tracing::info!("[timing] STT (local qwen3-asr streaming): {:.0?}", stt_start.elapsed());
                         return if text.is_empty() {
@@ -491,7 +478,7 @@ pub fn do_stop_recording(
                 // briefly until the feeder releases the lock.
                 tracing::info!("[streaming] using batch fallback");
                 let result = crate::qwen3_asr::transcribe_with_cached_qwen3_asr(
-                    qwen3_asr_ctx,
+                    &state.qwen3_asr_ctx,
                     &samples_16k,
                     &stt_config.qwen3_asr_model,
                     language,
@@ -501,7 +488,7 @@ pub fn do_stop_recording(
             }
         },
         SttMode::Cloud => {
-            let result = crate::stt::run_cloud_stt(&stt_config.cloud, &samples_16k, http_client)?;
+            let result = crate::stt::run_cloud_stt(&stt_config.cloud, &samples_16k, &state.http_client)?;
             tracing::info!("[timing] STT (cloud {}): {:.0?}", stt_config.cloud.provider.as_key(), stt_start.elapsed());
             result
         }

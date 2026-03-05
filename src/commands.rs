@@ -787,23 +787,11 @@ pub fn stop_recording(state: State<'_, AppState>) -> Result<String, String> {
         })
         .unwrap_or_default();
     audio::do_stop_recording(
-        &state.is_recording,
-        &state.sample_rate,
-        &state.buffer,
-        &state.whisper_ctx,
-        &state.qwen3_asr_ctx,
-        &state.http_client,
+        &state,
         &stt_config,
         &stt_language,
         "",
         &dictionary_terms,
-        &state.vad_ctx,
-        stt_config.vad_enabled,
-        &state.streaming_active,
-        &state.streaming_cancelled,
-        &state.streaming_result,
-        &state.feeder_stop_cv,
-        &state.whisper_preview_active,
     )
     .map(|(text, _samples)| text)
 }

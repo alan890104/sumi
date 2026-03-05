@@ -1,7 +1,7 @@
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 use whisper_rs::{FullParams, SamplingStrategy};
 
 // ══ WhisperPreviewFeeder ══════════════════════════════════════════════════════
@@ -215,12 +215,7 @@ pub(crate) fn run_whisper_preview_loop(app: AppHandle, language: String, session
         match result {
             Ok(text) if !text.is_empty() => {
                 tracing::debug!("[whisper-preview] partial: {:?}", text);
-                if let Some(overlay) = app.get_webview_window("overlay") {
-                    let _ = overlay.emit(
-                        "transcription-partial",
-                        serde_json::json!({ "text": text }),
-                    );
-                }
+                crate::emit_transcription_partial(&app, &text);
             }
             Err(e) => {
                 tracing::warn!("[whisper-preview] inference error: {}", e);
@@ -236,16 +231,6 @@ pub(crate) fn run_whisper_preview_loop(app: AppHandle, language: String, session
 }
 
 // ── Meeting feeder helpers ────────────────────────────────────────────────────
-
-/// Emit the accumulated transcript to the overlay window.
-fn emit_whisper_meeting_partial(app: &AppHandle, text: &str) {
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.emit(
-            "transcription-partial",
-            serde_json::json!({ "text": text }),
-        );
-    }
-}
 
 /// Transcribe `samples` (16 kHz) from the already-loaded `WhisperContextCache`.
 /// Uses `initial_prompt` for previous-segment context biasing.
@@ -384,9 +369,7 @@ pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, 
             };
 
             // RMS-based silence detection over the new chunk.
-            let chunk_rms = (delta_16k.iter().map(|&s| s * s).sum::<f32>()
-                / delta_16k.len() as f32)
-                .sqrt();
+            let chunk_rms = crate::audio::rms(&delta_16k);
             if chunk_rms < RMS_THRESHOLD {
                 if had_speech_since_reset {
                     silence_count += 1;
@@ -426,7 +409,7 @@ pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, 
                     accumulated.push(' ');
                 }
                 accumulated.push_str(&seg_text);
-                emit_whisper_meeting_partial(&app, &accumulated);
+                crate::emit_transcription_partial(&app, &accumulated);
             }
 
             // Add trailing space so the next segment does not fuse with this one.

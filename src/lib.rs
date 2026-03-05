@@ -110,6 +110,35 @@ pub struct AppState {
     pub registered_meeting_shortcut: Mutex<Option<Shortcut>>,
 }
 
+/// Emit a `"transcription-partial"` event to the overlay window.
+///
+/// Used by all feeder loops (Qwen3-ASR normal/meeting, Whisper preview/meeting)
+/// to send incremental transcription results to the overlay.
+pub(crate) fn emit_transcription_partial(app: &AppHandle, text: &str) {
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.emit(
+            "transcription-partial",
+            serde_json::json!({ "text": text }),
+        );
+    }
+}
+
+/// Position the overlay window centered horizontally, near the bottom of the screen.
+fn center_overlay_bottom(overlay: &tauri::WebviewWindow) {
+    if let Ok(Some(monitor)) = overlay.current_monitor() {
+        let screen = monitor.size();
+        let scale = monitor.scale_factor();
+        let win_w = 300.0;
+        let win_h = 40.0;
+        let x = (screen.width as f64 / scale - win_w) / 2.0;
+        let y = screen.height as f64 / scale - win_h - 80.0;
+        let _ = overlay.set_position(tauri::PhysicalPosition::new(
+            (x * scale) as i32,
+            (y * scale) as i32,
+        ));
+    }
+}
+
 /// Restore original clipboard content from saved_clipboard.
 fn restore_clipboard(state: &AppState) {
     if let Ok(mut saved) = state.saved_clipboard.lock() {
@@ -192,23 +221,11 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         let dictionary_terms = polish_config.dictionary.enabled_terms();
 
         match audio::do_stop_recording(
-            &state.is_recording,
-            &state.sample_rate,
-            &state.buffer,
-            &state.whisper_ctx,
-            &state.qwen3_asr_ctx,
-            &state.http_client,
+            &state,
             &stt_config,
             &stt_language,
             &stt_app_name,
             &dictionary_terms,
-            &state.vad_ctx,
-            stt_config.vad_enabled,
-            &state.streaming_active,
-            &state.streaming_cancelled,
-            &state.streaming_result,
-            &state.feeder_stop_cv,
-            &state.whisper_preview_active,
         ) {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
@@ -509,23 +526,11 @@ fn stop_edit_and_replace(app: &AppHandle) {
         }
 
         match audio::do_stop_recording(
-            &state.is_recording,
-            &state.sample_rate,
-            &state.buffer,
-            &state.whisper_ctx,
-            &state.qwen3_asr_ctx,
-            &state.http_client,
+            &state,
             &stt_config,
             &edit_stt_language,
             &edit_app_name,
             &edit_dict_terms,
-            &state.vad_ctx,
-            stt_config.vad_enabled,
-            &state.streaming_active,
-            &state.streaming_cancelled,
-            &state.streaming_result,
-            &state.feeder_stop_cv,
-            &state.whisper_preview_active,
         ) {
             Ok((instruction, _samples)) => {
                 tracing::info!("Edit instruction received: {} graphemes", instruction.graphemes(true).count());
@@ -1153,20 +1158,7 @@ pub fn run() {
                                         tracing::info!("Edit-by-voice: polish not ready, showing overlay hint");
                                         if let Some(overlay) = app.get_webview_window("overlay") {
                                             let _ = overlay.emit("recording-status", "edit_requires_polish");
-                                            if let Ok(Some(monitor)) = overlay.current_monitor() {
-                                                let screen = monitor.size();
-                                                let scale = monitor.scale_factor();
-                                                let win_w = 300.0;
-                                                let win_h = 40.0;
-                                                let x = (screen.width as f64 / scale - win_w) / 2.0;
-                                                let y = screen.height as f64 / scale - win_h - 80.0;
-                                                let _ = overlay.set_position(
-                                                    tauri::PhysicalPosition::new(
-                                                        (x * scale) as i32,
-                                                        (y * scale) as i32,
-                                                    ),
-                                                );
-                                            }
+                                            center_overlay_bottom(&overlay);
                                             platform::show_overlay(&overlay);
                                         }
                                         hide_overlay_delayed(app, 2000);
@@ -1368,20 +1360,7 @@ pub fn run() {
                                             let feeder_app = app.clone();
                                             std::thread::spawn(move || {
                                                 let fstate = feeder_app.state::<AppState>();
-                                                // Wait for engine warm (max 8s)
-                                                let mut waited = 0u64;
-                                                while waited < 8000 {
-                                                    let ready = fstate.qwen3_asr_ctx.lock().ok()
-                                                        .and_then(|g| g.as_ref().map(|c| c.model == feeder_model))
-                                                        .unwrap_or(false);
-                                                    if ready { break; }
-                                                    std::thread::sleep(std::time::Duration::from_millis(200));
-                                                    waited += 200;
-                                                }
-                                                let ready = fstate.qwen3_asr_ctx.lock().ok()
-                                                    .and_then(|g| g.as_ref().map(|c| c.model == feeder_model))
-                                                    .unwrap_or(false);
-                                                if !ready {
+                                                if !qwen3_asr::wait_engine_ready(&fstate.qwen3_asr_ctx, &feeder_model, 8000) {
                                                     fstate.streaming_active.store(false, Ordering::SeqCst);
                                                     return;
                                                 }
@@ -1427,20 +1406,7 @@ pub fn run() {
                                             let rec_status = if is_edit_hotkey { "edit_recording" } else { "recording" };
                                             let _ = overlay.emit("recording-status", rec_status);
                                             let _ = overlay.emit("recording-max-duration", MAX_RECORDING_SECS);
-                                            if let Ok(Some(monitor)) = overlay.current_monitor() {
-                                                let screen = monitor.size();
-                                                let scale = monitor.scale_factor();
-                                                let win_w = 300.0;
-                                                let win_h = 40.0;
-                                                let x = (screen.width as f64 / scale - win_w) / 2.0;
-                                                let y = screen.height as f64 / scale - win_h - 80.0;
-                                                let _ = overlay.set_position(
-                                                    tauri::PhysicalPosition::new(
-                                                        (x * scale) as i32,
-                                                        (y * scale) as i32,
-                                                    ),
-                                                );
-                                            }
+                                            center_overlay_bottom(&overlay);
                                             platform::show_overlay(&overlay);
                                         }
 
@@ -1518,8 +1484,7 @@ fn start_meeting_mode(app: &AppHandle) {
         *ctx = Some(captured_ctx);
     }
 
-    // Only Local STT mode is supported for meeting mode.
-    let (stt_mode, local_engine, qwen3_model, whisper_model, lang) = state
+    let (stt_mode, local_engine, qwen3_model, whisper_model, lang, cloud_config) = state
         .settings
         .lock()
         .map(|s| (
@@ -1528,30 +1493,9 @@ fn start_meeting_mode(app: &AppHandle) {
             s.stt.qwen3_asr_model.clone(),
             s.stt.whisper_model.clone(),
             s.stt.language.clone(),
+            s.stt.cloud.clone(),
         ))
         .unwrap_or_default();
-
-    if stt_mode != SttMode::Local {
-        tracing::warn!("Meeting mode requires Local STT engine");
-        if let Some(overlay) = app.get_webview_window("overlay") {
-            let _ = overlay.emit("recording-status", "error");
-            if let Ok(Some(monitor)) = overlay.current_monitor() {
-                let screen = monitor.size();
-                let scale = monitor.scale_factor();
-                let win_w = 300.0_f64;
-                let win_h = 40.0_f64;
-                let x = (screen.width as f64 / scale - win_w) / 2.0;
-                let y = screen.height as f64 / scale - win_h - 80.0;
-                let _ = overlay.set_position(tauri::PhysicalPosition::new(
-                    (x * scale) as i32,
-                    (y * scale) as i32,
-                ));
-            }
-            platform::show_overlay(&overlay);
-        }
-        hide_overlay_delayed(app, 2000);
-        return;
-    }
 
     // Guard: if a normal recording is already in progress, refuse to start meeting mode
     // to avoid two feeders sharing the same buffer and is_recording flag.
@@ -1601,107 +1545,88 @@ fn start_meeting_mode(app: &AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.emit("recording-status", "meeting_recording");
         let _ = overlay.emit("recording-max-duration", 0u64); // 0 = unlimited
-        if let Ok(Some(monitor)) = overlay.current_monitor() {
-            let screen = monitor.size();
-            let scale = monitor.scale_factor();
-            let win_w = 300.0_f64;
-            let win_h = 40.0_f64;
-            let x = (screen.width as f64 / scale - win_w) / 2.0;
-            let y = screen.height as f64 / scale - win_h - 80.0;
-            let _ = overlay.set_position(tauri::PhysicalPosition::new(
-                (x * scale) as i32,
-                (y * scale) as i32,
-            ));
-        }
+        center_overlay_bottom(&overlay);
         platform::show_overlay(&overlay);
     }
 
     // Audio level monitor thread.
     spawn_audio_level_monitor(app.clone(), AudioMonitorMode::Meeting);
 
-    // Spawn meeting feeder based on active local STT engine.
+    // Spawn meeting feeder based on STT mode.
     let feeder_app = app.clone();
-    match local_engine {
-        stt::LocalSttEngine::Qwen3Asr => {
-            std::thread::spawn(move || {
-                let fstate = feeder_app.state::<AppState>();
+    match stt_mode {
+        SttMode::Local => match local_engine {
+            stt::LocalSttEngine::Qwen3Asr => {
+                std::thread::spawn(move || {
+                    let fstate = feeder_app.state::<AppState>();
 
-                // Proactively trigger model warm-up (no-op if already loaded).
-                if let Err(e) = qwen3_asr::warm_qwen3_asr(&fstate.qwen3_asr_ctx, &qwen3_model) {
-                    tracing::warn!("Meeting mode: engine warm failed: {}", e);
-                }
-
-                // Wait for engine to be ready (up to 8 s total, warm already started above).
-                let mut waited = 0u64;
-                while waited < 8000 {
-                    let ready = fstate
-                        .qwen3_asr_ctx
-                        .lock()
-                        .ok()
-                        .and_then(|g| g.as_ref().map(|c| c.model == qwen3_model))
-                        .unwrap_or(false);
-                    if ready {
-                        break;
+                    // Proactively trigger model warm-up (no-op if already loaded).
+                    if let Err(e) = qwen3_asr::warm_qwen3_asr(&fstate.qwen3_asr_ctx, &qwen3_model) {
+                        tracing::warn!("Meeting mode: engine warm failed: {}", e);
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(200));
-                    waited += 200;
-                }
-                let ready = fstate
-                    .qwen3_asr_ctx
-                    .lock()
-                    .ok()
-                    .and_then(|g| g.as_ref().map(|c| c.model == qwen3_model))
-                    .unwrap_or(false);
-                if !ready {
-                    tracing::warn!("Meeting mode: engine not ready after 8s, aborting");
-                    fstate.meeting_active.store(false, Ordering::SeqCst);
-                    fstate.is_recording.store(false, Ordering::SeqCst);
-                    // Clear audio captured during the failed warm-up window to prevent
-                    // stale samples from being prepended to the next recording session.
-                    if let Ok(mut buf) = fstate.buffer.lock() {
+
+                    if !qwen3_asr::wait_engine_ready(&fstate.qwen3_asr_ctx, &qwen3_model, 8000) {
+                        tracing::warn!("Meeting mode: engine not ready after 8s, aborting");
+                        fstate.meeting_active.store(false, Ordering::SeqCst);
+                        fstate.is_recording.store(false, Ordering::SeqCst);
+                        // Clear audio captured during the failed warm-up window to prevent
+                        // stale samples from being prepended to the next recording session.
+                        if let Ok(mut buf) = fstate.buffer.lock() {
+                            buf.clear();
+                        }
+                        if let Some(ov) = feeder_app.get_webview_window("overlay") {
+                            let _ = ov.emit("recording-status", "error");
+                        }
+                        hide_overlay_delayed(&feeder_app, 2000);
+                        return;
+                    }
+                    qwen3_asr::run_meeting_feeder_loop(feeder_app, lang, session_id);
+                });
+            }
+            stt::LocalSttEngine::Whisper => {
+                // Check model is downloaded before spawning the feeder thread.
+                if transcribe::whisper_model_path_for(&whisper_model).is_err() {
+                    tracing::warn!("Meeting mode: Whisper model not downloaded");
+                    state.meeting_active.store(false, Ordering::SeqCst);
+                    state.is_recording.store(false, Ordering::SeqCst);
+                    if let Ok(mut buf) = state.buffer.lock() {
                         buf.clear();
                     }
-                    if let Some(ov) = feeder_app.get_webview_window("overlay") {
+                    if let Some(ov) = app.get_webview_window("overlay") {
                         let _ = ov.emit("recording-status", "error");
                     }
-                    hide_overlay_delayed(&feeder_app, 2000);
+                    hide_overlay_delayed(app, 2000);
                     return;
                 }
-                qwen3_asr::run_meeting_feeder_loop(feeder_app, lang, session_id);
-            });
-        }
-        stt::LocalSttEngine::Whisper => {
-            // Check model is downloaded before spawning the feeder thread.
-            if transcribe::whisper_model_path_for(&whisper_model).is_err() {
-                tracing::warn!("Meeting mode: Whisper model not downloaded");
-                state.meeting_active.store(false, Ordering::SeqCst);
-                state.is_recording.store(false, Ordering::SeqCst);
-                if let Ok(mut buf) = state.buffer.lock() {
-                    buf.clear();
-                }
-                if let Some(ov) = app.get_webview_window("overlay") {
-                    let _ = ov.emit("recording-status", "error");
-                }
-                hide_overlay_delayed(app, 2000);
-                return;
+                std::thread::spawn(move || {
+                    let fstate = feeder_app.state::<AppState>();
+                    // Warm the model (fast for Whisper, typically < 2 s).
+                    if let Err(e) = transcribe::warm_whisper_cache(&fstate.whisper_ctx, &whisper_model) {
+                        tracing::warn!("[whisper-meeting] warm failed: {}", e);
+                        fstate.meeting_active.store(false, Ordering::SeqCst);
+                        fstate.is_recording.store(false, Ordering::SeqCst);
+                        if let Ok(mut buf) = fstate.buffer.lock() {
+                            buf.clear();
+                        }
+                        if let Some(ov) = feeder_app.get_webview_window("overlay") {
+                            let _ = ov.emit("recording-status", "error");
+                        }
+                        hide_overlay_delayed(&feeder_app, 2000);
+                        return;
+                    }
+                    whisper_streaming::run_whisper_meeting_feeder_loop(feeder_app, lang, session_id);
+                });
+            }
+        },
+        SttMode::Cloud => {
+            // Populate API key from cache for the cloud feeder thread.
+            let mut cloud = cloud_config;
+            let key = get_cached_api_key(&state.api_key_cache, cloud.provider.as_key());
+            if !key.is_empty() {
+                cloud.api_key = key;
             }
             std::thread::spawn(move || {
-                let fstate = feeder_app.state::<AppState>();
-                // Warm the model (fast for Whisper, typically < 2 s).
-                if let Err(e) = transcribe::warm_whisper_cache(&fstate.whisper_ctx, &whisper_model) {
-                    tracing::warn!("[whisper-meeting] warm failed: {}", e);
-                    fstate.meeting_active.store(false, Ordering::SeqCst);
-                    fstate.is_recording.store(false, Ordering::SeqCst);
-                    if let Ok(mut buf) = fstate.buffer.lock() {
-                        buf.clear();
-                    }
-                    if let Some(ov) = feeder_app.get_webview_window("overlay") {
-                        let _ = ov.emit("recording-status", "error");
-                    }
-                    hide_overlay_delayed(&feeder_app, 2000);
-                    return;
-                }
-                whisper_streaming::run_whisper_meeting_feeder_loop(feeder_app, lang, session_id);
+                stt::run_cloud_meeting_feeder_loop(feeder_app, cloud, lang, session_id);
             });
         }
     }

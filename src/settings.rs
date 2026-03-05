@@ -34,10 +34,18 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        let (hotkey, edit_hotkey) = if is_debug() {
-            ("Alt+Super+KeyZ".to_string(), Some("Control+Alt+Super+KeyZ".to_string()))
+        let (hotkey, edit_hotkey, meeting_hotkey) = if is_debug() {
+            (
+                "Alt+Super+KeyZ".to_string(),
+                Some("Control+Alt+Super+KeyZ".to_string()),
+                Some("Shift+Alt+Super+KeyZ".to_string()),
+            )
         } else {
-            ("Alt+KeyZ".to_string(), Some("Control+Alt+KeyZ".to_string()))
+            (
+                "Alt+KeyZ".to_string(),
+                Some("Control+Alt+KeyZ".to_string()),
+                Some("Shift+Alt+KeyZ".to_string()),
+            )
         };
         Self {
             hotkey,
@@ -49,7 +57,7 @@ impl Default for Settings {
             edit_hotkey,
             onboarding_completed: false,
             mic_device: None,
-            meeting_hotkey: None,
+            meeting_hotkey,
         }
     }
 }

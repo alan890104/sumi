@@ -1,7 +1,7 @@
 use std::sync::{atomic::Ordering, Mutex};
 use std::time::Duration;
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 use crate::stt::{qwen3_asr_model_dir, is_qwen3_asr_downloaded, Qwen3AsrModel};
 
@@ -91,6 +91,34 @@ pub fn transcribe_with_cached_qwen3_asr(
     Ok(result.text)
 }
 
+/// Poll until the cached Qwen3-ASR engine matches `model`, or `timeout_ms` elapses.
+///
+/// Returns `true` if the engine is ready, `false` on timeout.
+pub(crate) fn wait_engine_ready(
+    ctx: &Mutex<Option<Qwen3AsrCache>>,
+    model: &Qwen3AsrModel,
+    timeout_ms: u64,
+) -> bool {
+    let mut waited = 0u64;
+    while waited < timeout_ms {
+        let ready = ctx
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(|c| c.model == *model))
+            .unwrap_or(false);
+        if ready {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        waited += 200;
+    }
+    // Final check after timeout.
+    ctx.lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|c| c.model == *model))
+        .unwrap_or(false)
+}
+
 /// Drop the cached engine so a new model can be loaded on the next call.
 pub fn invalidate_qwen3_asr_cache(cache: &Mutex<Option<Qwen3AsrCache>>) {
     if let Ok(mut guard) = cache.lock() {
@@ -175,12 +203,7 @@ pub(crate) fn run_feeder_loop(app: AppHandle, language: String, session_id: u64)
         if let Some(Ok(Some(result))) = partial {
             if !result.text.is_empty() {
                 tracing::debug!("[streaming] partial: {:?}", result.text);
-                if let Some(overlay) = app.get_webview_window("overlay") {
-                    let _ = overlay.emit(
-                        "transcription-partial",
-                        serde_json::json!({ "text": result.text }),
-                    );
-                }
+                crate::emit_transcription_partial(&app, &result.text);
             }
         }
     }
@@ -336,9 +359,7 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
             };
 
             // RMS-based silence detection over the new chunk.
-            let rms = (delta_16k.iter().map(|&s| s * s).sum::<f32>()
-                / delta_16k.len() as f32)
-                .sqrt();
+            let rms = crate::audio::rms(&delta_16k);
             if rms < RMS_THRESHOLD {
                 if had_speech_since_reset {
                     silence_count += 1;
@@ -357,7 +378,7 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
             if let Some(Ok(Some(result))) = partial {
                 if !result.text.is_empty() {
                     accumulated.push_str(&result.text);
-                    emit_meeting_partial(&app, &accumulated);
+                    crate::emit_transcription_partial(&app, &accumulated);
                 }
             }
         }
@@ -388,7 +409,7 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
                         accumulated.push(' ');
                     }
                     accumulated.push_str(&seg_text);
-                    emit_meeting_partial(&app, &accumulated);
+                    crate::emit_transcription_partial(&app, &accumulated);
                 }
 
                 // Add a trailing space so the NEXT segment does not fuse with
@@ -493,11 +514,3 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
     state.meeting_active.store(false, Ordering::SeqCst);
 }
 
-fn emit_meeting_partial(app: &tauri::AppHandle, text: &str) {
-    if let Some(ov) = app.get_webview_window("overlay") {
-        let _ = ov.emit(
-            "transcription-partial",
-            serde_json::json!({ "text": text }),
-        );
-    }
-}
