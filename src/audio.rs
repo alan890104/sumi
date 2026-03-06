@@ -3,7 +3,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     mpsc, Arc, Mutex,
 };
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::stt::{LocalSttEngine, SttConfig, SttMode};
 use crate::transcribe::transcribe_with_cached_whisper;
@@ -275,6 +275,7 @@ pub fn close_audio_stream(
 pub fn do_start_recording(
     is_recording: &AtomicBool,
     mic_available: &AtomicBool,
+    reconnecting: &AtomicBool,
     sample_rate: &Mutex<Option<u32>>,
     buffer: &Arc<Mutex<Vec<f32>>>,
     is_recording_arc: &Arc<AtomicBool>,
@@ -291,8 +292,19 @@ pub fn do_start_recording(
         if stream_dead {
             tracing::warn!("Audio stream was dead, reconnecting before recording");
             mic_available.store(false, Ordering::SeqCst);
+        } else if reconnecting.load(Ordering::SeqCst) {
+            // A background reconnect (e.g. startup pre-open) is in progress.
+            // Wait for it instead of racing to open a second stream, which
+            // would leak the first cpal stream (same hazard as the BT path).
+            let deadline = Instant::now() + Duration::from_millis(500);
+            while reconnecting.load(Ordering::SeqCst) && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(10));
+            }
         }
-        try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name.clone())?;
+        // Re-check: the background reconnect may have succeeded while we waited.
+        if !mic_available.load(Ordering::SeqCst) {
+            try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name.clone())?;
+        }
         // Freshly reconnected stream is already on the correct device;
         // the mismatch check below will be a no-op.
     }

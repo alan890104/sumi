@@ -803,6 +803,7 @@ pub fn start_recording(state: State<'_, AppState>) -> Result<(), String> {
     audio::do_start_recording(
         &state.is_recording,
         &state.mic_available,
+        &state.reconnecting,
         &state.sample_rate,
         &state.buffer,
         &state.is_recording,
