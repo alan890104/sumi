@@ -1859,7 +1859,7 @@ fn stop_meeting_mode(app: &AppHandle) {
     // final segments recorded without any silence pause). Uses a Condvar so
     // stop_meeting_mode wakes the instant the worker sets meeting_feeder_done.
     let guard = state.meeting_done_mu.lock().unwrap_or_else(|e| e.into_inner());
-    let (_guard, timed_out) = state
+    let (mu_guard, timed_out) = state
         .meeting_done_cv
         .wait_timeout_while(
             guard,
@@ -1867,6 +1867,7 @@ fn stop_meeting_mode(app: &AppHandle) {
             |_| !state.meeting_feeder_done.load(Ordering::SeqCst),
         )
         .unwrap_or_else(|e| e.into_inner());
+    drop(mu_guard); // release meeting_done_mu; nothing below needs it
     if timed_out.timed_out() {
         tracing::warn!("Meeting feeder timeout after 5 min — using partial transcript");
         state.meeting_cancelled.store(true, Ordering::SeqCst);

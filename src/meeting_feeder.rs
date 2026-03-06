@@ -322,7 +322,10 @@ pub(crate) fn run_meeting_feeder(
     // tx dropped when run_meeting_segmenter returns → channel closes → worker exits.
 
     tracing::info!("[{label}] segmenter done, waiting for worker to finish");
-    let _ = worker.join();
+    match worker.join() {
+        Ok(()) => {}
+        Err(_) => tracing::error!("[{label}] worker thread panicked — transcript may be incomplete"),
+    }
     tracing::info!("[{label}] feeder finished — transcript persisted to WAL file");
 
     // Signal completion only if we still own the session. A stale feeder from a
@@ -332,6 +335,11 @@ pub(crate) fn run_meeting_feeder(
     // In the normal path meeting_session always equals session_id here.
     let state = app.state::<crate::AppState>();
     if state.meeting_session.load(Ordering::SeqCst) == session_id {
+        // SeqCst store ensures meeting_feeder_done is visible to the waiter's
+        // condition closure before notify_all fires. meeting_done_mu is NOT held
+        // here: wait_timeout_while re-checks the predicate after waking, so a
+        // missed notify is impossible. Holding the mutex here would be the
+        // conventional pattern but is unnecessary and adds contention.
         state.meeting_feeder_done.store(true, Ordering::SeqCst);
         state.meeting_active.store(false, Ordering::SeqCst);
         state.meeting_done_cv.notify_all();
