@@ -1001,7 +1001,7 @@
           </div>
           <div class="setup-title">{t('setup.llmActivatingTitle')}</div>
           <div class="setup-desc">{t('setup.llmActivatingDesc')}</div>
-          <button class="setup-skip-link" onclick={() => { currentState = 'complete'; finishSetup(); }}>{t('setup.llmSkip')}</button>
+          <button class="setup-skip-link" onclick={() => { currentState = 'complete'; setPolishMode('local'); setPolishEnabled(true); finishSetup(); }}>{t('setup.llmSkip')}</button>
         </div>
       {/if}
 
