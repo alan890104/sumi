@@ -892,6 +892,10 @@ pub fn cancel_recording(app: AppHandle, state: State<'_, AppState>) {
     state.is_recording.store(false, Ordering::SeqCst);
     // Wake any sleeping feeder immediately.
     state.feeder_stop_cv.notify_all();
+    // Resume music if we paused it when recording started.
+    if state.media_paused_by_sumi.swap(false, Ordering::SeqCst) {
+        crate::platform::resume_now_playing();
+    }
     if let Some(overlay) = app.get_webview_window("overlay") {
         platform::hide_overlay(&overlay);
     }

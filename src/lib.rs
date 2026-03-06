@@ -1579,6 +1579,10 @@ pub fn run() {
                                             state.edit_mode.store(false, Ordering::SeqCst);
                                             restore_clipboard(&state);
                                         }
+                                        // Resume music if we paused it before do_start_recording.
+                                        if state.media_paused_by_sumi.swap(false, Ordering::SeqCst) {
+                                            platform::resume_now_playing();
+                                        }
                                         // Hide overlay — stream failed to open.
                                         if let Some(overlay) = app.get_webview_window("overlay") {
                                             let _ = overlay.emit("recording-status", "error");
@@ -1701,6 +1705,10 @@ fn start_meeting_mode(app: &AppHandle) {
     ) {
         tracing::error!("Meeting mode start failed: {}", e);
         state.meeting_active.store(false, Ordering::SeqCst);
+        // Resume music if we paused it before do_start_recording.
+        if state.media_paused_by_sumi.swap(false, Ordering::SeqCst) {
+            platform::resume_now_playing();
+        }
         if let Some(overlay) = app.get_webview_window("overlay") {
             let _ = overlay.emit("recording-status", "error");
             let app_for_hide = app.clone();

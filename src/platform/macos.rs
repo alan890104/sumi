@@ -398,7 +398,7 @@ pub fn simulate_media_play_pause() {
         let ev_down = make_event(
             ns_event_class, sel_make,
             NS_EVENT_TYPE_SYSTEM_DEFINED, zero,
-            0xa00, 0.0, 0, std::ptr::null_mut(),
+            0, 0.0, 0, std::ptr::null_mut(),
             NX_SUBTYPE_AUX_CONTROL_BUTTONS,
             (NX_KEYTYPE_PLAY << 16) | 0x0a00,
             -1,
@@ -412,7 +412,7 @@ pub fn simulate_media_play_pause() {
         let ev_up = make_event(
             ns_event_class, sel_make,
             NS_EVENT_TYPE_SYSTEM_DEFINED, zero,
-            0xb00, 0.0, 0, std::ptr::null_mut(),
+            0, 0.0, 0, std::ptr::null_mut(),
             NX_SUBTYPE_AUX_CONTROL_BUTTONS,
             (NX_KEYTYPE_PLAY << 16) | 0x0b01,
             -1,
