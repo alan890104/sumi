@@ -119,11 +119,13 @@ pub fn resume_now_playing() {
 
 /// Returns `(tauri_x, tauri_y, width, height, scale)` of the screen that currently
 /// has keyboard focus, in Tauri logical coordinates (y=0 at top of primary screen).
-/// Returns `None` on non-macOS or if the system call fails.
+/// Returns `None` on Linux/other or if the system call fails.
 pub fn focused_screen_logical_frame() -> Option<(f64, f64, f64, f64, f64)> {
     #[cfg(target_os = "macos")]
     { macos::focused_screen_logical_frame() }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    { windows::focused_screen_logical_frame() }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     { None }
 }
 

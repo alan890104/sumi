@@ -94,6 +94,48 @@ pub fn clipboard_change_count() -> Option<u32> {
     Some(unsafe { GetClipboardSequenceNumber() })
 }
 
+/// Returns `(tauri_x, tauri_y, width, height, scale)` of the screen containing
+/// the foreground window (keyboard focus), in Tauri logical coordinates.
+///
+/// Uses `GetForegroundWindow` → `MonitorFromWindow` → `GetMonitorInfoW` for the
+/// work area, and `GetDpiForMonitor` for the DPI scale factor.
+/// Returns `None` if no foreground window exists (e.g. desktop focus).
+pub fn focused_screen_logical_frame() -> Option<(f64, f64, f64, f64, f64)> {
+    use windows::Win32::Graphics::Gdi::{
+        GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    };
+    use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
+    use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+
+    unsafe {
+        let fg = GetForegroundWindow();
+        if fg.0.is_null() {
+            return None;
+        }
+        let monitor = MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST);
+
+        let mut info: MONITORINFO = std::mem::zeroed();
+        info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        if GetMonitorInfoW(monitor, &mut info).0 == 0 {
+            return None;
+        }
+
+        let mut dpi_x: u32 = 96;
+        let mut dpi_y: u32 = 96;
+        let _ = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y);
+        let scale = dpi_x as f64 / 96.0;
+
+        let rc = info.rcWork;
+        Some((
+            rc.left as f64 / scale,
+            rc.top as f64 / scale,
+            (rc.right - rc.left) as f64 / scale,
+            (rc.bottom - rc.top) as f64 / scale,
+            scale,
+        ))
+    }
+}
+
 /// Send a modifier+key combo via SendInput (4 events: mod↓ key↓ key↑ mod↑).
 unsafe fn send_key_combo(modifier: u16, key: u16) -> bool {
     let inputs = [
