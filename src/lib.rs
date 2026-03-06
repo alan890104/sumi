@@ -240,13 +240,18 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
             .unwrap_or_default();
         let dictionary_terms = polish_config.dictionary.enabled_terms();
 
-        match audio::do_stop_recording(
+        let stop_result = audio::do_stop_recording(
             &state,
             &stt_config,
             &stt_language,
             &stt_app_name,
             &dictionary_terms,
-        ) {
+        );
+        // Close mic stream immediately after recording ends (on-demand model).
+        // do_start_recording will reopen it on the next hotkey press via
+        // try_reconnect_audio, showing the overlay in 'preparing' state first.
+        audio::close_audio_stream(&state.audio_thread, &state.mic_available);
+        match stop_result {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
                 tracing::info!("[timing] stop→transcribed: {:.0?} | len: {} graphemes", transcribe_elapsed, text.graphemes(true).count());
@@ -545,13 +550,15 @@ fn stop_edit_and_replace(app: &AppHandle) {
             *r = None;
         }
 
-        match audio::do_stop_recording(
+        let stop_result = audio::do_stop_recording(
             &state,
             &stt_config,
             &edit_stt_language,
             &edit_app_name,
             &edit_dict_terms,
-        ) {
+        );
+        audio::close_audio_stream(&state.audio_thread, &state.mic_available);
+        match stop_result {
             Ok((instruction, _samples)) => {
                 tracing::info!("Edit instruction received: {} graphemes", instruction.graphemes(true).count());
 
@@ -1398,6 +1405,16 @@ pub fn run() {
                                 let preferred_device = state.settings.lock()
                                     .ok()
                                     .and_then(|s| s.mic_device.clone());
+
+                                // Show overlay in 'preparing' state before opening the mic
+                                // stream (on-demand model).  CoreAudio init takes ~70 ms;
+                                // the spinner gives the user immediate visual feedback.
+                                if let Some(overlay) = app.get_webview_window("overlay") {
+                                    let _ = overlay.emit("recording-status", "preparing");
+                                    center_overlay_bottom(&overlay);
+                                    platform::show_overlay(&overlay);
+                                }
+
                                 match audio::do_start_recording(
                                     &state.is_recording,
                                     &state.mic_available,
@@ -1540,8 +1557,7 @@ pub fn run() {
                                             let rec_status = if is_edit_hotkey { "edit_recording" } else { "recording" };
                                             let _ = overlay.emit("recording-status", rec_status);
                                             let _ = overlay.emit("recording-max-duration", MAX_RECORDING_SECS);
-                                            center_overlay_bottom(&overlay);
-                                            platform::show_overlay(&overlay);
+                                            // overlay already shown in 'preparing' state above
                                         }
 
                                         // Audio level monitoring thread
@@ -1553,9 +1569,11 @@ pub fn run() {
                                             state.edit_mode.store(false, Ordering::SeqCst);
                                             restore_clipboard(&state);
                                         }
+                                        // Hide overlay — stream failed to open.
                                         if let Some(overlay) = app.get_webview_window("overlay") {
-                                            platform::hide_overlay(&overlay);
+                                            let _ = overlay.emit("recording-status", "error");
                                         }
+                                        hide_overlay_delayed(&app, 1500);
                                     }
                                 }
                             } else {
@@ -1648,6 +1666,14 @@ fn start_meeting_mode(app: &AppHandle) {
     state.meeting_feeder_done.store(false, Ordering::SeqCst);
 
     let preferred_device = state.settings.lock().ok().and_then(|s| s.mic_device.clone());
+
+    // Show overlay in 'preparing' state before opening the mic stream.
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.emit("recording-status", "preparing");
+        center_overlay_bottom(&overlay);
+        platform::show_overlay(&overlay);
+    }
+
     if let Err(e) = audio::do_start_recording(
         &state.is_recording,
         &state.mic_available,
@@ -1732,8 +1758,7 @@ fn start_meeting_mode(app: &AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.emit("recording-status", "meeting_recording");
         let _ = overlay.emit("recording-max-duration", 0u64); // 0 = unlimited
-        center_overlay_bottom(&overlay);
-        platform::show_overlay(&overlay);
+        // overlay already shown in 'preparing' state above
     }
 
     // Audio level monitor thread.
@@ -1915,6 +1940,9 @@ fn stop_meeting_mode(app: &AppHandle) {
     if let Ok(mut nid) = state.active_meeting_note_id.lock() {
         *nid = None;
     }
+
+    // Close mic stream (on-demand model); reopen on next meeting/recording start.
+    audio::close_audio_stream(&state.audio_thread, &state.mic_available);
 
     if transcript.is_empty() {
         tracing::info!("Meeting mode stopped — no transcript");
