@@ -94,6 +94,10 @@ pub struct AppState {
     /// `stop_meeting_mode` is called — without this, the transcript would never
     /// be delivered.
     pub meeting_stopping: AtomicBool,
+    /// Set by the meeting feeder after its final WAL write completes.
+    /// Allows `stop_meeting_mode` to wait for the complete transcript even when
+    /// the final-chunk inference takes longer than the hotkey-unlock deadline.
+    pub meeting_feeder_done: AtomicBool,
     /// Monotonically increasing session counter. Incremented each time a new
     /// meeting session starts. The feeder thread captures this value at launch
     /// and aborts post-loop work if the counter has advanced, preventing a
@@ -952,6 +956,7 @@ pub fn run() {
                 meeting_active: AtomicBool::new(false),
                 meeting_cancelled: AtomicBool::new(false),
                 meeting_stopping: AtomicBool::new(false),
+                meeting_feeder_done: AtomicBool::new(false),
                 meeting_session: AtomicU64::new(0),
                 meeting_start_time: Mutex::new(None),
                 active_meeting_note_id: Mutex::new(None),
@@ -1238,6 +1243,11 @@ pub fn run() {
                                 } else {
                                     start_meeting_mode(app);
                                 }
+                                return;
+                            }
+
+                            // Block regular recording while meeting is finalizing (worker still running).
+                            if state.meeting_stopping.load(Ordering::SeqCst) {
                                 return;
                             }
 
@@ -1624,6 +1634,7 @@ fn start_meeting_mode(app: &AppHandle) {
     state.meeting_active.store(true, Ordering::SeqCst);
     state.meeting_cancelled.store(false, Ordering::SeqCst);
     state.meeting_stopping.store(false, Ordering::SeqCst);
+    state.meeting_feeder_done.store(false, Ordering::SeqCst);
 
     let preferred_device = state.settings.lock().ok().and_then(|s| s.mic_device.clone());
     if let Err(e) = audio::do_start_recording(
@@ -1827,17 +1838,24 @@ fn stop_meeting_mode(app: &AppHandle) {
         let _ = overlay.emit("recording-status", "processing");
     }
 
-    // Wait for feeder to finish (max 8 s).
-    let deadline =
-        std::time::Instant::now() + std::time::Duration::from_millis(8000);
-    while state.meeting_active.load(Ordering::SeqCst) {
-        if std::time::Instant::now() >= deadline {
-            tracing::warn!("Meeting feeder timeout — using partial transcript");
-            // Signal the feeder to discard its final result so the zombie
-            // thread cannot overwrite a subsequent session's transcript.
+    // Immediately mark meeting inactive — meeting_stopping=true prevents new
+    // regular recordings from starting while the worker thread finishes.
+    // This removes the 8s two-phase complexity: the segmenter exits within ≤2s
+    // and the worker drains the queue independently.
+    state.meeting_active.store(false, Ordering::SeqCst);
+
+    // Wait for the worker to finish all segments (up to 5 min for very long
+    // final segments recorded without any silence pause).
+    let final_deadline =
+        std::time::Instant::now() + std::time::Duration::from_millis(300_000);
+    loop {
+        if state.meeting_feeder_done.load(Ordering::SeqCst) {
+            // Worker finished and wrote the final WAL segment.
+            break;
+        }
+        if std::time::Instant::now() >= final_deadline {
+            tracing::warn!("Meeting feeder timeout after 5 min — using partial transcript");
             state.meeting_cancelled.store(true, Ordering::SeqCst);
-            // Mark inactive immediately so the hotkey is not locked out.
-            state.meeting_active.store(false, Ordering::SeqCst);
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
