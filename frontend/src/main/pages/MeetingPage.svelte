@@ -916,7 +916,7 @@
   .polish-btn {
     background: none;
     border: none;
-    color: #f5a623;
+    color: var(--color-warning, #f5a623);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -928,7 +928,7 @@
     opacity: 1;
   }
   .polish-btn:hover:not(:disabled) {
-    color: #f5a623;
+    color: var(--color-warning, #f5a623);
     background: var(--bg-hover);
   }
   .polish-btn:disabled {
@@ -940,7 +940,7 @@
     width: 14px;
     height: 14px;
     border: 2px solid var(--border-subtle);
-    border-top-color: #f5a623;
+    border-top-color: var(--color-warning, #f5a623);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
     display: block;

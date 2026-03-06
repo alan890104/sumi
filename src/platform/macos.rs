@@ -270,11 +270,14 @@ pub unsafe fn nsstring_to_string(nsstr: *mut c_void) -> String {
 /// Falls back to `false` (safe: don't send key) if the framework is missing
 /// or the call times out after 300 ms.
 pub fn is_now_playing() -> bool {
+    use std::sync::OnceLock;
+
     // Symbols from libdispatch (part of libSystem, always available on macOS).
     extern "C" {
         fn dispatch_semaphore_create(value: i64) -> *mut c_void;
         fn dispatch_semaphore_signal(dsema: *mut c_void) -> i64;
         fn dispatch_semaphore_wait(dsema: *mut c_void, timeout: u64) -> i64;
+        fn dispatch_release(obj: *mut c_void);
         fn dispatch_get_global_queue(identifier: i64, flags: usize) -> *mut c_void;
         fn dispatch_time(when: u64, delta: i64) -> u64;
         fn dlopen(filename: *const c_char, flag: i32) -> *mut c_void;
@@ -308,18 +311,31 @@ pub fn is_now_playing() -> bool {
         dispatch_semaphore_signal((*b).sema);
     }
 
-    unsafe {
+    // Cache the resolved fn pointer so dlopen/dlsym run only once per process.
+    // Storing as usize to satisfy OnceLock's Send+Sync requirement.
+    static GET_PLAYING_FN: OnceLock<Option<usize>> = OnceLock::new();
+
+    let fn_ptr = *GET_PLAYING_FN.get_or_init(|| unsafe {
         let handle = dlopen(
             c"/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote".as_ptr(),
             1, // RTLD_LAZY
         );
-        if handle.is_null() { return false; }
-
+        if handle.is_null() { return None; }
         let sym = dlsym(handle, c"MRMediaRemoteGetNowPlayingApplicationIsPlaying".as_ptr());
-        if sym.is_null() { return false; }
+        if sym.is_null() { return None; }
+        // Intentionally skip dlclose: the framework stays loaded for the process
+        // lifetime; dlclose would only decrement the refcount, never unload it.
+        Some(sym as usize)
+    });
 
+    let fn_ptr = match fn_ptr {
+        Some(p) => p,
+        None => return false,
+    };
+
+    unsafe {
         type GetPlayingFn = unsafe extern "C" fn(*mut c_void, *mut Block);
-        let get_playing: GetPlayingFn = std::mem::transmute(sym);
+        let get_playing: GetPlayingFn = std::mem::transmute(fn_ptr);
 
         let sema = dispatch_semaphore_create(0);
 
@@ -348,13 +364,15 @@ pub fn is_now_playing() -> bool {
         let timed_out = dispatch_semaphore_wait(sema, deadline) != 0;
 
         if timed_out {
-            // Callback may still fire later; leak the 1-byte allocation so the
-            // write is safe. This path is hit only when the framework is frozen,
-            // which is extremely rare in practice.
+            // The callback may still fire later and signal sema — do NOT call
+            // dispatch_release here or that signal races a freed object.
+            // Leak both `result` and `sema`; this path is hit only when the
+            // framework is frozen, which is extremely rare in practice.
             false
         } else {
             let val = *result;
             drop(Box::from_raw(result));
+            dispatch_release(sema);
             val != 0
         }
     }

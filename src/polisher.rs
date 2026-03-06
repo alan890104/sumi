@@ -1029,7 +1029,9 @@ fn polish_text_inner(
 
     // User message: input first, instructions after (later tokens get higher attention weight).
     let mut user_text = String::new();
-    if !config.reasoning {
+    // /no_think is a Qwen3-specific directive to suppress chain-of-thought.
+    // Only send it for local inference; cloud providers don't understand it.
+    if !config.reasoning && config.mode == PolishMode::Local {
         user_text.push_str("/no_think\n");
     }
     user_text.push_str(&format!("<speech>\n{}\n</speech>\n\n", raw_text));
@@ -1301,7 +1303,9 @@ pub fn edit_text_by_instruction(
 
     // User message: input first, instructions after.
     let mut user_text = String::new();
-    if !config.reasoning {
+    // /no_think is a Qwen3-specific directive to suppress chain-of-thought.
+    // Only send it for local inference; cloud providers don't understand it.
+    if !config.reasoning && config.mode == PolishMode::Local {
         user_text.push_str("/no_think\n");
     }
     user_text.push_str(&format!(
