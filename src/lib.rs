@@ -1240,6 +1240,10 @@ pub fn run() {
                         if elapsed >= std::time::Duration::from_secs(timeout_secs as u64) {
                             // Re-check atomically right before closing to
                             // minimise the TOCTOU window with do_start_recording.
+                            // NOTE: a tiny window remains between this check and
+                            // close_audio_stream; fully eliminating it would require
+                            // holding the audio_thread lock across the check, which
+                            // is not worth the complexity for a 5-second poll loop.
                             if state.is_recording.load(Ordering::SeqCst)
                                 || state.meeting_active.load(Ordering::SeqCst)
                                 || state.reconnecting.load(Ordering::SeqCst)
@@ -1255,7 +1259,9 @@ pub fn run() {
                                 &state.mic_available,
                             );
                             // Reset the idle clock so the watcher doesn't
-                            // immediately re-close if mic becomes available again.
+                            // immediately re-close if mic becomes available again
+                            // (e.g. OS hot-plug triggers try_reconnect_audio without
+                            // a user recording — the timeout restarts from now).
                             if let Ok(mut t) = state.last_recording_end.lock() {
                                 *t = Some(Instant::now());
                             }

@@ -892,6 +892,8 @@ pub fn cancel_recording(app: AppHandle, state: State<'_, AppState>) {
         state.meeting_active.store(false, Ordering::SeqCst);
     }
     state.is_recording.store(false, Ordering::SeqCst);
+    // Intentionally not updating last_recording_end: a cancelled recording
+    // does not count as "real use" for the idle mic timeout.
     // Wake any sleeping feeder immediately.
     state.feeder_stop_cv.notify_all();
     // Resume music if we paused it when recording started.

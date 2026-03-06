@@ -173,9 +173,10 @@
     const sttDollars = stats.local_duration_secs / 60 * 0.006;
     // LLM cost approximation: GPT-4o rates ($2.50/1M input + $10/1M output) used as
     // a conservative reference regardless of the actual provider/model configured.
-    // ~4 chars/token; +200 tokens per call for system prompt overhead.
-    const inputTokens = stats.local_polish_input_chars / 4 + stats.local_polish_entries * 200;
-    const outputTokens = stats.local_polish_output_chars / 4;
+    // ~2.5 chars/token (compromise between English ~4 and CJK ~1.5-2);
+    // +200 tokens per call for system prompt overhead.
+    const inputTokens = stats.local_polish_input_chars / 2.5 + stats.local_polish_entries * 200;
+    const outputTokens = stats.local_polish_output_chars / 2.5;
     const llmDollars = inputTokens * 2.5 / 1_000_000 + outputTokens * 10 / 1_000_000;
     const dollars = sttDollars + llmDollars;
     if (dollars < 0.01) return '$0.00';
