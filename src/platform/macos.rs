@@ -261,68 +261,87 @@ pub unsafe fn nsstring_to_string(nsstr: *mut c_void) -> String {
         .to_string()
 }
 
-/// Bundle IDs of apps that can play audio — used to guard the play/pause
-/// key so we never send it when no media player is open (which would cause
-/// Apple Music to launch unexpectedly).
-const MEDIA_BUNDLE_IDS: &[&str] = &[
-    "com.apple.Music",
-    "com.spotify.client",
-    "com.google.Chrome",
-    "com.apple.Safari",
-    "org.mozilla.firefox",
-    "com.microsoft.edgemac",
-    "com.brave.Browser",
-    "company.thebrowser.Browser", // Arc
-    "com.operasoftware.Opera",
-    "com.tidal.desktop",
-    "com.deezer.Deezer",
-    "tv.plex.desktop",
-    "com.soundcloud.SoundCloud",
-    "com.amazon.music",
-    "com.apple.QuickTimePlayerX",
-    "com.apple.podcasts",
-    "com.vox.player",             // VOX Music Player
-];
+/// Returns `true` if any media is **actively playing** system-wide.
+///
+/// Uses `MRMediaRemoteGetNowPlayingApplicationIsPlaying` from the MediaRemote
+/// private framework — the same API the Control Centre uses.  Works for every
+/// player (Apple Music, Spotify, YouTube Music in Chrome, etc.).
+///
+/// Falls back to `false` (safe: don't send key) if the framework is missing
+/// or the call times out after 300 ms.
+pub fn is_now_playing() -> bool {
+    // Symbols from libdispatch (part of libSystem, always available on macOS).
+    extern "C" {
+        fn dispatch_semaphore_create(value: i64) -> *mut c_void;
+        fn dispatch_semaphore_signal(dsema: *mut c_void) -> i64;
+        fn dispatch_semaphore_wait(dsema: *mut c_void, timeout: u64) -> i64;
+        fn dispatch_get_global_queue(identifier: i64, flags: usize) -> *mut c_void;
+        fn dispatch_time(when: u64, delta: i64) -> u64;
+        fn dlopen(filename: *const c_char, flag: i32) -> *mut c_void;
+        fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+        // Objective-C block ISA for stack-allocated blocks.
+        static _NSConcreteStackBlock: u8;
+    }
 
-/// Returns `true` if any media-capable app (music player or browser that may
-/// be playing web audio) is currently running.  Prevents sending the
-/// Play/Pause key when no player is open, which would launch Apple Music.
-pub fn is_media_app_running() -> bool {
+    // Objective-C block layout for `^(BOOL playing)`.
+    #[repr(C)]
+    struct BlockDesc { reserved: u64, size: u64 }
+    #[repr(C)]
+    struct Block {
+        isa: *const u8,
+        flags: i32,
+        reserved: i32,
+        invoke: unsafe extern "C" fn(*mut Block, u8),
+        descriptor: *const BlockDesc,
+        // Captured variables
+        out: *mut u8,
+        sema: *mut c_void,
+    }
+
+    static DESC: BlockDesc = BlockDesc {
+        reserved: 0,
+        size: std::mem::size_of::<Block>() as u64,
+    };
+
+    unsafe extern "C" fn invoke(b: *mut Block, playing: u8) {
+        *(*b).out = playing;
+        dispatch_semaphore_signal((*b).sema);
+    }
+
     unsafe {
-        let ws_class = objc_getClass(c"NSWorkspace".as_ptr());
-        if ws_class.is_null() { return false; }
+        let handle = dlopen(
+            c"/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote".as_ptr(),
+            1, // RTLD_LAZY
+        );
+        if handle.is_null() { return false; }
 
-        let sel_shared = sel_registerName(c"sharedWorkspace".as_ptr());
-        type Send0 = unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void;
-        let send0: Send0 = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-        let ws = send0(ws_class, sel_shared);
-        if ws.is_null() { return false; }
+        let sym = dlsym(handle, c"MRMediaRemoteGetNowPlayingApplicationIsPlaying".as_ptr());
+        if sym.is_null() { return false; }
 
-        let sel_running = sel_registerName(c"runningApplications".as_ptr());
-        let apps = send0(ws, sel_running);
-        if apps.is_null() { return false; }
+        type GetPlayingFn = unsafe extern "C" fn(*mut c_void, *mut Block);
+        let get_playing: GetPlayingFn = std::mem::transmute(sym);
 
-        let sel_count = sel_registerName(c"count".as_ptr());
-        type SendCount = unsafe extern "C" fn(*mut c_void, *mut c_void) -> usize;
-        let get_count: SendCount = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-        let count = get_count(apps, sel_count);
+        let sema = dispatch_semaphore_create(0);
+        let mut result: u8 = 0;
 
-        let sel_obj = sel_registerName(c"objectAtIndex:".as_ptr());
-        let sel_bid = sel_registerName(c"bundleIdentifier".as_ptr());
-        type SendIdx = unsafe extern "C" fn(*mut c_void, *mut c_void, usize) -> *mut c_void;
-        let get_obj: SendIdx = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        let mut block = Block {
+            isa: &_NSConcreteStackBlock,
+            flags: 0,
+            reserved: 0,
+            invoke,
+            descriptor: &DESC,
+            out: &mut result,
+            sema,
+        };
 
-        for i in 0..count {
-            let app = get_obj(apps, sel_obj, i);
-            if app.is_null() { continue; }
-            let bid_ns = send0(app, sel_bid);
-            if bid_ns.is_null() { continue; }
-            let bid = nsstring_to_string(bid_ns);
-            if MEDIA_BUNDLE_IDS.contains(&bid.as_str()) {
-                return true;
-            }
-        }
-        false
+        let queue = dispatch_get_global_queue(0, 0);
+        get_playing(queue, &mut block);
+
+        // Wait up to 300 ms; if callback never fires assume nothing is playing.
+        let deadline = dispatch_time(0 /* DISPATCH_TIME_NOW */, 300_000_000);
+        dispatch_semaphore_wait(sema, deadline);
+
+        result != 0
     }
 }
 

@@ -622,28 +622,31 @@ pub async fn test_polish(
     };
 
     let model_dir = settings::models_dir();
-    let default_system_prompt = polisher::resolve_prompt(&polisher::base_prompt_template());
-    let custom_system_prompt = polisher::resolve_prompt(&custom_prompt);
+    let default_instructions = polisher::resolve_prompt(&polisher::base_prompt_template());
+    let custom_instructions = polisher::resolve_prompt(&custom_prompt);
 
     let app_clone = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let state = app_clone.state::<AppState>();
+        let system_prompt = "You are a speech-to-text post-processor.";
 
+        let default_user = format!("<speech>\n{}\n</speech>\n\n{}", test_text, default_instructions);
         let default_result = polisher::polish_with_prompt(
             &state.llm_model,
             &model_dir,
             &config,
-            &default_system_prompt,
-            &test_text,
+            system_prompt,
+            &default_user,
             &state.http_client,
         )?;
 
+        let custom_user = format!("<speech>\n{}\n</speech>\n\n{}", test_text, custom_instructions);
         let custom_result = polisher::polish_with_prompt(
             &state.llm_model,
             &model_dir,
             &config,
-            &custom_system_prompt,
-            &test_text,
+            system_prompt,
+            &custom_user,
             &state.http_client,
         )?;
 
@@ -755,29 +758,30 @@ pub async fn generate_rule_from_description(
         let state = app_clone.state::<AppState>();
 
         let lang_hint = "the same language the user uses";
-        let system_prompt = format!(
-            r#"You are a JSON generator. The user will describe a prompt rule for a speech-to-text app. Your job is to convert the description into a structured JSON object.
+        let system_prompt = "You are a JSON generator.";
+        let user_text = format!(
+            r#"{description}
 
-Return ONLY a single JSON object with these fields:
-- "name": a short descriptive name for the rule (max 30 chars)
+Convert the description above into a JSON object with these fields:
+- "name": short descriptive name (max 30 chars)
 - "match_type": one of "app_name", "bundle_id", or "url"
-- "match_value": the value to match against (e.g. app name, bundle ID, or URL pattern)
-- "prompt": the detailed instruction for AI polishing when this rule matches
+- "match_value": the value to match (e.g. app name, bundle ID, or URL pattern)
+- "prompt": detailed instruction for AI polishing when this rule matches
 
-If the user mentions a specific app, use "app_name" as match_type and the app name as match_value.
-If the user mentions a website or URL, use "url" as match_type.
-If you cannot determine the match target, leave match_value empty and use "app_name".
+If a specific app is mentioned, use "app_name" as match_type.
+If a website or URL is mentioned, use "url" as match_type.
+If the match target is unclear, use "app_name" with empty match_value.
 
-Write the "name" and "prompt" fields in {lang_hint}.
-Do NOT include any explanation, only the JSON object."#
+Write "name" and "prompt" in {lang_hint}.
+Return ONLY the JSON object."#
         );
 
         let result = polisher::polish_with_prompt(
             &state.llm_model,
             &model_dir,
             &config,
-            &system_prompt,
-            &description,
+            system_prompt,
+            &user_text,
             &state.http_client,
         )?;
 
@@ -837,7 +841,6 @@ pub fn stop_recording(state: State<'_, AppState>) -> Result<String, String> {
         &state,
         &stt_config,
         &stt_language,
-        "",
         &dictionary_terms,
     )
     .map(|(text, _samples)| text)
@@ -2605,32 +2608,26 @@ pub async fn polish_meeting_note(
         let state = app_clone.state::<AppState>();
 
         let lang_name = language_display_name(&stt_language);
-        let system_prompt = format!(
-            r#"You are a meeting notes assistant. Given a raw speech-to-text transcript, generate:
-1. A concise, descriptive title (max 60 chars)
-2. A well-structured Markdown summary with these sections:
+        let system_prompt = "You are a meeting notes assistant.";
+        let user_text = format!(
+            r#"<transcript>
+{transcript}
+</transcript>
 
-## Key Points
-- Main discussion topics and highlights
+Summarize the transcript above. Generate:
+1. A concise title (max 60 chars)
+2. A Markdown summary with sections: Key Points, Action Items, Decisions. Omit empty sections.
 
-## Action Items
-- Specific tasks, owners if mentioned
-
-## Decisions
-- What was agreed upon or decided
-
-Omit any section that has no relevant content.
 Return ONLY a JSON object: {{"title": "...", "summary": "..."}}
-The summary field must contain valid Markdown.
-Write entirely in {lang_name}."#
+Write in {lang_name}."#
         );
 
         let result = polisher::polish_with_prompt(
             &state.llm_model,
             &model_dir,
             &config,
-            &system_prompt,
-            &transcript,
+            system_prompt,
+            &user_text,
             &state.http_client,
         )?;
 

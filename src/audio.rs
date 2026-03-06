@@ -342,7 +342,6 @@ pub fn do_stop_recording(
     state: &crate::AppState,
     stt_config: &SttConfig,
     language: &str,
-    app_name: &str,
     dictionary_terms: &[String],
 ) -> Result<(String, Vec<f32>), String> {
     let sample_rate = state.sample_rate
@@ -456,7 +455,7 @@ pub fn do_stop_recording(
     let text = match stt_config.mode {
         SttMode::Local => match stt_config.local_engine {
             LocalSttEngine::Whisper => {
-                let result = transcribe_with_cached_whisper(&state.whisper_ctx, &samples_16k, &stt_config.whisper_model, language, app_name, dictionary_terms)?;
+                let result = transcribe_with_cached_whisper(&state.whisper_ctx, &samples_16k, &stt_config.whisper_model, language, dictionary_terms)?;
                 tracing::info!("[timing] STT (local whisper): {:.0?}", stt_start.elapsed());
                 result
             }

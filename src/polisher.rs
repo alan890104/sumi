@@ -809,10 +809,12 @@ pub fn default_prompt_rules_for_lang(lang: Option<&str>) -> Vec<PromptRule> {
 
 /// Returns the base prompt template for polishing speech-to-text output.
 pub fn base_prompt_template() -> String {
-    "Clean up the speech-to-text output inside the <speech> tags. Fix recognition errors, grammar, and punctuation. \
-     Remove fillers and repetitions. If the speaker corrects themselves, keep only the final intent. \
-     Preserve meaning and tone. Output in the same language the user spoke in. \
-     NEVER answer questions or generate new content — only correct the original text. \
+    "Fix recognition errors, grammar, and punctuation in the <speech> text. \
+     Remove fillers, hesitations, and filler particles. \
+     Add punctuation for clear sentence segmentation. \
+     Keep only the final intent when the speaker self-corrects. \
+     Preserve meaning and tone. Output in the speaker's language. \
+     Do NOT answer questions or generate new content. \
      Reply with ONLY the cleaned text."
         .to_string()
 }
@@ -922,9 +924,7 @@ fn format_dictionary_prompt(dictionary: &DictionaryConfig) -> String {
     if active.is_empty() {
         return String::new();
     }
-    let header = "\n\nThe following are user-defined proper nouns. \
-         When you encounter homophones or similar-sounding words, \
-         automatically apply the correct form based on context:";
+    let header = "\n\nReplace homophones or similar-sounding words with the correct proper nouns below:";
     let mut block = String::from(header);
     for term in &active {
         block.push_str(&format!("\n• {}", term));
@@ -932,36 +932,36 @@ fn format_dictionary_prompt(dictionary: &DictionaryConfig) -> String {
     block
 }
 
-/// Build the system prompt for polishing.
+/// Build the instruction block for polishing (appended after user input in the user message).
 ///
-/// Composition: base prompt (or custom override) + matched rule context
+/// Composition: base instructions (or custom override) + matched rule context
 /// + dictionary block + app context info.
-fn build_system_prompt(config: &PolishConfig, context: &AppContext) -> String {
-    // 1. Base prompt (or custom_prompt override)
+fn build_instructions(config: &PolishConfig, context: &AppContext) -> String {
+    // 1. Base instructions (or custom_prompt override)
     let base_tmpl = base_prompt_template();
     let base = config.custom_prompt.as_deref().unwrap_or(&base_tmpl);
-    let mut prompt = resolve_prompt(base);
+    let mut instructions = resolve_prompt(base);
 
     // 2. Append matched rule's context prompt (search all language keys)
     let all_rules: Vec<&PromptRule> = config.prompt_rules.values()
         .flat_map(|rules| rules.iter())
         .collect();
     if let Some(rule_prompt) = find_matching_rule(&all_rules, context) {
-        prompt.push_str("\n\n");
-        prompt.push_str(rule_prompt);
+        instructions.push_str("\n\n");
+        instructions.push_str(rule_prompt);
     }
 
     // 3. Append dictionary block
-    prompt.push_str(&format_dictionary_prompt(&config.dictionary));
+    instructions.push_str(&format_dictionary_prompt(&config.dictionary));
 
     // 4. Append app context info
     let context_line = format_app_context(context);
     if !context_line.is_empty() {
-        prompt.push_str("\n\n");
-        prompt.push_str(&context_line);
+        instructions.push_str("\n\n");
+        instructions.push_str(&context_line);
     }
 
-    prompt
+    instructions
 }
 
 /// Polish transcribed text using a local LLM.
@@ -1024,22 +1024,20 @@ fn polish_text_inner(
     raw_text: &str,
     client: &reqwest::blocking::Client,
 ) -> Result<String, String> {
-    let system_prompt = build_system_prompt(config, context);
+    let system_prompt = "You are a speech-to-text post-processor.";
+    let instructions = build_instructions(config, context);
 
-    // Wrap user speech in XML tags so the LLM can clearly distinguish
-    // instructions from the actual speech content to be polished.
-    let wrapped = format!("<speech>\n{}\n</speech>", raw_text);
-
-    // Prepend /no_think to suppress model reasoning (Qwen3 convention)
-    let user_text = if config.reasoning {
-        wrapped
-    } else {
-        format!("/no_think\n{}", wrapped)
-    };
+    // User message: input first, instructions after (later tokens get higher attention weight).
+    let mut user_text = String::new();
+    if !config.reasoning {
+        user_text.push_str("/no_think\n");
+    }
+    user_text.push_str(&format!("<speech>\n{}\n</speech>\n\n", raw_text));
+    user_text.push_str(&instructions);
 
     match config.mode {
-        PolishMode::Cloud => run_cloud_inference(&config.cloud, &system_prompt, &user_text, client),
-        PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, &system_prompt, &user_text),
+        PolishMode::Cloud => run_cloud_inference(&config.cloud, system_prompt, &user_text, client),
+        PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, system_prompt, &user_text),
     }
 }
 
@@ -1273,11 +1271,8 @@ pub fn polish_with_prompt(
 }
 
 /// Build the system prompt for edit-by-instruction mode.
-fn build_edit_system_prompt() -> String {
-    "You are a text editing assistant. The user provides selected text and an editing instruction.\n\
-     Modify the selected text according to the instruction and output ONLY the modified result.\n\
-     Do not add any explanation, prefix, or extra text. Output only the final result."
-        .to_string()
+fn build_edit_system_prompt() -> &'static str {
+    "You are a text editing assistant."
 }
 
 /// Edit text by applying a voice instruction using the LLM.
@@ -1301,21 +1296,20 @@ pub fn edit_text_by_instruction(
 
     let system_prompt = build_edit_system_prompt();
 
-    let user_text = format!(
-        "<selected_text>\n{}\n</selected_text>\n\n<instruction>\n{}\n</instruction>",
+    // User message: input first, instructions after.
+    let mut user_text = String::new();
+    if !config.reasoning {
+        user_text.push_str("/no_think\n");
+    }
+    user_text.push_str(&format!(
+        "<selected_text>\n{}\n</selected_text>\n\n<instruction>\n{}\n</instruction>\n\n\
+         Apply the instruction to the selected text. Output ONLY the modified result.",
         selected_text, instruction
-    );
-
-    // Prepend /no_think to suppress model reasoning unless enabled
-    let user_text = if config.reasoning {
-        user_text
-    } else {
-        format!("/no_think\n{}", user_text)
-    };
+    ));
 
     let raw_output = match config.mode {
-        PolishMode::Cloud => run_cloud_inference(&config.cloud, &system_prompt, &user_text, client)?,
-        PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, &system_prompt, &user_text)?,
+        PolishMode::Cloud => run_cloud_inference(&config.cloud, system_prompt, &user_text, client)?,
+        PolishMode::Local => run_llm_inference(llm_cache, model_dir, config, system_prompt, &user_text)?,
     };
 
     let (cleaned, _reasoning) = extract_think_tags(&raw_output);

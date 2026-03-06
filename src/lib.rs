@@ -237,19 +237,12 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
         }
 
         let stt_language = stt_config.language.clone();
-        let stt_app_name = state
-            .captured_context
-            .lock()
-            .ok()
-            .and_then(|ctx| ctx.as_ref().map(|c| c.app_name.clone()))
-            .unwrap_or_default();
         let dictionary_terms = polish_config.dictionary.enabled_terms();
 
         let stop_result = audio::do_stop_recording(
             &state,
             &stt_config,
             &stt_language,
-            &stt_app_name,
             &dictionary_terms,
         );
         // Resume media paused at recording start.
@@ -539,12 +532,6 @@ fn stop_edit_and_replace(app: &AppHandle) {
         }
 
         let edit_stt_language = stt_config.language.clone();
-        let edit_app_name = state
-            .captured_context
-            .lock()
-            .ok()
-            .and_then(|ctx| ctx.as_ref().map(|c| c.app_name.clone()))
-            .unwrap_or_default();
         let edit_dict_terms = polish_config.dictionary.enabled_terms();
 
         // The edit path never spawns a live-preview feeder. Defensively clear
@@ -559,7 +546,6 @@ fn stop_edit_and_replace(app: &AppHandle) {
             &state,
             &stt_config,
             &edit_stt_language,
-            &edit_app_name,
             &edit_dict_terms,
         );
         // Resume media paused at recording start.
@@ -1434,7 +1420,7 @@ pub fn run() {
 
                                 // Pause background music only if a media player is open.
                                 // Skipping when none is running avoids launching Apple Music.
-                                if platform::is_media_app_running() {
+                                if platform::is_now_playing() {
                                     platform::pause_now_playing();
                                     state.media_paused_by_sumi.store(true, Ordering::SeqCst);
                                 }
@@ -1699,7 +1685,7 @@ fn start_meeting_mode(app: &AppHandle) {
     }
 
     // Pause background music for the duration of the meeting.
-    if platform::is_media_app_running() {
+    if platform::is_now_playing() {
         platform::pause_now_playing();
         state.media_paused_by_sumi.store(true, Ordering::SeqCst);
     }
