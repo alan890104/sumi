@@ -23,10 +23,14 @@ pub fn save(provider: &str, key: &str) -> Result<(), String> {
     const ERR_DUPLICATE: i32 = -25299;        // errSecDuplicateItem
     const ERR_MISSING_ENTITLEMENT: i32 = -34018; // errSecMissingEntitlement
 
-    let mut opts = PasswordOptions::new_generic_password(&keychain_service(provider), SERVICE);
-    opts.use_protected_keychain();
-    match set_generic_password_options(key.as_bytes(), opts) {
-        Ok(()) => return Ok(()),
+    // Try Data Protection Keychain. Track whether the entitlement is available so
+    // we know whether the CLI write below is the primary store or just a backup.
+    let dp_ok = match {
+        let mut opts = PasswordOptions::new_generic_password(&keychain_service(provider), SERVICE);
+        opts.use_protected_keychain();
+        set_generic_password_options(key.as_bytes(), opts)
+    } {
+        Ok(()) => true,
         Err(e) if e.code() == ERR_DUPLICATE => {
             // Item already exists — delete then re-add with the updated value.
             let mut del = PasswordOptions::new_generic_password(&keychain_service(provider), SERVICE);
@@ -36,34 +40,54 @@ pub fn save(provider: &str, key: &str) -> Result<(), String> {
             }
             let mut opts2 = PasswordOptions::new_generic_password(&keychain_service(provider), SERVICE);
             opts2.use_protected_keychain();
-            return set_generic_password_options(key.as_bytes(), opts2)
-                .map_err(|e| format!("Keychain update failed: {}", e));
+            set_generic_password_options(key.as_bytes(), opts2)
+                .map_err(|e| format!("Keychain update failed: {}", e))?;
+            true
         }
         Err(e) if e.code() == ERR_MISSING_ENTITLEMENT => {
-            // App isn't signed with keychain-access-groups yet (e.g. raw cargo build).
-            // Fall back to security CLI so the key is never silently dropped.
+            // App lacks keychain-access-groups entitlement (e.g. unsigned build).
             tracing::warn!("Data Protection Keychain unavailable, falling back to security CLI");
+            false
         }
         Err(e) => return Err(format!("Keychain save failed: {}", e)),
-    }
+    };
 
-    // Fallback: security CLI. The key appears in argv briefly — acceptable only
-    // because this path is only reached when the app lacks proper entitlements.
+    // Always mirror the key in the security CLI store as a fallback.  If the
+    // keychain-access-groups entitlement changes between app versions (e.g.
+    // Team ID prefix added or removed), the Data Protection Keychain items
+    // become inaccessible to the new binary.  The CLI copy ensures load() can
+    // still recover the key via its fallback path.
+    // The key appears in argv briefly — acceptable because this is the login
+    // keychain of the current user, not a shared store.
     let service = keychain_service(provider);
     let _ = std::process::Command::new("/usr/bin/security")
         .args(["delete-generic-password", "-s", &service, "-a", SERVICE])
         .output();
-    let out = std::process::Command::new("/usr/bin/security")
+    let cli_out = std::process::Command::new("/usr/bin/security")
         .args(["add-generic-password", "-s", &service, "-a", SERVICE, "-w", key, "-U"])
         .output()
         .map_err(|e| format!("Failed to run security CLI: {}", e))?;
-    if out.status.success() {
+
+    if dp_ok {
+        // Data Protection Keychain is the primary store; CLI is just a backup.
+        // Ignore CLI failures — they are non-fatal when the primary succeeded.
+        if !cli_out.status.success() {
+            tracing::warn!(
+                "CLI keychain backup write failed (non-fatal): {}",
+                String::from_utf8_lossy(&cli_out.stderr).trim()
+            );
+        }
         Ok(())
     } else {
-        Err(format!(
-            "security add-generic-password failed: {}",
-            String::from_utf8_lossy(&out.stderr)
-        ))
+        // CLI is the only store.
+        if cli_out.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "security add-generic-password failed: {}",
+                String::from_utf8_lossy(&cli_out.stderr)
+            ))
+        }
     }
 }
 
