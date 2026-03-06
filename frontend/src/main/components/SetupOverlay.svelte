@@ -301,45 +301,29 @@
       if (selectedLocalEngine === 'whisper') {
         setSttLocalEngine('whisper');
         setSttWhisperModel(selectedSttModel);
-        try {
-          await switchWhisperModel(selectedSttModel);
-        } catch (e) {
-          console.error('Failed to switch whisper model:', e);
-        }
-
-        if (selectedSttModelDownloaded) {
-          try {
-            const vadStatus = await checkVadModelStatus();
-            if (vadStatus.downloaded) {
-              try { await saveSettingsApi(buildPayload()); } catch {}
-              goToPolishChoice();
-              return;
-            }
-          } catch {}
-        }
       } else {
-        // Qwen3-ASR
         setSttLocalEngine('qwen3_asr');
         setSttQwen3AsrModel(selectedQwen3Model);
-        try {
-          await switchQwen3AsrModel(selectedQwen3Model);
-        } catch (e) {
-          console.error('Failed to switch Qwen3-ASR model:', e);
-        }
-
-        if (selectedQwen3ModelDownloaded) {
-          try {
-            const vadStatus = await checkVadModelStatus();
-            if (vadStatus.downloaded) {
-              try { await saveSettingsApi(buildPayload()); } catch {}
-              goToPolishChoice();
-              return;
-            }
-          } catch {}
-        }
       }
-      // Persist local_engine (and model) before starting download
+
+      // Persist settings before download/activation
       try { await saveSettingsApi(buildPayload()); } catch {}
+
+      const modelDownloaded = selectedLocalEngine === 'whisper'
+        ? selectedSttModelDownloaded
+        : selectedQwen3ModelDownloaded;
+
+      if (modelDownloaded) {
+        try {
+          const vadStatus = await checkVadModelStatus();
+          if (vadStatus.downloaded) {
+            // Both model and VAD ready — show activation spinner
+            activateSttModel();
+            return;
+          }
+        } catch {}
+      }
+
       startSttDownload();
     } finally {
       sttLocalActivating = false;
@@ -469,7 +453,7 @@
   // ── Polish Choice ──
 
   let polishModelsLoading = $state(true);
-  let polishLocalActivating = $state(false);
+  // polishLocalActivating no longer needed — onPolishLocalDownload transitions immediately
   let polishMode = $state<string>('local');
   let polishModels = $state<PolishModelInfo[]>([]);
   let selectedPolishModel = $state<PolishModel>('phi4_mini');
@@ -571,21 +555,11 @@
   }
 
   async function onPolishLocalDownload() {
-    // Switch to selected model in backend + settings store
     setPolishModel(selectedPolishModel);
-    polishLocalActivating = true;
-    try {
-      await switchPolishModel(selectedPolishModel);
-    } catch (e) {
-      console.error('Failed to switch polish model:', e);
-    } finally {
-      polishLocalActivating = false;
-    }
 
     if (selectedModelDownloaded) {
-      setPolishMode('local');
-      setPolishEnabled(true);
-      finishSetup();
+      // Model already on disk — show activation spinner
+      activatePolishModel();
     } else {
       startLlmDownload();
     }
@@ -1083,8 +1057,8 @@
               {/each}
             </div>
 
-            <button class="setup-download-btn" disabled={polishModelsLoading || polishLocalActivating} onclick={onPolishLocalDownload}>
-              {#if polishModelsLoading || polishLocalActivating}
+            <button class="setup-download-btn" disabled={polishModelsLoading} onclick={onPolishLocalDownload}>
+              {#if polishModelsLoading}
                 <span class="setup-btn-spinner">
                   <svg class="setup-spinner" width="14" height="14" viewBox="0 0 14 14" fill="none">
                     <circle cx="7" cy="7" r="5" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
