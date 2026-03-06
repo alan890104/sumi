@@ -1833,6 +1833,7 @@ fn start_meeting_mode(app: &AppHandle) {
         }
         return;
     }
+    tracing::info!("🎙️ Meeting mode started (engine: {:?}, lang: {:?})", stt_mode, lang);
     // Advance the session generation counter. The feeder captures this value
     // and aborts post-loop work if the counter has advanced past it, preventing
     // a zombie feeder from a timed-out previous session from corrupting state.
@@ -1988,7 +1989,8 @@ fn stop_meeting_mode(app: &AppHandle) {
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
-        return; // Another stop_meeting_mode call is already in progress.
+        tracing::warn!("stop_meeting_mode: already in progress, skipping re-entrant call");
+        return;
     }
 
     // Capture session_id at entry. If a new meeting starts between the timeout
@@ -2092,6 +2094,11 @@ fn stop_meeting_mode(app: &AppHandle) {
         return;
     }
 
+    let word_count = history::count_words(&transcript);
+    tracing::info!(
+        "Meeting mode stopped ({:.0}s, {} words)",
+        duration_secs, word_count
+    );
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.emit("recording-status", "meeting_stopped");
     }
