@@ -107,6 +107,15 @@ pub fn simulate_undo() -> bool {
     { false }
 }
 
+/// Returns `true` if any media-capable app is currently running.
+/// Used to guard play/pause keys — avoids launching Apple Music when idle.
+pub fn is_media_app_running() -> bool {
+    #[cfg(target_os = "macos")]
+    { macos::is_media_app_running() }
+    #[cfg(not(target_os = "macos"))]
+    { false }
+}
+
 /// Send the Play/Pause media key to pause currently playing media.
 /// Call `resume_now_playing` when done to restore playback.
 pub fn pause_now_playing() {

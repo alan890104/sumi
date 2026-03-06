@@ -261,6 +261,71 @@ pub unsafe fn nsstring_to_string(nsstr: *mut c_void) -> String {
         .to_string()
 }
 
+/// Bundle IDs of apps that can play audio — used to guard the play/pause
+/// key so we never send it when no media player is open (which would cause
+/// Apple Music to launch unexpectedly).
+const MEDIA_BUNDLE_IDS: &[&str] = &[
+    "com.apple.Music",
+    "com.spotify.client",
+    "com.google.Chrome",
+    "com.apple.Safari",
+    "org.mozilla.firefox",
+    "com.microsoft.edgemac",
+    "com.brave.Browser",
+    "company.thebrowser.Browser", // Arc
+    "com.operasoftware.Opera",
+    "com.tidal.desktop",
+    "com.deezer.Deezer",
+    "tv.plex.desktop",
+    "com.soundcloud.SoundCloud",
+    "com.amazon.music",
+    "com.apple.QuickTimePlayerX",
+    "com.apple.podcasts",
+    "com.vox.player",             // VOX Music Player
+];
+
+/// Returns `true` if any media-capable app (music player or browser that may
+/// be playing web audio) is currently running.  Prevents sending the
+/// Play/Pause key when no player is open, which would launch Apple Music.
+pub fn is_media_app_running() -> bool {
+    unsafe {
+        let ws_class = objc_getClass(c"NSWorkspace".as_ptr());
+        if ws_class.is_null() { return false; }
+
+        let sel_shared = sel_registerName(c"sharedWorkspace".as_ptr());
+        type Send0 = unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void;
+        let send0: Send0 = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        let ws = send0(ws_class, sel_shared);
+        if ws.is_null() { return false; }
+
+        let sel_running = sel_registerName(c"runningApplications".as_ptr());
+        let apps = send0(ws, sel_running);
+        if apps.is_null() { return false; }
+
+        let sel_count = sel_registerName(c"count".as_ptr());
+        type SendCount = unsafe extern "C" fn(*mut c_void, *mut c_void) -> usize;
+        let get_count: SendCount = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        let count = get_count(apps, sel_count);
+
+        let sel_obj = sel_registerName(c"objectAtIndex:".as_ptr());
+        let sel_bid = sel_registerName(c"bundleIdentifier".as_ptr());
+        type SendIdx = unsafe extern "C" fn(*mut c_void, *mut c_void, usize) -> *mut c_void;
+        let get_obj: SendIdx = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+
+        for i in 0..count {
+            let app = get_obj(apps, sel_obj, i);
+            if app.is_null() { continue; }
+            let bid_ns = send0(app, sel_bid);
+            if bid_ns.is_null() { continue; }
+            let bid = nsstring_to_string(bid_ns);
+            if MEDIA_BUNDLE_IDS.contains(&bid.as_str()) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 /// Simulate the Play/Pause media key (NX_KEYTYPE_PLAY = 16).
 ///
 /// Works with all players that honour system media keys: Apple Music, Spotify,

@@ -1432,10 +1432,12 @@ pub fn run() {
                                     platform::show_overlay(&overlay);
                                 }
 
-                                // Pause background music so it doesn't bleed into the mic.
-                                // We'll resume it when recording ends.
-                                platform::pause_now_playing();
-                                state.media_paused_by_sumi.store(true, Ordering::SeqCst);
+                                // Pause background music only if a media player is open.
+                                // Skipping when none is running avoids launching Apple Music.
+                                if platform::is_media_app_running() {
+                                    platform::pause_now_playing();
+                                    state.media_paused_by_sumi.store(true, Ordering::SeqCst);
+                                }
 
                                 match audio::do_start_recording(
                                     &state.is_recording,
@@ -1697,8 +1699,10 @@ fn start_meeting_mode(app: &AppHandle) {
     }
 
     // Pause background music for the duration of the meeting.
-    platform::pause_now_playing();
-    state.media_paused_by_sumi.store(true, Ordering::SeqCst);
+    if platform::is_media_app_running() {
+        platform::pause_now_playing();
+        state.media_paused_by_sumi.store(true, Ordering::SeqCst);
+    }
 
     if let Err(e) = audio::do_start_recording(
         &state.is_recording,
