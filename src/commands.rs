@@ -11,7 +11,7 @@ use crate::{history, meeting_notes, AppState};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -902,7 +902,7 @@ pub struct MicStatus {
 }
 
 #[tauri::command]
-pub fn get_mic_status(state: State<'_, AppState>) -> MicStatus {
+pub fn get_mic_status(_state: State<'_, AppState>) -> MicStatus {
     use cpal::traits::{DeviceTrait, HostTrait};
     let host = cpal::default_host();
     let default_device = host.default_input_device().and_then(|d| d.name().ok());
@@ -922,21 +922,9 @@ pub fn get_mic_status(state: State<'_, AppState>) -> MicStatus {
             .unwrap_or_default()
     };
 
-    // Auto-reconnect: if mic was unavailable at startup but devices exist now, try to connect.
-    let mut connected = state.mic_available.load(Ordering::SeqCst);
-    if !connected && !devices.is_empty() {
-        let device_name = state.settings.lock().ok().and_then(|s| s.mic_device.clone());
-        if audio::try_reconnect_audio(
-            &state.mic_available,
-            &state.sample_rate,
-            &state.buffer,
-            &state.is_recording,
-            &state.audio_thread,
-            device_name,
-        ).is_ok() {
-            connected = true;
-        }
-    }
+    // On-demand model: stream is closed between recordings.
+    // Report physical device availability, not stream state.
+    let connected = !devices.is_empty() || default_device.is_some();
 
     MicStatus {
         connected,
@@ -958,31 +946,13 @@ pub fn set_mic_device(device_name: Option<String>, state: State<'_, AppState>) -
         settings::save_settings_to_disk(&settings);
     }
 
-    // Stop the old audio thread
-    if let Ok(mut at) = state.audio_thread.lock() {
-        if let Some(control) = at.take() {
-            control.stop();
-        }
-    }
-
-    // Clear the buffer to avoid leftover samples from the old device
+    // Close the old stream (if any) and clear the buffer.
+    // On-demand model: the new device will be used on the next recording start.
+    audio::close_audio_stream(&state.audio_thread, &state.mic_available);
     if let Ok(mut buf) = state.buffer.lock() {
         buf.clear();
     }
-
-    // Start a new audio thread with the selected device
-    state.mic_available.store(false, Ordering::SeqCst);
-    match audio::spawn_audio_thread(Arc::clone(&state.buffer), Arc::clone(&state.is_recording), device_name) {
-        Ok((sr, control)) => {
-            *state.sample_rate.lock().map_err(|e| e.to_string())? = Some(sr);
-            if let Ok(mut at) = state.audio_thread.lock() {
-                *at = Some(control);
-            }
-            state.mic_available.store(true, Ordering::SeqCst);
-            Ok(())
-        }
-        Err(e) => Err(e),
-    }
+    Ok(())
 }
 
 // ── Model download ──────────────────────────────────────────────────────────

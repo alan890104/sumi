@@ -915,17 +915,17 @@ pub fn run() {
                 std::thread::spawn(move || cleanup_obsolete_models(&dir));
             }
 
-            // Pre-initialise audio pipeline
+            // On-demand model: do NOT open the mic stream at startup.
+            // The stream is opened by do_start_recording on the first hotkey press.
+            // Opening CoreAudio at startup activates system DSP (echo-cancellation,
+            // noise-reduction) which alters system audio output — e.g. making
+            // background music louder — even when the user is not recording.
             let is_recording = Arc::new(AtomicBool::new(false));
             let buffer = Arc::new(Mutex::new(Vec::new()));
-            let (mic_available, sample_rate, audio_thread_init) =
-                match audio::spawn_audio_thread(Arc::clone(&buffer), Arc::clone(&is_recording), settings.mic_device.clone()) {
-                    Ok((sr, control)) => (true, Some(sr), Some(control)),
-                    Err(e) => {
-                        tracing::error!("Audio init failed: {}", e);
-                        (false, None, None)
-                    }
-                };
+            let mic_available = false;
+            let sample_rate: Option<u32> = None;
+            let audio_thread_init: Option<audio::AudioThreadControl> = None;
+            tracing::info!("Mic stream deferred — will open on first recording (on-demand model)");
 
             let http_client = reqwest::blocking::Client::builder()
                 .timeout(std::time::Duration::from_secs(60))
@@ -1017,6 +1017,14 @@ pub fn run() {
                     }
 
                     tracing::info!("Default audio input device changed to Bluetooth — reconnecting to built-in mic");
+
+                    // On-demand model: stream is closed between recordings.
+                    // resolve_input_device will avoid BT automatically on the next
+                    // recording start, so no reconnect is needed while idle.
+                    if !state.is_recording.load(Ordering::SeqCst) {
+                        tracing::info!("Not recording — skipping BT reconnect; built-in will be used on next hotkey press");
+                        return;
+                    }
 
                     // Guard against multiple concurrent reconnects: CoreAudio can fire
                     // 2-3 property-change notifications per physical hotplug event.
