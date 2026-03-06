@@ -30,6 +30,15 @@ pub struct Settings {
     /// Optional hotkey for meeting transcription mode. None = disabled.
     #[serde(default)]
     pub meeting_hotkey: Option<String>,
+    /// Idle mic timeout in seconds. 0 = never close (always-on).
+    /// When > 0, the mic stream is closed after this many seconds of inactivity
+    /// to prevent CoreAudio DSP (echo cancellation, AGC) from affecting other apps.
+    #[serde(default = "default_idle_mic_timeout_secs")]
+    pub idle_mic_timeout_secs: u32,
+}
+
+fn default_idle_mic_timeout_secs() -> u32 {
+    300
 }
 
 impl Default for Settings {
@@ -58,6 +67,7 @@ impl Default for Settings {
             onboarding_completed: false,
             mic_device: None,
             meeting_hotkey,
+            idle_mic_timeout_secs: default_idle_mic_timeout_secs(),
         }
     }
 }

@@ -119,7 +119,7 @@
       stats = await getHistoryStats();
     } catch (e) {
       console.error('Failed to load stats:', e);
-      stats = { total_entries: 0, total_duration_secs: 0, total_chars: 0, local_entries: 0, local_duration_secs: 0, total_words: 0 };
+      stats = { total_entries: 0, total_duration_secs: 0, total_chars: 0, local_entries: 0, local_duration_secs: 0, total_words: 0, local_polish_entries: 0, local_polish_input_chars: 0, local_polish_output_chars: 0 };
     }
     // Trigger bar animation after mount + paint
     requestAnimationFrame(() => {
@@ -169,7 +169,13 @@
 
   let moneySaved = $derived.by(() => {
     if (!stats) return '$0.00';
-    const dollars = stats.local_duration_secs / 60 * 0.006;
+    // STT: Groq Whisper API rate $0.006/min
+    const sttDollars = stats.local_duration_secs / 60 * 0.006;
+    // LLM: GPT-4o rate $2.50/1M input tokens + $10/1M output tokens; ~4 chars/token, +200 tokens system prompt per call
+    const inputTokens = stats.local_polish_input_chars / 4 + stats.local_polish_entries * 200;
+    const outputTokens = stats.local_polish_output_chars / 4;
+    const llmDollars = inputTokens * 2.5 / 1_000_000 + outputTokens * 10 / 1_000_000;
+    const dollars = sttDollars + llmDollars;
     if (dollars < 0.01) return '$0.00';
     return `$${dollars.toFixed(2)}`;
   });

@@ -238,7 +238,7 @@ impl PolishModel {
                 "https://huggingface.co/Qwen/Qwen3-4B/resolve/main/tokenizer.json",
             ),
             PolishModel::Ministral3B => Some(
-                "https://huggingface.co/mistralai/Ministral-3B-Instruct-2410/resolve/main/tokenizer.json",
+                "https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512/resolve/main/tokenizer.json",
             ),
         }
     }

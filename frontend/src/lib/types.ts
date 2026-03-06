@@ -149,6 +149,7 @@ export interface Settings {
   onboarding_completed: boolean;
   mic_device: string | null;
   meeting_hotkey: string | null;
+  idle_mic_timeout_secs: number;
 }
 
 // ── History ──
@@ -184,6 +185,9 @@ export interface HistoryStats {
   local_entries: number;
   local_duration_secs: number;
   total_words: number;
+  local_polish_entries: number;
+  local_polish_input_chars: number;
+  local_polish_output_chars: number;
 }
 
 // ── API responses ──

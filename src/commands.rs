@@ -59,6 +59,7 @@ pub fn save_settings(
     current.edit_hotkey = new_settings.edit_hotkey;
     current.meeting_hotkey = new_settings.meeting_hotkey;
     current.onboarding_completed = new_settings.onboarding_completed;
+    current.idle_mic_timeout_secs = new_settings.idle_mic_timeout_secs;
     settings::save_settings_to_disk(&current);
     Ok(())
 }
@@ -1507,14 +1508,32 @@ pub fn download_polish_model(app: AppHandle, model: polisher::PolishModel) -> Re
         // Download external tokenizer JSON if required (e.g. Phi-4-mini).
         if let (Some(tok_url), Some(tok_path)) = (model.tokenizer_url(), tokenizer_path.as_ref()) {
             if !tok_path.exists() {
-                match client.get(tok_url).send().and_then(|r| r.bytes()) {
-                    Ok(bytes) => {
-                        if let Err(e) = std::fs::write(tok_path, &bytes) {
+                match client.get(tok_url).send() {
+                    Ok(r) => {
+                        if !r.status().is_success() {
                             let _ = app.emit("polish-model-download-progress", serde_json::json!({
                                 "status": "error",
-                                "message": format!("Failed to write tokenizer: {}", e)
+                                "message": format!("Failed to download tokenizer: HTTP {}", r.status())
                             }));
                             return;
+                        }
+                        match r.bytes() {
+                            Ok(bytes) => {
+                                if let Err(e) = std::fs::write(tok_path, &bytes) {
+                                    let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                                        "status": "error",
+                                        "message": format!("Failed to write tokenizer: {}", e)
+                                    }));
+                                    return;
+                                }
+                            }
+                            Err(e) => {
+                                let _ = app.emit("polish-model-download-progress", serde_json::json!({
+                                    "status": "error",
+                                    "message": format!("Failed to download tokenizer: {}", e)
+                                }));
+                                return;
+                            }
                         }
                     }
                     Err(e) => {

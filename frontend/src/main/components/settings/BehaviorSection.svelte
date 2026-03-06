@@ -1,14 +1,29 @@
 <script lang="ts">
   import { t } from '$lib/stores/i18n.svelte';
-  import { getSettings, setAutoPaste, save } from '$lib/stores/settings.svelte';
+  import { getSettings, setAutoPaste, setIdleMicTimeout, save } from '$lib/stores/settings.svelte';
   import SettingRow from '$lib/components/SettingRow.svelte';
   import SectionHeader from '$lib/components/SectionHeader.svelte';
   import Toggle from '$lib/components/Toggle.svelte';
+  import Select from '$lib/components/Select.svelte';
 
   const settings = $derived(getSettings());
 
+  const micIdleOptions = $derived([
+    { value: '0', label: t('settings.behavior.micIdle.off') },
+    { value: '30', label: t('settings.behavior.micIdle.30s') },
+    { value: '60', label: t('settings.behavior.micIdle.1min') },
+    { value: '300', label: t('settings.behavior.micIdle.5min') },
+    { value: '600', label: t('settings.behavior.micIdle.10min') },
+    { value: '1800', label: t('settings.behavior.micIdle.30min') },
+  ]);
+
   function onToggleAutoPaste(checked: boolean) {
     setAutoPaste(checked);
+    save();
+  }
+
+  function onMicIdleChange(value: string) {
+    setIdleMicTimeout(parseInt(value, 10));
     save();
   }
 </script>
@@ -27,11 +42,18 @@
   <SettingRow name={t('settings.behavior.autoPaste')} desc={t('settings.behavior.autoPasteDesc')}>
     <Toggle checked={settings.auto_paste} onchange={onToggleAutoPaste} />
   </SettingRow>
+
+  <SettingRow name={t('settings.behavior.micIdle')} desc={t('settings.behavior.micIdleDesc')}>
+    <Select
+      options={micIdleOptions}
+      value={String(settings.idle_mic_timeout_secs)}
+      onchange={onMicIdleChange}
+    />
+  </SettingRow>
 </div>
 
 <style>
   .section {
     margin-bottom: 32px;
   }
-
 </style>

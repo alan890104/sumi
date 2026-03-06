@@ -341,6 +341,7 @@
   "settings.behavior.autoPasteDesc": "Автоматично вставляти транскрипцію в позицію курсора",
   "settings.behavior.micIdle": "Reduce background audio interference",
   "settings.behavior.micIdleDesc": "Close mic after idle to prevent audio ducking",
+  "settings.behavior.micIdle.off": "Off",
   "settings.behavior.micIdle.30s": "30 seconds",
   "settings.behavior.micIdle.1min": "1 minute",
   "settings.behavior.micIdle.5min": "5 minutes",

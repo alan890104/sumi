@@ -48,6 +48,7 @@ let settings = $state<Settings>({
   onboarding_completed: false,
   mic_device: null,
   meeting_hotkey: null,
+  idle_mic_timeout_secs: 300,
 });
 
 export function getSettings(): Settings {
@@ -233,6 +234,10 @@ export function setHistoryRetention(days: number) {
 
 export function setAutoPaste(v: boolean) {
   settings.auto_paste = v;
+}
+
+export function setIdleMicTimeout(secs: number) {
+  settings.idle_mic_timeout_secs = secs;
 }
 
 // ── Prompt rules ──

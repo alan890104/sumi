@@ -169,10 +169,13 @@ pub struct HistoryStats {
     pub local_entries: u64,
     pub local_duration_secs: f64,
     pub total_words: u64,
+    pub local_polish_entries: u64,
+    pub local_polish_input_chars: u64,
+    pub local_polish_output_chars: u64,
 }
 
 pub fn get_stats(history_dir: &Path) -> HistoryStats {
-    let zero = HistoryStats { total_entries: 0, total_duration_secs: 0.0, total_chars: 0, local_entries: 0, local_duration_secs: 0.0, total_words: 0 };
+    let zero = HistoryStats { total_entries: 0, total_duration_secs: 0.0, total_chars: 0, local_entries: 0, local_duration_secs: 0.0, total_words: 0, local_polish_entries: 0, local_polish_input_chars: 0, local_polish_output_chars: 0 };
     let conn = match open_db(history_dir) {
         Ok(c) => c,
         Err(e) => {
@@ -184,7 +187,10 @@ pub fn get_stats(history_dir: &Path) -> HistoryStats {
         "SELECT COUNT(*), COALESCE(SUM(duration_secs), 0), COALESCE(SUM(LENGTH(raw_text)), 0),
                 SUM(CASE WHEN stt_model NOT LIKE '%(Cloud/%)%' THEN 1 ELSE 0 END),
                 COALESCE(SUM(CASE WHEN stt_model NOT LIKE '%(Cloud/%)%' THEN duration_secs ELSE 0 END), 0),
-                COALESCE(SUM(word_count), 0)
+                COALESCE(SUM(word_count), 0),
+                SUM(CASE WHEN polish_model LIKE '%(Local)' THEN 1 ELSE 0 END),
+                COALESCE(SUM(CASE WHEN polish_model LIKE '%(Local)' THEN LENGTH(raw_text) ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN polish_model LIKE '%(Local)' THEN LENGTH(text) ELSE 0 END), 0)
          FROM history",
         [],
         |row| {
@@ -195,6 +201,9 @@ pub fn get_stats(history_dir: &Path) -> HistoryStats {
                 local_entries: row.get::<_, i64>(3).unwrap_or(0) as u64,
                 local_duration_secs: row.get::<_, f64>(4).unwrap_or(0.0),
                 total_words: row.get::<_, i64>(5).unwrap_or(0) as u64,
+                local_polish_entries: row.get::<_, i64>(6).unwrap_or(0) as u64,
+                local_polish_input_chars: row.get::<_, i64>(7).unwrap_or(0) as u64,
+                local_polish_output_chars: row.get::<_, i64>(8).unwrap_or(0) as u64,
             })
         },
     )

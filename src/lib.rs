@@ -133,6 +133,9 @@ pub struct AppState {
     /// user's music resumes automatically.  Guards against spuriously resuming
     /// music that was already paused before recording started.
     pub media_paused_by_sumi: AtomicBool,
+    /// Timestamp of the last recording end. Used by the idle mic watcher to
+    /// determine when to close the mic stream.
+    pub last_recording_end: Mutex<Instant>,
 }
 
 /// Emit a `"transcription-partial"` event to the overlay window.
@@ -258,6 +261,9 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
             &stt_language,
             &dictionary_terms,
         );
+        if let Ok(mut t) = state.last_recording_end.lock() {
+            *t = Instant::now();
+        }
         // Resume media paused at recording start.
         if state.media_paused_by_sumi.swap(false, Ordering::SeqCst) {
             platform::resume_now_playing();
@@ -561,6 +567,9 @@ fn stop_edit_and_replace(app: &AppHandle) {
             &edit_stt_language,
             &edit_dict_terms,
         );
+        if let Ok(mut t) = state.last_recording_end.lock() {
+            *t = Instant::now();
+        }
         // Resume media paused at recording start.
         if state.media_paused_by_sumi.swap(false, Ordering::SeqCst) {
             platform::resume_now_playing();
@@ -991,6 +1000,7 @@ pub fn run() {
                     settings.meeting_hotkey.as_deref().and_then(parse_hotkey_string),
                 ),
                 media_paused_by_sumi: AtomicBool::new(false),
+                last_recording_end: Mutex::new(Instant::now()),
             });
 
             // Register a CoreAudio listener for default-input-device changes.
@@ -1182,6 +1192,55 @@ pub fn run() {
                         Ok(Ok(())) => tracing::info!("Mic stream pre-opened at startup"),
                         Ok(Err(e)) => tracing::warn!("Mic pre-open failed (will retry on first hotkey): {}", e),
                         Err(_) => tracing::error!("Mic pre-open thread panicked; reconnecting flag reset"),
+                    }
+                });
+            }
+
+            // Idle mic watcher: closes the mic stream after a configurable idle
+            // period to avoid CoreAudio DSP (echo cancellation, AGC, audio
+            // ducking) from affecting other apps when Sumi is not in use.
+            {
+                let app_handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    tracing::info!("Idle mic watcher started (poll interval: 5s)");
+                    loop {
+                        std::thread::sleep(std::time::Duration::from_secs(5));
+                        let state = app_handle.state::<AppState>();
+
+                        let timeout_secs = state
+                            .settings
+                            .lock()
+                            .map(|s| s.idle_mic_timeout_secs)
+                            .unwrap_or(0);
+                        if timeout_secs == 0 {
+                            continue;
+                        }
+
+                        // Don't close while recording, meeting, or reconnecting.
+                        if state.is_recording.load(Ordering::SeqCst)
+                            || state.meeting_active.load(Ordering::SeqCst)
+                            || state.reconnecting.load(Ordering::SeqCst)
+                            || !state.mic_available.load(Ordering::SeqCst)
+                        {
+                            continue;
+                        }
+
+                        let elapsed = state
+                            .last_recording_end
+                            .lock()
+                            .map(|t| t.elapsed())
+                            .unwrap_or_default();
+
+                        if elapsed >= std::time::Duration::from_secs(timeout_secs as u64) {
+                            tracing::info!(
+                                "Idle mic timeout ({}s) — closing mic stream",
+                                timeout_secs
+                            );
+                            audio::close_audio_stream(
+                                &state.audio_thread,
+                                &state.mic_available,
+                            );
+                        }
                     }
                 });
             }
@@ -1940,6 +1999,9 @@ fn stop_meeting_mode(app: &AppHandle) {
     // Ensure the feeder sees is_recording=false (it may already be false if
     // triggered by dead-stream, which is fine — the store is idempotent).
     state.is_recording.store(false, Ordering::SeqCst);
+    if let Ok(mut t) = state.last_recording_end.lock() {
+        *t = Instant::now();
+    }
     // Wake the meeting feeder immediately so it exits its 2 s sleep and starts
     // post-loop work (trailing feed + finish_streaming) right away.
     state.feeder_stop_cv.notify_all();
