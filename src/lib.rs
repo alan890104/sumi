@@ -1166,19 +1166,23 @@ pub fn run() {
                 std::thread::spawn(move || {
                     let state = app_handle.state::<AppState>();
                     let device_name = state.settings.lock().ok().and_then(|s| s.mic_device.clone());
-                    match audio::try_reconnect_audio(
-                        &state.mic_available,
-                        &state.sample_rate,
-                        &state.buffer,
-                        &state.is_recording,
-                        &state.audio_thread,
-                        device_name,
-                    ) {
-                        Ok(()) => tracing::info!("Mic stream pre-opened at startup"),
-                        Err(e) => tracing::warn!("Mic pre-open failed (will retry on first hotkey): {}", e),
-                    }
-                    // Release the guard so do_start_recording can proceed.
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        audio::try_reconnect_audio(
+                            &state.mic_available,
+                            &state.sample_rate,
+                            &state.buffer,
+                            &state.is_recording,
+                            &state.audio_thread,
+                            device_name,
+                        )
+                    }));
+                    // Always release the guard, even if try_reconnect_audio panics.
                     state.reconnecting.store(false, Ordering::SeqCst);
+                    match result {
+                        Ok(Ok(())) => tracing::info!("Mic stream pre-opened at startup"),
+                        Ok(Err(e)) => tracing::warn!("Mic pre-open failed (will retry on first hotkey): {}", e),
+                        Err(_) => tracing::error!("Mic pre-open thread panicked; reconnecting flag reset"),
+                    }
                 });
             }
 

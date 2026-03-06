@@ -300,6 +300,13 @@ pub fn do_start_recording(
             while reconnecting.load(Ordering::SeqCst) && Instant::now() < deadline {
                 std::thread::sleep(Duration::from_millis(10));
             }
+            if reconnecting.load(Ordering::SeqCst) {
+                // Background thread still running; calling try_reconnect_audio now
+                // would race with it and leak a cpal stream. Return error instead;
+                // the stream will be ready on the next hotkey press.
+                tracing::warn!("Mic pre-open timed out (500 ms); stream not yet ready");
+                return Err("mic_not_ready".to_string());
+            }
         }
         // Re-check: the background reconnect may have succeeded while we waited.
         if !mic_available.load(Ordering::SeqCst) {
