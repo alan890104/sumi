@@ -98,6 +98,11 @@ pub struct AppState {
     /// Allows `stop_meeting_mode` to wait for the complete transcript even when
     /// the final-chunk inference takes longer than the hotkey-unlock deadline.
     pub meeting_feeder_done: AtomicBool,
+    /// Notified by `run_meeting_feeder` when `meeting_feeder_done` becomes true.
+    /// Allows `stop_meeting_mode` to block without busy-polling.
+    pub meeting_done_cv: Condvar,
+    /// Mutex associated with `meeting_done_cv`.
+    pub meeting_done_mu: Mutex<()>,
     /// Monotonically increasing session counter. Incremented each time a new
     /// meeting session starts. The feeder thread captures this value at launch
     /// and aborts post-loop work if the counter has advanced, preventing a
@@ -957,6 +962,8 @@ pub fn run() {
                 meeting_cancelled: AtomicBool::new(false),
                 meeting_stopping: AtomicBool::new(false),
                 meeting_feeder_done: AtomicBool::new(false),
+                meeting_done_cv: Condvar::new(),
+                meeting_done_mu: Mutex::new(()),
                 meeting_session: AtomicU64::new(0),
                 meeting_start_time: Mutex::new(None),
                 active_meeting_note_id: Mutex::new(None),
@@ -1849,20 +1856,20 @@ fn stop_meeting_mode(app: &AppHandle) {
     state.meeting_active.store(false, Ordering::SeqCst);
 
     // Wait for the worker to finish all segments (up to 5 min for very long
-    // final segments recorded without any silence pause).
-    let final_deadline =
-        std::time::Instant::now() + std::time::Duration::from_millis(300_000);
-    loop {
-        if state.meeting_feeder_done.load(Ordering::SeqCst) {
-            // Worker finished and wrote the final WAL segment.
-            break;
-        }
-        if std::time::Instant::now() >= final_deadline {
-            tracing::warn!("Meeting feeder timeout after 5 min — using partial transcript");
-            state.meeting_cancelled.store(true, Ordering::SeqCst);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(50));
+    // final segments recorded without any silence pause). Uses a Condvar so
+    // stop_meeting_mode wakes the instant the worker sets meeting_feeder_done.
+    let guard = state.meeting_done_mu.lock().unwrap_or_else(|e| e.into_inner());
+    let (_guard, timed_out) = state
+        .meeting_done_cv
+        .wait_timeout_while(
+            guard,
+            std::time::Duration::from_millis(300_000),
+            |_| !state.meeting_feeder_done.load(Ordering::SeqCst),
+        )
+        .unwrap_or_else(|e| e.into_inner());
+    if timed_out.timed_out() {
+        tracing::warn!("Meeting feeder timeout after 5 min — using partial transcript");
+        state.meeting_cancelled.store(true, Ordering::SeqCst);
     }
 
     // Abort if a new meeting session has started while we were waiting for the

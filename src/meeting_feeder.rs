@@ -334,4 +334,6 @@ pub(crate) fn run_meeting_feeder(
     if state.meeting_session.load(Ordering::SeqCst) == session_id {
         state.meeting_active.store(false, Ordering::SeqCst);
     }
+    // Wake stop_meeting_mode immediately (replaces 50ms busy-poll).
+    state.meeting_done_cv.notify_all();
 }
