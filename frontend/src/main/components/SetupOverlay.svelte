@@ -1034,8 +1034,12 @@
                   class:selected={selectedPolishModel === model.id}
                   onclick={() => selectedPolishModel = model.id}
                 >
-                  <div class="setup-model-radio">
-                    {#if selectedPolishModel === model.id}
+                  <div class="setup-model-radio" class:downloaded={model.downloaded}>
+                    {#if model.downloaded}
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M1.5 5.5L4 8L8.5 2.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    {:else if selectedPolishModel === model.id}
                       <div class="setup-model-radio-dot"></div>
                     {/if}
                   </div>
