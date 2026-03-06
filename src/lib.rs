@@ -922,17 +922,17 @@ pub fn run() {
                 std::thread::spawn(move || cleanup_obsolete_models(&dir));
             }
 
-            // On-demand model: do NOT open the mic stream at startup.
-            // The stream is opened by do_start_recording on the first hotkey press.
-            // Opening CoreAudio at startup activates system DSP (echo-cancellation,
-            // noise-reduction) which alters system audio output — e.g. making
-            // background music louder — even when the user is not recording.
+            // The mic stream is pre-opened in a background thread shortly after
+            // startup (see below) so the first hotkey press has zero latency.
+            // Opening the stream activates CoreAudio DSP (echo-cancellation,
+            // noise-reduction), which is the accepted trade-off for zero first-word
+            // latency.  If pre-open fails, do_start_recording retries on the first
+            // hotkey press.
             let is_recording = Arc::new(AtomicBool::new(false));
             let buffer = Arc::new(Mutex::new(Vec::new()));
             let mic_available = false;
             let sample_rate: Option<u32> = None;
             let audio_thread_init: Option<audio::AudioThreadControl> = None;
-            tracing::info!("Mic stream deferred — will open on first recording (on-demand model)");
 
             let http_client = reqwest::blocking::Client::builder()
                 .timeout(std::time::Duration::from_secs(60))
@@ -1155,10 +1155,13 @@ pub fn run() {
             // try_reconnect_audio on the first press, blocking for ~100–300 ms
             // while CoreAudio initialises, causing the first words to be dropped.
             //
-            // Note: opening the stream activates CoreAudio DSP (noise reduction,
-            // echo cancellation) which can slightly alter system audio output.
-            // This is the same as the always-on behaviour before PR #20.
+            // `reconnecting` is set to true *before* spawning so that any hotkey
+            // press arriving in the first few hundred ms sees the flag and waits
+            // (via do_start_recording's spin-wait) instead of racing into
+            // spawn_audio_thread and leaking one cpal stream.
             {
+                let state = app.state::<AppState>();
+                state.reconnecting.store(true, Ordering::SeqCst);
                 let app_handle = app.handle().clone();
                 std::thread::spawn(move || {
                     let state = app_handle.state::<AppState>();
@@ -1174,6 +1177,8 @@ pub fn run() {
                         Ok(()) => tracing::info!("Mic stream pre-opened at startup"),
                         Err(e) => tracing::warn!("Mic pre-open failed (will retry on first hotkey): {}", e),
                     }
+                    // Release the guard so do_start_recording can proceed.
+                    state.reconnecting.store(false, Ordering::SeqCst);
                 });
             }
 
@@ -1467,6 +1472,7 @@ pub fn run() {
                                 match audio::do_start_recording(
                                     &state.is_recording,
                                     &state.mic_available,
+                                    &state.reconnecting,
                                     &state.sample_rate,
                                     &state.buffer,
                                     &state.is_recording,
@@ -1736,6 +1742,7 @@ fn start_meeting_mode(app: &AppHandle) {
     if let Err(e) = audio::do_start_recording(
         &state.is_recording,
         &state.mic_available,
+        &state.reconnecting,
         &state.sample_rate,
         &state.buffer,
         &state.is_recording,
