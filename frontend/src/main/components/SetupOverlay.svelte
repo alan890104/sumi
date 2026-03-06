@@ -902,8 +902,17 @@
               {/each}
             </div>
 
-            <button class="setup-download-btn" disabled={sttModelsLoading} onclick={onSttLocalDownload}>
-              {isCurrentModelDownloaded ? t('setup.permContinue') : t('setup.sttModelDownloadBtn')}
+            <button class="setup-download-btn" disabled={sttModelsLoading || sttLocalActivating} onclick={onSttLocalDownload}>
+              {#if sttModelsLoading || sttLocalActivating}
+                <span class="setup-btn-spinner">
+                  <svg class="setup-spinner" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <circle cx="7" cy="7" r="5" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
+                    <path d="M7 2a5 5 0 0 1 5 5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </span>
+              {:else}
+                {isCurrentModelDownloaded ? t('setup.permContinue') : t('setup.sttModelDownloadBtn')}
+              {/if}
             </button>
           {:else}
             <div class="setup-panel-desc">{t('setup.sttCloudDesc')}</div>
