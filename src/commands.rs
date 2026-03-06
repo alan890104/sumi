@@ -2078,7 +2078,7 @@ pub fn export_diagnostic_log(state: State<'_, AppState>) -> Result<String, Strin
     writeln!(report, "STT Mode: {:?}", s.stt.mode).ok();
     writeln!(report, "Whisper Model: {}", s.stt.whisper_model.display_name()).ok();
     writeln!(report, "Language: {}", s.stt.language).ok();
-    writeln!(report, "VAD: {}", s.stt.vad_enabled).ok();
+    writeln!(report, "VAD: always enabled (model downloaded: {})", crate::transcribe::vad_model_path().exists()).ok();
     writeln!(report, "Polish: {}", s.polish.enabled).ok();
     writeln!(report, "Polish Mode: {:?}", s.polish.mode).ok();
     writeln!(report, "Auto Paste: {}", s.auto_paste).ok();

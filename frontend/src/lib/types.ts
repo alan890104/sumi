@@ -62,7 +62,6 @@ export interface SttConfig {
   local_engine: LocalSttEngine;
   qwen3_asr_model: Qwen3AsrModelId;
   language: string;
-  vad_enabled: boolean;
 }
 
 // ── Polish ──

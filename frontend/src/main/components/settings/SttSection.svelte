@@ -13,7 +13,6 @@
     setSttCloudEndpoint,
     setSttCloudModelId,
     setSttCloudLanguage,
-    setVadEnabled,
     saveStt,
   } from '$lib/stores/settings.svelte';
   import { STT_LANGUAGES } from '$lib/constants';
@@ -23,9 +22,6 @@
     downloadWhisperModel,
     onWhisperModelDownloadProgress,
     getWhisperModelRecommendation,
-    checkVadModelStatus,
-    downloadVadModel,
-    onVadModelDownloadProgress,
     listQwen3AsrModels,
     switchQwen3AsrModel,
     downloadQwen3AsrModel,
@@ -46,7 +42,6 @@
   } from '$lib/types';
   import type { UnlistenFn } from '@tauri-apps/api/event';
   import SettingRow from '$lib/components/SettingRow.svelte';
-  import Toggle from '$lib/components/Toggle.svelte';
   import SegmentedControl from '$lib/components/SegmentedControl.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import CloudConfigPanel from '$lib/components/CloudConfigPanel.svelte';
@@ -73,49 +68,6 @@
   let downloadErrorModelId = $state<string | null>(null);
   let unlisten: UnlistenFn | null = null;
 
-  // ── VAD state ──
-
-  let vadDownloading = $state(false);
-  let vadUnlisten: UnlistenFn | null = null;
-
-  async function onVadToggle(checked: boolean) {
-    if (checked) {
-      try {
-        const status = await checkVadModelStatus();
-        if (!status.downloaded) {
-          vadDownloading = true;
-
-          if (vadUnlisten) { vadUnlisten(); vadUnlisten = null; }
-          vadUnlisten = await onVadModelDownloadProgress((d) => {
-            if (d.status === 'complete') {
-              vadDownloading = false;
-              if (vadUnlisten) { vadUnlisten(); vadUnlisten = null; }
-            } else if (d.status === 'error') {
-              vadDownloading = false;
-              console.error('VAD model download error:', d.message);
-              setVadEnabled(false);
-              saveStt();
-              if (vadUnlisten) { vadUnlisten(); vadUnlisten = null; }
-            }
-          });
-
-          try {
-            await downloadVadModel();
-          } catch (e) {
-            vadDownloading = false;
-            setVadEnabled(false);
-            saveStt();
-            console.error('Failed to start VAD model download:', e);
-            return;
-          }
-        }
-      } catch (e) {
-        console.error('Failed to check VAD model status:', e);
-      }
-    }
-    setVadEnabled(checked);
-    saveStt();
-  }
 
   let sttModeOptions = $derived([
     { value: 'local', label: t('settings.stt.modeLocal') },
@@ -377,7 +329,6 @@
   onDestroy(() => {
     destroyed = true;
     if (unlisten) { unlisten(); unlisten = null; }
-    if (vadUnlisten) { vadUnlisten(); vadUnlisten = null; }
   });
 </script>
 
@@ -421,14 +372,6 @@
         </select>
       </SettingRow>
 
-      <!-- VAD toggle -->
-      <SettingRow name={t('settings.stt.vad')} desc={t('settings.stt.vadDesc')}>
-        {#if vadDownloading}
-          <span class="vad-downloading">{t('settings.stt.downloading')}</span>
-        {:else}
-          <Toggle checked={sttConfig.vad_enabled} onchange={onVadToggle} />
-        {/if}
-      </SettingRow>
 
       <!-- Unified local model list -->
       <div class="model-list">
@@ -864,17 +807,6 @@
     to { transform: rotate(360deg); }
   }
 
-  .vad-downloading {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--accent-blue);
-    animation: vad-pulse 1.2s ease-in-out infinite;
-  }
-
-  @keyframes vad-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
 
   .language-select {
     padding: 7px 28px 7px 12px;

@@ -6,9 +6,6 @@ use crate::polisher::truncate_for_error;
 use crate::settings::models_dir;
 use crate::whisper_models::WhisperModel;
 
-fn default_true() -> bool {
-    true
-}
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -260,9 +257,6 @@ pub struct SttConfig {
     /// Migrated from `cloud.language` for older settings files.
     #[serde(default = "default_stt_language")]
     pub language: String,
-    /// Whether to use Silero VAD to filter out non-speech audio before transcription.
-    #[serde(default = "default_true")]
-    pub vad_enabled: bool,
 }
 
 impl Default for SttConfig {
@@ -274,7 +268,6 @@ impl Default for SttConfig {
             local_engine: LocalSttEngine::default(),
             qwen3_asr_model: Qwen3AsrModel::default(),
             language: default_stt_language(),
-            vad_enabled: true,
         }
     }
 }

@@ -42,7 +42,6 @@ let settings = $state<Settings>({
     local_engine: 'whisper',
     qwen3_asr_model: 'qwen3_asr1_7_b',
     language: 'auto',
-    vad_enabled: true,
   },
   edit_hotkey: null,
   onboarding_completed: false,
@@ -224,9 +223,6 @@ export function setSttQwen3AsrModel(model: Qwen3AsrModelId) {
   settings.stt.qwen3_asr_model = model;
 }
 
-export function setVadEnabled(v: boolean) {
-  settings.stt.vad_enabled = v;
-}
 
 export function setHistoryRetention(days: number) {
   settings.history_retention_days = days;

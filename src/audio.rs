@@ -342,16 +342,23 @@ pub fn do_start_recording(
     }
 
     // ── Step 3: flip the recording flag ──────────────────────────────────
-    if is_recording.load(Ordering::SeqCst) {
-        return Err("Already recording".to_string());
-    }
-
+    // Hold the audio_thread lock while setting is_recording so that the
+    // idle mic watcher (which also checks is_recording under this lock)
+    // cannot close the stream between our check and the store.
     {
-        let mut buf = buffer.lock().map_err(|e| e.to_string())?;
-        buf.clear();
+        let at = audio_thread.lock().map_err(|e| e.to_string())?;
+        // If the stream was torn down between Step 2 and now (e.g. idle
+        // watcher closed it), return an error.  The caller will show an
+        // error state and the next hotkey press will reconnect.
+        if at.is_none() {
+            return Err("mic_not_ready".to_string());
+        }
+        if is_recording.load(Ordering::SeqCst) {
+            return Err("Already recording".to_string());
+        }
+        buffer.lock().map_err(|e| e.to_string())?.clear();
+        is_recording.store(true, Ordering::SeqCst);
     }
-
-    is_recording.store(true, Ordering::SeqCst);
 
     Ok(())
 }
@@ -441,9 +448,7 @@ pub fn do_stop_recording(
     };
 
     // ── VAD or RMS trimming ─────────────────────────────────────────────
-    let vad_enabled = stt_config.vad_enabled;
-    let vad_model_exists = crate::transcribe::vad_model_path().exists();
-    if vad_enabled && vad_model_exists {
+    if crate::transcribe::vad_model_path().exists() {
         // Use Silero VAD to extract speech segments
         match crate::transcribe::filter_with_vad(&state.vad_ctx, &samples_16k) {
             Ok(speech) if speech.is_empty() => {
@@ -464,9 +469,7 @@ pub fn do_stop_recording(
             }
         }
     } else {
-        if vad_enabled && !vad_model_exists {
-            tracing::warn!("VAD enabled but model not downloaded, using RMS trimming");
-        }
+        tracing::warn!("VAD model not downloaded, using RMS trimming");
         rms_trim_silence(&mut samples_16k)?;
     }
 
