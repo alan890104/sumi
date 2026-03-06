@@ -69,8 +69,10 @@
     | 'sttChoice'
     | 'downloading'
     | 'complete'
+    | 'activating'
     | 'polishChoice'
     | 'llmDownloading'
+    | 'llmActivating'
     | 'error';
 
   let currentState = $state<SetupState>('permissions');
@@ -353,9 +355,23 @@
     if (whisperDone && vadDone && currentState === 'downloading') {
       downloadPercent = 100;
       currentState = 'complete';
-      setTimeout(() => goToPolishChoice(), 1500);
+      setTimeout(() => activateSttModel(), 1500);
     }
   });
+
+  async function activateSttModel() {
+    currentState = 'activating';
+    try {
+      if (selectedLocalEngine === 'whisper') {
+        await switchWhisperModel(selectedSttModel);
+      } else {
+        await switchQwen3AsrModel(selectedQwen3Model);
+      }
+    } catch (e) {
+      console.error('Failed to activate STT model:', e);
+    }
+    goToPolishChoice();
+  }
 
   async function startSttDownload() {
     currentState = 'downloading';
@@ -585,10 +601,7 @@
         llmDownloadTotalBytes = total;
       } else if (p.status === 'complete') {
         llmDownloadPercent = 100;
-        // Set polish to local + enabled
-        setPolishMode('local');
-        setPolishEnabled(true);
-        finishSetup();
+        activatePolishModel();
       } else if (p.status === 'error') {
         console.error('LLM setup download error:', p.message);
         // On error, advance -- user can download from settings later
@@ -602,6 +615,18 @@
       console.error('Failed to start LLM setup download:', e);
       finishSetup();
     }
+  }
+
+  async function activatePolishModel() {
+    currentState = 'llmActivating';
+    try {
+      await switchPolishModel(selectedPolishModel);
+    } catch (e) {
+      console.error('Failed to activate polish model:', e);
+    }
+    setPolishMode('local');
+    setPolishEnabled(true);
+    finishSetup();
   }
 
   // ── Error state ──
@@ -911,6 +936,42 @@
           </div>
           <div class="setup-title">{t('setup.completeTitle')}</div>
           <div class="setup-desc">{t('setup.completeDesc')}</div>
+        </div>
+      {/if}
+
+      <!-- ═══ Activating STT Model ═══ -->
+      {#if currentState === 'activating'}
+        <div class="setup-state-content" style="animation: setupFadeIn 0.4s ease">
+          <div class="setup-mic-wrap">
+            <div class="wave"></div>
+            <div class="wave"></div>
+            <div class="wave"></div>
+            <svg class="setup-mic-icon pulsing" width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="24" y="8" width="16" height="28" rx="8" fill="#007AFF"/>
+              <path d="M16 28v4a16 16 0 0 0 32 0v-4" stroke="#007AFF" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <line x1="32" y1="48" x2="32" y2="56" stroke="#007AFF" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="setup-title">{t('setup.activatingTitle')}</div>
+          <div class="setup-desc">{t('setup.activatingDesc')}</div>
+        </div>
+      {/if}
+
+      <!-- ═══ Activating LLM Model ═══ -->
+      {#if currentState === 'llmActivating'}
+        <div class="setup-state-content" style="animation: setupFadeIn 0.4s ease">
+          <div class="setup-mic-wrap">
+            <div class="wave"></div>
+            <div class="wave"></div>
+            <div class="wave"></div>
+            <svg class="setup-mic-icon pulsing" width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M32 12L35.5 28.5L52 32L35.5 35.5L32 52L28.5 35.5L12 32L28.5 28.5Z" fill="#007AFF"/>
+              <path d="M48 14L49.5 19.5L55 21L49.5 22.5L48 28L46.5 22.5L41 21L46.5 19.5Z" fill="#007AFF" opacity="0.7"/>
+              <path d="M50 42L51 46L55 47L51 48L50 52L49 48L45 47L49 46Z" fill="#007AFF" opacity="0.5"/>
+            </svg>
+          </div>
+          <div class="setup-title">{t('setup.llmActivatingTitle')}</div>
+          <div class="setup-desc">{t('setup.llmActivatingDesc')}</div>
         </div>
       {/if}
 
