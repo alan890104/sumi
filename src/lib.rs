@@ -1264,12 +1264,12 @@ pub fn run() {
                                     ctrl.stop();
                                 }
                                 state.mic_available.store(false, Ordering::SeqCst);
+                                // Reset idle clock so a hot-plug reconnect
+                                // doesn't immediately re-trigger a close.
+                                if let Ok(mut t) = state.last_recording_end.lock() {
+                                    *t = None;
+                                }
                             }
-                            // After close, mic_available=false so subsequent polls
-                            // skip via the guard above. If a hot-plug reconnect
-                            // happens, the device-change listener resets
-                            // last_recording_end to None so the watcher won't
-                            // immediately re-close until the user records again.
                         }
                     }
                 });
