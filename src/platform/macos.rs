@@ -359,8 +359,11 @@ pub fn is_now_playing() -> bool {
         let queue = dispatch_get_global_queue(0, 0);
         get_playing(queue, &mut block);
 
-        // Wait up to 300 ms; if callback never fires assume nothing is playing.
-        let deadline = dispatch_time(0 /* DISPATCH_TIME_NOW */, 300_000_000);
+        // Wait up to 100 ms; MediaRemote responds in single-digit ms when a
+        // player is active — 100 ms is only reached when the framework is
+        // frozen, which is extremely rare. Keeping this short minimises the
+        // delay between overlay-show and do_start_recording on the hotkey thread.
+        let deadline = dispatch_time(0 /* DISPATCH_TIME_NOW */, 100_000_000);
         let timed_out = dispatch_semaphore_wait(sema, deadline) != 0;
 
         if timed_out {
