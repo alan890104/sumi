@@ -261,6 +261,85 @@ pub unsafe fn nsstring_to_string(nsstr: *mut c_void) -> String {
         .to_string()
 }
 
+/// Simulate the Play/Pause media key (NX_KEYTYPE_PLAY = 16).
+///
+/// Works with all players that honour system media keys: Apple Music, Spotify,
+/// YouTube Music in Chrome/Safari, etc.  Sends key-down + key-up via
+/// `NSEvent otherEventWithType:NSEventTypeSystemDefined`.
+pub fn simulate_media_play_pause() {
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct NSPoint { x: f64, y: f64 }
+
+    const NX_KEYTYPE_PLAY: i64 = 16;
+    const NS_EVENT_TYPE_SYSTEM_DEFINED: u64 = 14;
+    const NX_SUBTYPE_AUX_CONTROL_BUTTONS: i16 = 8;
+
+    // NSEvent +otherEventWithType:location:modifierFlags:timestamp:
+    //         windowNumber:context:subtype:data1:data2:
+    type MakeEventFn = unsafe extern "C" fn(
+        *mut c_void,  // class
+        *mut c_void,  // selector
+        u64,          // NSEventType
+        NSPoint,      // location  (HFA on ARM64: passed in d0/d1)
+        u64,          // modifierFlags
+        f64,          // timestamp
+        i64,          // windowNumber
+        *mut c_void,  // context (NSGraphicsContext*, nil)
+        i16,          // subtype
+        i64,          // data1
+        i64,          // data2
+    ) -> *mut c_void;
+
+    type GetCgEventFn = unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void;
+
+    unsafe {
+        let ns_event_class = objc_getClass(c"NSEvent".as_ptr());
+        if ns_event_class.is_null() {
+            tracing::warn!("simulate_media_play_pause: NSEvent class not found");
+            return;
+        }
+
+        let sel_make = sel_registerName(
+            c"otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:".as_ptr(),
+        );
+        let sel_cg = sel_registerName(c"CGEvent".as_ptr());
+
+        let make_event: MakeEventFn = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+        let get_cg: GetCgEventFn = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+
+        let zero = NSPoint { x: 0.0, y: 0.0 };
+
+        // key-down  (data1 low byte 0x0b = pressed, no modifier)
+        let ev_down = make_event(
+            ns_event_class, sel_make,
+            NS_EVENT_TYPE_SYSTEM_DEFINED, zero,
+            0xa00, 0.0, 0, std::ptr::null_mut(),
+            NX_SUBTYPE_AUX_CONTROL_BUTTONS,
+            (NX_KEYTYPE_PLAY << 16) | 0x0b00,
+            -1,
+        );
+        if !ev_down.is_null() {
+            let cg = get_cg(ev_down, sel_cg);
+            if !cg.is_null() { CGEventPost(0 /* kCGHIDEventTap */, cg); }
+        }
+
+        // key-up  (data1 low byte 0x0b | 0x01 = released)
+        let ev_up = make_event(
+            ns_event_class, sel_make,
+            NS_EVENT_TYPE_SYSTEM_DEFINED, zero,
+            0xa00, 0.0, 0, std::ptr::null_mut(),
+            NX_SUBTYPE_AUX_CONTROL_BUTTONS,
+            (NX_KEYTYPE_PLAY << 16) | 0x0b01,
+            -1,
+        );
+        if !ev_up.is_null() {
+            let cg = get_cg(ev_up, sel_cg);
+            if !cg.is_null() { CGEventPost(0, cg); }
+        }
+    }
+}
+
 /// Simulate Cmd+V (paste).
 ///
 /// # Safety

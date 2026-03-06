@@ -128,6 +128,11 @@ pub struct AppState {
     pub registered_edit_shortcut: Mutex<Option<Shortcut>>,
     /// Cached `Shortcut` for the meeting hotkey. Same rationale as above.
     pub registered_meeting_shortcut: Mutex<Option<Shortcut>>,
+    /// Set to `true` when we sent a Play/Pause media key at recording start.
+    /// Cleared (and play/pause key sent again) when recording ends, so the
+    /// user's music resumes automatically.  Guards against spuriously resuming
+    /// music that was already paused before recording started.
+    pub media_paused_by_sumi: AtomicBool,
 }
 
 /// Emit a `"transcription-partial"` event to the overlay window.
@@ -247,10 +252,10 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
             &stt_app_name,
             &dictionary_terms,
         );
-        // Close mic stream immediately after recording ends (on-demand model).
-        // do_start_recording will reopen it on the next hotkey press via
-        // try_reconnect_audio, showing the overlay in 'preparing' state first.
-        audio::close_audio_stream(&state.audio_thread, &state.mic_available);
+        // Resume media paused at recording start.
+        if state.media_paused_by_sumi.swap(false, Ordering::SeqCst) {
+            platform::resume_now_playing();
+        }
         match stop_result {
             Ok((text, samples_16k)) => {
                 let transcribe_elapsed = pipeline_start.elapsed();
@@ -557,7 +562,10 @@ fn stop_edit_and_replace(app: &AppHandle) {
             &edit_app_name,
             &edit_dict_terms,
         );
-        audio::close_audio_stream(&state.audio_thread, &state.mic_available);
+        // Resume media paused at recording start.
+        if state.media_paused_by_sumi.swap(false, Ordering::SeqCst) {
+            platform::resume_now_playing();
+        }
         match stop_result {
             Ok((instruction, _samples)) => {
                 tracing::info!("Edit instruction received: {} graphemes", instruction.graphemes(true).count());
@@ -983,6 +991,7 @@ pub fn run() {
                 registered_meeting_shortcut: Mutex::new(
                     settings.meeting_hotkey.as_deref().and_then(parse_hotkey_string),
                 ),
+                media_paused_by_sumi: AtomicBool::new(false),
             });
 
             // Register a CoreAudio listener for default-input-device changes.
@@ -1423,6 +1432,11 @@ pub fn run() {
                                     platform::show_overlay(&overlay);
                                 }
 
+                                // Pause background music so it doesn't bleed into the mic.
+                                // We'll resume it when recording ends.
+                                platform::pause_now_playing();
+                                state.media_paused_by_sumi.store(true, Ordering::SeqCst);
+
                                 match audio::do_start_recording(
                                     &state.is_recording,
                                     &state.mic_available,
@@ -1681,6 +1695,10 @@ fn start_meeting_mode(app: &AppHandle) {
         center_overlay_bottom(&overlay);
         platform::show_overlay(&overlay);
     }
+
+    // Pause background music for the duration of the meeting.
+    platform::pause_now_playing();
+    state.media_paused_by_sumi.store(true, Ordering::SeqCst);
 
     if let Err(e) = audio::do_start_recording(
         &state.is_recording,
@@ -1949,8 +1967,10 @@ fn stop_meeting_mode(app: &AppHandle) {
         *nid = None;
     }
 
-    // Close mic stream (on-demand model); reopen on next meeting/recording start.
-    audio::close_audio_stream(&state.audio_thread, &state.mic_available);
+    // Resume media paused when meeting started.
+    if state.media_paused_by_sumi.swap(false, Ordering::SeqCst) {
+        platform::resume_now_playing();
+    }
 
     if transcript.is_empty() {
         tracing::info!("Meeting mode stopped — no transcript");

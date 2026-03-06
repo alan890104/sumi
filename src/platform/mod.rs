@@ -107,6 +107,19 @@ pub fn simulate_undo() -> bool {
     { false }
 }
 
+/// Send the Play/Pause media key to pause currently playing media.
+/// Call `resume_now_playing` when done to restore playback.
+pub fn pause_now_playing() {
+    #[cfg(target_os = "macos")]
+    macos::simulate_media_play_pause();
+}
+
+/// Send the Play/Pause media key to resume media paused by `pause_now_playing`.
+pub fn resume_now_playing() {
+    #[cfg(target_os = "macos")]
+    macos::simulate_media_play_pause();
+}
+
 /// Returns the clipboard change sequence number if the platform supports it.
 /// macOS: NSPasteboard.changeCount, Windows: GetClipboardSequenceNumber.
 /// Returns None on Linux/other (caller falls back to sentinel approach).
