@@ -4,11 +4,6 @@ version = "0.5.0"
 edition = "2021"
 description = "Your voice, in writing — AI-powered speech-to-text"
 license = "GPL-3.0-or-later"
-default-run = "sumi"
-
-[[bin]]
-name = "mic_latency"
-path = "src/bin/mic_latency.rs"
 
 [features]
 default = ["metal"]
