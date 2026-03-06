@@ -569,6 +569,8 @@ pub(crate) fn run_cloud_meeting_feeder_loop(
                 }
             }
         });
-    crate::meeting_feeder::run_meeting_feeder(app, session_id, "cloud-meeting", None, transcribe);
+    // Cap each segment at 120 s to bound per-segment cloud STT cost and keep
+    // stop_meeting_mode well within the 5-min timeout even on slow networks.
+    crate::meeting_feeder::run_meeting_feeder(app, session_id, "cloud-meeting", Some(120 * 16_000), transcribe);
 }
 

@@ -346,5 +346,7 @@ pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, 
             )
             .unwrap_or_default()
         });
-    crate::meeting_feeder::run_meeting_feeder(app, session_id, "whisper-meeting", None, transcribe);
+    // Cap each segment at 120 s so the Final segment never exceeds ~12 s of
+    // Whisper inference time, keeping stop_meeting_mode well within the 5-min timeout.
+    crate::meeting_feeder::run_meeting_feeder(app, session_id, "whisper-meeting", Some(120 * 16_000), transcribe);
 }

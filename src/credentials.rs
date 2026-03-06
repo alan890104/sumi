@@ -1,11 +1,14 @@
 //! Credential storage — platform-specific implementations.
 //!
-//! macOS: hybrid approach — good UX AND no argv leaks:
-//!   save()   → security-framework + Data Protection Keychain
-//!              (kSecUseDataProtectionKeychain=true, no per-app ACL, no prompts ever)
+//! macOS: hybrid approach — Data Protection Keychain primary + CLI backup:
+//!   save()   → security-framework + Data Protection Keychain (primary,
+//!              kSecUseDataProtectionKeychain=true, no per-app ACL, no prompts ever)
+//!              + `security` CLI backup written only when value changes (checked via
+//!              stdout read first; the key appears in argv only on actual key change)
 //!   load()   → Data Protection Keychain first; falls back to `security` CLI for
-//!              legacy items (key returned via stdout, never in argv), then auto-migrates
-//!   delete() → Data Protection Keychain + `security` CLI legacy cleanup
+//!              legacy/backup items (key returned via stdout, never in argv),
+//!              then migrates to Data Protection Keychain while keeping CLI backup
+//!   delete() → Data Protection Keychain + `security` CLI cleanup
 //!
 //! Non-macOS: `keyring` crate (Windows Credential Manager, etc.)
 
