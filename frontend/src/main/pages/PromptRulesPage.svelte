@@ -245,8 +245,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: opacity 0.15s ease;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
   }
 
   .polish-disabled-btn:hover {
@@ -283,8 +282,7 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
   }
 
   .reset-defaults-btn:hover {
@@ -371,8 +369,7 @@
     border: 2px dashed var(--border-subtle);
     min-height: 90px;
     color: var(--text-tertiary);
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
   }
 
   .grid-tile-add:hover {

@@ -617,6 +617,7 @@
     border-radius: 100px;
     background: rgb(28, 28, 32);
     -webkit-mask-image: -webkit-radial-gradient(white, black);
+    mask-image: radial-gradient(white, black);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.45),

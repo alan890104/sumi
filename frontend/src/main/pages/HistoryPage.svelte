@@ -480,8 +480,7 @@
   }
 
   .reset-btn {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 6px 14px;
     border: 1px solid rgba(255, 59, 48, 0.3);
     border-radius: var(--radius-sm);
@@ -563,6 +562,7 @@
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
   }
 
@@ -595,8 +595,7 @@
 
   /* ── Context menu ── */
   .history-menu-btn {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     background: none;
     border: none;
     color: var(--text-tertiary);

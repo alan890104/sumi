@@ -505,8 +505,7 @@
     margin-bottom: 6px;
   }
 
-  .rule-editor-input,
-  .rule-editor-select {
+  .rule-editor-input {
     width: 100%;
     padding: 8px 10px;
     border: 1px solid var(--border-subtle);
@@ -520,8 +519,7 @@
     box-sizing: border-box;
   }
 
-  .rule-editor-input:focus,
-  .rule-editor-select:focus {
+  .rule-editor-input:focus {
     border-color: var(--accent-blue);
   }
 
@@ -559,8 +557,7 @@
   }
 
   .rule-editor-actions button {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 7px 18px;
     border-radius: var(--radius-sm);
     font-family: 'Inter', sans-serif;
@@ -786,8 +783,7 @@
     cursor: pointer;
     transition: all 0.12s ease;
     padding: 0;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
   }
 
   .match-condition-remove:hover {
@@ -816,8 +812,7 @@
     font-weight: 500;
     cursor: pointer;
     transition: opacity 0.12s ease;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
   }
 
   .match-condition-add:hover {

@@ -366,8 +366,7 @@
     transition: all 0.15s ease;
     text-align: left;
     font-family: 'Inter', sans-serif;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
   }
 
   .model-row:hover:not(.disabled) {
@@ -456,8 +455,7 @@
     color: var(--text-tertiary);
     cursor: pointer;
     transition: all 0.15s ease;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
   }
 
   .model-delete-btn:hover {
@@ -491,8 +489,7 @@
   }
 
   .model-download-btn {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 4px 12px;
     border: none;
     border-radius: var(--radius-sm);

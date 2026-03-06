@@ -161,8 +161,7 @@
   }
 
   .prompt-rule-actions button {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 4px 8px;
     border: none;
     border-radius: 4px;

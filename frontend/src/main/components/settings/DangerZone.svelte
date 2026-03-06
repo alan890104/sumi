@@ -61,8 +61,7 @@
 
 
   .reset-btn {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 7px 16px;
     border: 1px solid rgba(255, 59, 48, 0.3);
     border-radius: var(--radius-sm);

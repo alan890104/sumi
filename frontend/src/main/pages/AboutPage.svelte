@@ -268,8 +268,7 @@
   }
 
   .about-update-btn {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 7px 18px;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);

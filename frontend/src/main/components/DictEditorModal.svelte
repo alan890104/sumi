@@ -183,8 +183,7 @@
   }
 
   .rule-editor-actions button {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 7px 18px;
     border-radius: var(--radius-sm);
     font-family: 'Inter', sans-serif;

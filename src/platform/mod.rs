@@ -17,22 +17,6 @@ pub fn set_app_accessory_mode() {
     fallback::set_accessory_policy();
 }
 
-/// Add a native drag view to the top 28 px of the main window.
-///
-/// On macOS this places a transparent NSView that intercepts mouse-down
-/// and calls `performWindowDragWithEvent:`, giving a precise title-bar
-/// drag region without making the entire background draggable.
-pub fn set_main_window_movable(window: &tauri::WebviewWindow) {
-    #[cfg(target_os = "macos")]
-    if let Ok(ns_win) = window.ns_window() {
-        unsafe { macos::setup_title_bar_drag(ns_win); }
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = window;
-    }
-}
-
 /// One-time overlay setup (non-activating, always-on-top, all Spaces).
 pub fn setup_overlay_window(overlay: &tauri::WebviewWindow) {
     #[cfg(target_os = "macos")]

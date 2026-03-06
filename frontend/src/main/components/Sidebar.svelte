@@ -50,7 +50,7 @@
 </script>
 
 <div class="sidebar">
-  <div class="sidebar-drag">
+  <div class="sidebar-drag" data-tauri-drag-region>
     <div class="sidebar-brand">
       <img src="/icon.png" alt="Sumi" class="sidebar-logo" />
       <span class="sidebar-app-name">Sumi</span>
@@ -94,8 +94,6 @@
     height: 56px;
     padding-top: 12px;
     padding-bottom: 16px;
-    -webkit-app-region: drag;
-    app-region: drag;
     flex-shrink: 0;
     display: flex;
     align-items: flex-end;
@@ -113,8 +111,6 @@
     width: 28px;
     height: 28px;
     border-radius: 6px;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
   }
 
   .sidebar-app-name {
@@ -122,8 +118,6 @@
     font-weight: 700;
     color: var(--text-primary);
     letter-spacing: -0.01em;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
   }
 
   .dev-badge {
@@ -134,8 +128,6 @@
     padding: 1px 6px;
     border-radius: 4px;
     letter-spacing: 0.02em;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
   }
 
   .sidebar-nav {
@@ -147,8 +139,6 @@
   }
 
   .nav-item {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
     display: flex;
     align-items: center;
     gap: 10px;

@@ -411,8 +411,7 @@
   }
 
   .hotkey-btn {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 7px 16px;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -470,8 +469,7 @@
   }
 
   .capture-actions button {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 6px 14px;
     border-radius: var(--radius-sm);
     font-family: 'Inter', sans-serif;

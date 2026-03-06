@@ -243,6 +243,7 @@
     return '';
   }
 
+  // svelte-ignore state_referenced_locally
   let prevSttProvider = sttProvider;
   async function onSttCloudChange() {
     // Reload API key from keychain only when provider changes
@@ -490,6 +491,7 @@
     }
   }
 
+  // svelte-ignore state_referenced_locally
   let prevPolishProvider = polishProvider;
   async function onPolishCloudChange() {
     // Reload API key from keychain only when provider changes

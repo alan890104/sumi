@@ -158,8 +158,7 @@
   }
 
   .add-rule-btn {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 4px 12px;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -227,8 +226,7 @@
   }
 
   .dictionary-card-actions button {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 4px;
     border: none;
     border-radius: 4px;

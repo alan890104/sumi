@@ -1150,6 +1150,33 @@ pub fn run() {
                 });
             }
 
+            // Pre-open the mic stream in the background so the first hotkey press
+            // has zero latency.  Without this, do_start_recording would call
+            // try_reconnect_audio on the first press, blocking for ~100–300 ms
+            // while CoreAudio initialises, causing the first words to be dropped.
+            //
+            // Note: opening the stream activates CoreAudio DSP (noise reduction,
+            // echo cancellation) which can slightly alter system audio output.
+            // This is the same as the always-on behaviour before PR #20.
+            {
+                let app_handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let state = app_handle.state::<AppState>();
+                    let device_name = state.settings.lock().ok().and_then(|s| s.mic_device.clone());
+                    match audio::try_reconnect_audio(
+                        &state.mic_available,
+                        &state.sample_rate,
+                        &state.buffer,
+                        &state.is_recording,
+                        &state.audio_thread,
+                        device_name,
+                    ) {
+                        Ok(()) => tracing::info!("Mic stream pre-opened at startup"),
+                        Err(e) => tracing::warn!("Mic pre-open failed (will retry on first hotkey): {}", e),
+                    }
+                });
+            }
+
             // System Tray
             let settings_i =
                 MenuItem::with_id(app, "settings", "Settings...", true, None::<&str>)?;
@@ -1189,9 +1216,8 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Window close → hide; enable drag (CSS -webkit-app-region controls where)
+            // Window close → hide (drag handled by data-tauri-drag-region in HTML)
             if let Some(main_window) = app.get_webview_window("main") {
-                platform::set_main_window_movable(&main_window);
                 let win = main_window.clone();
                 main_window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {

@@ -27,6 +27,7 @@
                 "decorations": true,
                 "titleBarStyle": "Overlay",
                 "hiddenTitle": true,
+                "acceptFirstMouse": true,
                 "additionalBrowserArgs": "--disable-gpu-shader-disk-cache"
             },
             {

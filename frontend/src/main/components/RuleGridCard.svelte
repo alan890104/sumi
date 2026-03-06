@@ -125,8 +125,7 @@
   }
 
   .tile-action-btn {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+
     padding: 2px 6px;
     border: none;
     border-radius: 4px;

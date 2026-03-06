@@ -46,7 +46,7 @@
   <div class="app">
     <Sidebar {version} />
     <div class="content-area">
-      <div class="content-drag"></div>
+      <div class="content-spacer" data-tauri-drag-region></div>
       <div class="content-scroll" class:no-padding={getCurrentPage() === 'meeting'}>
         {#if getCurrentPage() === 'stats'}
           <StatsPage />
@@ -87,10 +87,8 @@
     overflow: hidden;
   }
 
-  .content-drag {
+  .content-spacer {
     height: 56px;
-    -webkit-app-region: drag;
-    app-region: drag;
     flex-shrink: 0;
   }
 

@@ -944,7 +944,7 @@
     margin-bottom: 12px;
     font-family: 'Inter', sans-serif;
     font-weight: 500;
-    -webkit-app-region: no-drag;
+
     align-self: flex-start;
     flex-shrink: 0;
   }
@@ -985,7 +985,7 @@
   }
 
   .test-btn-outline {
-    -webkit-app-region: no-drag;
+
     padding: 10px 20px;
     border: 1.5px solid rgba(0, 0, 0, 0.15);
     border-radius: 100px;
@@ -1004,7 +1004,7 @@
   }
 
   .test-btn-filled {
-    -webkit-app-region: no-drag;
+
     padding: 10px 20px;
     border: none;
     border-radius: 100px;
