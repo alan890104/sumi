@@ -185,11 +185,11 @@ fn wal_path(history_dir: &Path, id: &str) -> PathBuf {
 
 /// Append a new segment to the WAL file as a single JSON line.
 /// Called from the feeder thread each time a STT segment is produced.
+/// Segments with empty text are written so that `update_wal_speakers` can
+/// re-label them during agglomerative finalization; they carry (start, end,
+/// speaker) even without transcribed text.
 pub fn append_wal(history_dir: &Path, id: &str, segment: &WalSegment) {
     use std::io::Write;
-    if segment.text.is_empty() {
-        return;
-    }
     let path = wal_path(history_dir, id);
     let line = match serde_json::to_string(segment) {
         Ok(s) => s + "\n",

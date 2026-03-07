@@ -49,27 +49,30 @@ fn persist_and_emit(
     note_id: &Option<String>,
     segment: &crate::meeting_notes::WalSegment,
 ) {
-    if segment.text.is_empty() {
-        return;
-    }
     if let Some(ref id) = note_id {
+        // Always write to WAL so agglomerative relabeling can find this segment
+        // by (start, end) timestamp even when text is empty (e.g. non-primary
+        // Qwen3-ASR diarization sub-segments).
         crate::meeting_notes::append_wal(history_dir, id, segment);
-        let duration = state
-            .meeting_start_time
-            .lock()
-            .ok()
-            .and_then(|st| *st)
-            .map(|t| t.elapsed().as_secs_f64())
-            .unwrap_or(0.0);
-        let _ = app.emit(
-            "meeting-note-updated",
-            serde_json::json!({
-                "id": id,
-                "delta": segment.text,
-                "speaker": segment.speaker,
-                "duration_secs": duration,
-            }),
-        );
+        // Only emit the frontend delta event when there is actual text.
+        if !segment.text.is_empty() {
+            let duration = state
+                .meeting_start_time
+                .lock()
+                .ok()
+                .and_then(|st| *st)
+                .map(|t| t.elapsed().as_secs_f64())
+                .unwrap_or(0.0);
+            let _ = app.emit(
+                "meeting-note-updated",
+                serde_json::json!({
+                    "id": id,
+                    "delta": segment.text,
+                    "speaker": segment.speaker,
+                    "duration_secs": duration,
+                }),
+            );
+        }
     }
 }
 

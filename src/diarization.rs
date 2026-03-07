@@ -103,6 +103,10 @@ impl SegmentationModel {
         let mut segments: Vec<(usize, usize)> = Vec::new();
 
         for win_start in (0..padded.len()).step_by(SEG_WINDOW_SAMPLES) {
+            // Reset offset at each window so per-window frame indices stay
+            // anchored to their window start; avoids accumulated drift from
+            // SEG_FRAME_HOP being an approximation of the model's true stride.
+            offset = win_start + SEG_FRAME_START;
             let window = &padded[win_start..win_start + SEG_WINDOW_SAMPLES];
 
             let array = match Array1::from_vec(window.to_vec())
