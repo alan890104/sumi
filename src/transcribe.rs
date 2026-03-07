@@ -214,6 +214,9 @@ pub fn warm_whisper_cache(
 
     let mut ctx_params = WhisperContextParameters::new();
     ctx_params.use_gpu(true);
+    // DTW is always enabled so the loaded context is ready for meeting-mode word
+    // timestamps without a model reload (a reload costs 5–10 s on first use).
+    // Cost: ~128 MiB of Metal/GPU memory per loaded model, even for non-meeting sessions.
     ctx_params.dtw_parameters(DtwParameters {
         mode: dtw_mode_for(model),
         dtw_mem_size: DTW_MEM_SIZE,

@@ -2401,10 +2401,16 @@ pub fn download_qwen3_asr_model(
 
 // ── Model deletion ─────────────────────────────────────────────────────────
 
-/// Guard helper: returns Err if recording, processing, downloading, or switching.
+/// Guard helper: returns Err if recording, processing, downloading, switching, or meeting active.
 fn guard_model_op(state: &AppState) -> Result<(), String> {
     if state.is_recording.load(Ordering::SeqCst) || state.is_processing.load(Ordering::SeqCst) {
         return Err("Cannot delete model while recording or processing".to_string());
+    }
+    if state.meeting_active.load(Ordering::SeqCst) {
+        // meeting_active stays true until stop_meeting_mode completes (after the
+        // feeder worker finishes and finalize_labels is called).  Blocking delete
+        // here ensures diarization_ctx is not modified while a feeder holds the lock.
+        return Err("Cannot delete model while a meeting is in progress".to_string());
     }
     if state.downloading.load(Ordering::SeqCst) {
         return Err("Cannot delete model while a download is in progress".to_string());
