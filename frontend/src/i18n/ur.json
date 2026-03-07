@@ -348,7 +348,7 @@
   "settings.behavior.micIdle.10min": "10 minutes",
   "settings.behavior.micIdle.30min": "30 minutes",
   "settings.behavior.recordMeetingAudio": "میٹنگ آڈیو محفوظ کریں",
-  "settings.behavior.recordMeetingAudioDesc": "ٹرانسکرپٹس کے ساتھ آڈیو ریکارڈنگز محفوظ کریں (اختیاری، اضافی اسٹوریج استعمال ہوتی ہے)",
+  "settings.behavior.recordMeetingAudioDesc": "میٹنگ ریکارڈنگز گھنٹوں تک جاری رہ سکتی ہیں۔ عام ریکارڈنگز سے الگ محفوظ کی جاتی ہیں۔",
   "meeting.downloadAudio": "آڈیو ڈاؤن لوڈ کریں",
   "meeting.deleteAudio": "آڈیو حذف کریں",
   "meeting.deleteAudioConfirm": "آڈیو ریکارڈنگ مستقل طور پر حذف ہو جائے گی۔ ٹرانسکرپٹ اور خلاصہ محفوظ رہیں گے۔",
