@@ -153,6 +153,14 @@ pub fn logs_dir() -> PathBuf {
     base_dir().join("logs")
 }
 
+pub fn diarization_model_path() -> PathBuf {
+    models_dir().join("speaker-embedding.onnx")
+}
+
+pub fn segmentation_model_path() -> PathBuf {
+    models_dir().join("speech-turn-detector.onnx")
+}
+
 pub fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }

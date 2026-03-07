@@ -10,7 +10,6 @@ use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::meeting_notes;
-use crate::segment_spacing::SpacingState;
 use crate::settings;
 
 /// Decode an audio file to mono f32 samples.
@@ -188,12 +187,10 @@ fn run_import_inner(app: &AppHandle, file_path: &str) -> Result<String, String> 
     }
 
     // ── Step 3: Determine STT engine ──
-    let stt_config = state
-        .settings
-        .lock()
-        .map_err(|e| e.to_string())?
-        .stt
-        .clone();
+    let stt_config = {
+        let s = state.settings.lock().map_err(|e| e.to_string())?;
+        s.stt.clone()
+    };
     let language = stt_config.language.clone();
 
     let model_label = match stt_config.mode {
@@ -256,153 +253,232 @@ fn run_import_inner(app: &AppHandle, file_path: &str) -> Result<String, String> 
     );
 
     // ── Step 5: Build transcribe closure ──
-    let mut transcribe: Box<dyn FnMut(&[f32], &str) -> String + Send> =
-        match stt_config.mode {
-            crate::stt::SttMode::Local => match stt_config.local_engine {
-                crate::stt::LocalSttEngine::Qwen3Asr => {
-                    let model = stt_config.qwen3_asr_model.clone();
-                    let lang = language.clone();
-                    let app_c = app.clone();
-                    Box::new(move |samples, _prev| {
-                        let st = app_c.state::<crate::AppState>();
-                        crate::qwen3_asr::transcribe_with_cached_qwen3_asr(
-                            &st.qwen3_asr_ctx,
-                            samples,
-                            &model,
-                            &lang,
-                        )
-                        .unwrap_or_default()
-                    })
-                }
-                crate::stt::LocalSttEngine::Whisper => {
-                    let lang = language.clone();
-                    let app_c = app.clone();
-                    Box::new(move |samples, prev_text| {
-                        let st = app_c.state::<crate::AppState>();
-                        let ctx_guard = st
-                            .whisper_ctx
-                            .lock()
-                            .unwrap_or_else(|e| e.into_inner());
-                        crate::whisper_streaming::transcribe_meeting_chunk(
-                            &ctx_guard,
-                            samples,
-                            &lang,
-                            if prev_text.is_empty() {
-                                None
-                            } else {
-                                Some(prev_text)
-                            },
-                        )
-                        .unwrap_or_default()
-                    })
-                }
-            },
-            crate::stt::SttMode::Cloud => {
-                let mut cloud = stt_config.cloud.clone();
-                cloud.language = language;
-                let key = crate::commands::get_cached_api_key(
-                    &state.api_key_cache,
-                    cloud.provider.as_key(),
-                );
-                if !key.is_empty() {
-                    cloud.api_key = key;
-                }
+    // Returns (text, word_timestamps).
+    let mut transcribe: Box<
+        dyn FnMut(&[f32], f64, &str) -> (String, Vec<meeting_notes::WordTs>) + Send,
+    > = match stt_config.mode {
+        crate::stt::SttMode::Local => match stt_config.local_engine {
+            crate::stt::LocalSttEngine::Qwen3Asr => {
+                let model = stt_config.qwen3_asr_model.clone();
+                let lang = language.clone();
                 let app_c = app.clone();
-                Box::new(move |samples, prev_text| {
+                Box::new(move |samples, _start_secs, _prev| {
                     let st = app_c.state::<crate::AppState>();
-                    let prompt = if prev_text.is_empty() {
-                        None
-                    } else {
-                        Some(prev_text)
-                    };
-                    crate::stt::run_cloud_stt(
-                        &cloud,
+                    let text = crate::qwen3_asr::transcribe_with_cached_qwen3_asr(
+                        &st.qwen3_asr_ctx,
                         samples,
-                        &st.http_client,
-                        prompt,
+                        &model,
+                        &lang,
                     )
-                    .unwrap_or_else(|e| {
-                        tracing::warn!("[import] cloud STT failed: {e}");
-                        String::new()
-                    })
+                    .unwrap_or_default();
+                    (text, vec![])
                 })
             }
-        };
-
-    // ── Step 6: Chunk and transcribe ──
-    let chunk_size = 30 * 16_000; // 30 seconds per chunk
-    let mut spacing = SpacingState::new();
-
-    for chunk_start in (0..total_samples).step_by(chunk_size) {
-        if state.import_cancelled.load(Ordering::SeqCst) {
-            tracing::info!("[import] cancelled by user");
-            let _ = meeting_notes::delete_note(&history_dir, &note_id);
-            let _ = app.emit(
-                "meeting-note-finalized",
-                serde_json::json!({ "id": note_id }),
-            );
-            return Err("cancelled".to_string());
-        }
-
-        let chunk_end = (chunk_start + chunk_size).min(total_samples);
-        let chunk = &samples_16k[chunk_start..chunk_end];
-
-        // VAD filter
-        let stt_samples =
-            crate::transcribe::filter_with_vad(&state.vad_ctx, chunk)
-                .unwrap_or_else(|_| chunk.to_vec());
-
-        // Read previous context from WAL
-        let prev_text = {
-            let full = meeting_notes::read_wal(&history_dir, &note_id);
-            let trimmed = full.trim_end();
-            let cc = trimmed.chars().count();
-            if cc > 200 {
-                trimmed
-                    .char_indices()
-                    .nth(cc - 200)
-                    .map(|(i, _)| &trimmed[i..])
-                    .unwrap_or(trimmed)
-                    .to_string()
-            } else {
-                trimmed.to_string()
+            crate::stt::LocalSttEngine::Whisper => {
+                let lang = language.clone();
+                let app_c = app.clone();
+                Box::new(move |samples, audio_start_secs, prev_text| {
+                    let st = app_c.state::<crate::AppState>();
+                    let ctx_guard =
+                        st.whisper_ctx.lock().unwrap_or_else(|e| e.into_inner());
+                    crate::whisper_streaming::transcribe_meeting_chunk(
+                        &ctx_guard,
+                        samples,
+                        &lang,
+                        if prev_text.is_empty() { None } else { Some(prev_text) },
+                        audio_start_secs,
+                    )
+                    .unwrap_or_default()
+                })
             }
-        };
+        },
+        crate::stt::SttMode::Cloud => {
+            let mut cloud = stt_config.cloud.clone();
+            cloud.language = language;
+            let key = crate::commands::get_cached_api_key(
+                &state.api_key_cache,
+                cloud.provider.as_key(),
+            );
+            if !key.is_empty() {
+                cloud.api_key = key;
+            }
+            let app_c = app.clone();
+            Box::new(move |samples, _start_secs, prev_text| {
+                let st = app_c.state::<crate::AppState>();
+                let prompt = if prev_text.is_empty() { None } else { Some(prev_text) };
+                let text = crate::stt::run_cloud_stt(
+                    &cloud,
+                    samples,
+                    &st.http_client,
+                    prompt,
+                )
+                .unwrap_or_else(|e| {
+                    tracing::warn!("[import] cloud STT failed: {e}");
+                    String::new()
+                });
+                (text, vec![])
+            })
+        }
+    };
 
-        let seg_text = if stt_samples.is_empty() {
-            String::new()
-        } else {
-            transcribe(&stt_samples, &prev_text)
-        };
+    // ── Step 4.5 + 6: Diarize then transcribe (or chunk-transcribe without diarization) ──
+    //
+    // When diarization is enabled we run pyannote_diarize on the entire file first
+    // (same algorithm as the integration tests), then transcribe each speaker segment
+    // individually.  This is strictly better than the old per-chunk online approach
+    // because agglomerative clustering has global context over all speakers.
+    //
+    // When diarization is disabled (or models are missing) we fall back to 30 s
+    // chunks with no speaker labels.
+    let mut diarization_engine: Option<crate::diarization::DiarizationEngine> = None;
+    let emb_path = settings::diarization_model_path();
+    let seg_path = settings::segmentation_model_path();
+    if emb_path.exists() && seg_path.exists() {
+        match crate::diarization::DiarizationEngine::new(&emb_path, Some(&seg_path)) {
+            Ok(engine) => {
+                tracing::info!("[import] diarization engine loaded");
+                diarization_engine = Some(engine);
+            }
+            Err(e) => tracing::warn!("[import] failed to load diarization engine: {e}"),
+        }
+    } else {
+        tracing::info!("[import] diarization models not found, running without speaker labels");
+    }
 
-        let is_last = chunk_end >= total_samples;
-        let delta = if is_last {
-            spacing.build_final_delta(&seg_text)
-        } else {
-            spacing.build_tick_delta(&seg_text)
-        };
-
-        if !delta.is_empty() {
-            meeting_notes::append_wal(&history_dir, &note_id, &delta);
+    // Try full-file pyannote diarization.  Falls back to empty vec (→ chunk path) on failure.
+    let diar_segs: Vec<(f64, f64, String)> = diarization_engine
+        .as_mut()
+        .map(|e| {
             let _ = app.emit(
-                "meeting-note-updated",
+                "import-progress",
+                serde_json::json!({ "status": "diarizing", "progress": 0.0 }),
+            );
+            let segs = e.diarize_full(&samples_16k);
+            tracing::info!(
+                "[import] pyannote_diarize: {} segments, {} speakers",
+                segs.len(),
+                segs.iter()
+                    .map(|(_, _, s)| s.as_str())
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+            );
+            segs
+        })
+        .unwrap_or_default();
+
+    if !diar_segs.is_empty() {
+        // ── Diarization path: transcribe each speaker segment ──
+        let n = diar_segs.len();
+        for (i, (start_s, end_s, speaker)) in diar_segs.iter().enumerate() {
+            if state.import_cancelled.load(Ordering::SeqCst) {
+                tracing::info!("[import] cancelled by user");
+                let _ = meeting_notes::delete_note(&history_dir, &note_id);
+                let _ = app.emit("meeting-note-finalized", serde_json::json!({ "id": note_id }));
+                return Err("cancelled".to_string());
+            }
+
+            let start_i = (start_s * 16_000.0) as usize;
+            let end_i = ((end_s * 16_000.0) as usize).min(total_samples);
+            if end_i <= start_i {
+                continue;
+            }
+            let chunk = &samples_16k[start_i..end_i];
+
+            let prev_text = {
+                let full = meeting_notes::read_wal(&history_dir, &note_id);
+                meeting_notes::wal_text_for_context(&full, 200)
+            };
+
+            let (text, _) = transcribe(chunk, *start_s, &prev_text);
+            if !text.is_empty() {
+                let seg = meeting_notes::WalSegment {
+                    speaker: speaker.clone(),
+                    start: *start_s,
+                    end: *end_s,
+                    text: text.clone(),
+                    words: vec![],
+                };
+                meeting_notes::append_wal(&history_dir, &note_id, &seg);
+                let _ = app.emit(
+                    "meeting-note-updated",
+                    serde_json::json!({
+                        "id": note_id,
+                        "delta": text,
+                        "speaker": speaker,
+                        "start": *start_s,
+                        "end": *end_s,
+                        "duration_secs": duration_secs,
+                    }),
+                );
+            }
+
+            let _ = app.emit(
+                "import-progress",
                 serde_json::json!({
                     "id": note_id,
-                    "delta": delta,
-                    "duration_secs": duration_secs,
+                    "progress": (i + 1) as f64 / n as f64,
+                    "status": "transcribing",
                 }),
             );
         }
+    } else {
+        // ── No-diarization path: 30 s chunks, no speaker labels ──
+        let chunk_size = 30 * 16_000;
+        for chunk_start in (0..total_samples).step_by(chunk_size) {
+            if state.import_cancelled.load(Ordering::SeqCst) {
+                tracing::info!("[import] cancelled by user");
+                let _ = meeting_notes::delete_note(&history_dir, &note_id);
+                let _ = app.emit("meeting-note-finalized", serde_json::json!({ "id": note_id }));
+                return Err("cancelled".to_string());
+            }
 
-        let progress = chunk_end as f64 / total_samples as f64;
-        let _ = app.emit(
-            "import-progress",
-            serde_json::json!({
-                "id": note_id,
-                "progress": progress,
-                "status": "transcribing",
-            }),
-        );
+            let chunk_end = (chunk_start + chunk_size).min(total_samples);
+            let chunk = &samples_16k[chunk_start..chunk_end];
+            let start_secs = chunk_start as f64 / 16_000.0;
+            let end_secs = chunk_end as f64 / 16_000.0;
+
+            let prev_text = {
+                let full = meeting_notes::read_wal(&history_dir, &note_id);
+                meeting_notes::wal_text_for_context(&full, 200)
+            };
+
+            let (text, _) = if chunk.is_empty() {
+                (String::new(), vec![])
+            } else {
+                transcribe(chunk, start_secs, &prev_text)
+            };
+
+            if !text.is_empty() {
+                let seg = meeting_notes::WalSegment {
+                    speaker: String::new(),
+                    start: start_secs,
+                    end: end_secs,
+                    text: text.clone(),
+                    words: vec![],
+                };
+                meeting_notes::append_wal(&history_dir, &note_id, &seg);
+                let _ = app.emit(
+                    "meeting-note-updated",
+                    serde_json::json!({
+                        "id": note_id,
+                        "delta": text,
+                        "speaker": "",
+                        "start": start_secs,
+                        "end": end_secs,
+                        "duration_secs": duration_secs,
+                    }),
+                );
+            }
+
+            let _ = app.emit(
+                "import-progress",
+                serde_json::json!({
+                    "id": note_id,
+                    "progress": chunk_end as f64 / total_samples as f64,
+                    "status": "transcribing",
+                }),
+            );
+        }
     }
 
     // ── Step 7: Finalize ──

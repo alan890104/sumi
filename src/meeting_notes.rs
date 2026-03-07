@@ -4,6 +4,44 @@ use std::path::{Path, PathBuf};
 use unicode_segmentation::UnicodeSegmentation;
 use hound;
 
+// ── WAL segment types ─────────────────────────────────────────────────────────
+//
+// Each transcribed VAD segment is written to the WAL file as one JSON line
+// (JSONL format). This replaces the old plain-text append format and enables
+// speaker labels and word-level timestamps alongside the text.
+//
+// Backward compat: `read_wal` returns raw file content unchanged. Callers that
+// need displayable text call `transcript_from_wal`. Old finalized notes keep
+// their plain-text transcript in SQLite; the frontend detects the format by
+// checking whether each line parses as a JSON object.
+
+/// One transcribed segment written to the WAL file as a single JSON line.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WalSegment {
+    /// Speaker label, e.g. `"SPEAKER_00"`. Empty when diarization is disabled.
+    pub speaker: String,
+    /// Segment start time in seconds from meeting start.
+    pub start: f64,
+    /// Segment end time in seconds from meeting start.
+    pub end: f64,
+    /// Transcribed text for this segment.
+    pub text: String,
+    /// Word-level timestamps. Empty when unavailable (Qwen3-ASR, most cloud).
+    pub words: Vec<WordTs>,
+}
+
+/// Single word with start/end timestamps.
+/// Short field names keep WAL files compact.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WordTs {
+    /// Word text.
+    pub w: String,
+    /// Start time in seconds from meeting start.
+    pub s: f64,
+    /// End time in seconds from meeting start.
+    pub e: f64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeetingNote {
     pub id: String,
@@ -96,7 +134,7 @@ pub fn get_note(history_dir: &Path, id: &str) -> Result<MeetingNote, String> {
     // For recording notes the live transcript lives on disk, not in SQLite.
     if note.is_recording {
         note.transcript = read_wal(history_dir, id);
-        note.word_count = note.transcript.unicode_words().count() as u64;
+        note.word_count = count_words_in_transcript(&note.transcript);
     }
     Ok(note)
 }
@@ -131,7 +169,7 @@ pub fn list_notes(history_dir: &Path) -> Vec<MeetingNote> {
     for note in &mut notes {
         if note.is_recording {
             note.transcript = read_wal(history_dir, &note.id);
-            note.word_count = note.transcript.unicode_words().count() as u64;
+            note.word_count = count_words_in_transcript(&note.transcript);
         }
     }
     notes
@@ -152,18 +190,97 @@ fn wal_path(history_dir: &Path, id: &str) -> PathBuf {
     history_dir.join(format!("{}.meeting_wal", id))
 }
 
-/// Append a new text segment to the transcript file.
+/// Append a new segment to the WAL file as a single JSON line.
 /// Called from the feeder thread each time a STT segment is produced.
-pub fn append_wal(history_dir: &Path, id: &str, segment: &str) {
+/// Segments with empty text are written so that `update_wal_speakers` can
+/// re-label them during agglomerative finalization; they carry (start, end,
+/// speaker) even without transcribed text.
+pub fn append_wal(history_dir: &Path, id: &str, segment: &WalSegment) {
     use std::io::Write;
     let path = wal_path(history_dir, id);
+    let line = match serde_json::to_string(segment) {
+        Ok(s) => s + "\n",
+        Err(e) => {
+            tracing::warn!("Failed to serialize WAL segment: {}", e);
+            return;
+        }
+    };
     match std::fs::OpenOptions::new().create(true).append(true).open(&path) {
         Ok(mut f) => {
-            if let Err(e) = f.write_all(segment.as_bytes()) {
+            if let Err(e) = f.write_all(line.as_bytes()) {
                 tracing::warn!("Failed to append meeting WAL: {}", e);
             }
         }
         Err(e) => tracing::warn!("Failed to open meeting WAL for append: {}", e),
+    }
+}
+
+/// Convert a JSONL WAL to `"SPEAKER_XX: text\n"` format for LLM polishing.
+///
+/// Lines that fail to parse as JSON are treated as legacy plain text and
+/// emitted as-is, so notes written before the JSONL migration still work.
+pub fn transcript_from_wal(wal_content: &str) -> String {
+    let mut out = String::new();
+    let mut prev_speaker = String::new();
+    for line in wal_content.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Ok(seg) = serde_json::from_str::<WalSegment>(line) {
+            if seg.text.is_empty() {
+                continue;
+            }
+            if seg.speaker != prev_speaker {
+                if !out.is_empty() {
+                    out.push('\n');
+                }
+                if !seg.speaker.is_empty() {
+                    out.push_str(&seg.speaker);
+                    out.push_str(": ");
+                }
+                prev_speaker = seg.speaker.clone();
+            }
+            out.push_str(&seg.text);
+            out.push('\n');
+        } else {
+            // Legacy plain-text line.
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
+}
+
+/// Extract concatenated plain text from JSONL WAL for use as Whisper
+/// `initial_prompt` context (last `max_chars` characters).
+pub fn wal_text_for_context(wal_content: &str, max_chars: usize) -> String {
+    let mut text = String::new();
+    for line in wal_content.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Ok(seg) = serde_json::from_str::<WalSegment>(line) {
+            if !text.is_empty() && !seg.text.is_empty() {
+                text.push(' ');
+            }
+            text.push_str(&seg.text);
+        } else {
+            // Legacy plain text.
+            text.push_str(line);
+        }
+    }
+    let trimmed = text.trim_end();
+    let char_count = trimmed.chars().count();
+    if char_count > max_chars {
+        trimmed
+            .char_indices()
+            .nth(char_count - max_chars)
+            .map(|(i, _)| trimmed[i..].to_string())
+            .unwrap_or_else(|| trimmed.to_string())
+    } else {
+        trimmed.to_string()
     }
 }
 
@@ -174,10 +291,60 @@ pub fn read_wal(history_dir: &Path, id: &str) -> String {
     std::fs::read_to_string(&path).unwrap_or_default()
 }
 
+/// Overwrite the WAL file with new content.
+/// Used after agglomerative speaker relabeling in the import pipeline to
+/// replace online speaker labels with globally-optimal ones before finalizing.
+#[allow(dead_code)]
+pub fn write_wal(history_dir: &Path, id: &str, content: &str) {
+    let path = wal_path(history_dir, id);
+    if let Err(e) = std::fs::write(&path, content) {
+        tracing::warn!("Failed to overwrite meeting WAL: {}", e);
+    }
+}
+
 /// Remove the transcript file after a successful finalize.
 pub fn remove_wal(history_dir: &Path, id: &str) {
     let path = wal_path(history_dir, id);
     let _ = std::fs::remove_file(&path);
+}
+
+/// Rewrite speaker labels in a JSONL WAL transcript using agglomerative labels.
+///
+/// Each WAL line that matches a `(start_secs, end_secs)` pair in `labels`
+/// has its `speaker` field updated.  Lines that do not match (plain text or
+/// mismatched timestamps) are passed through unchanged.
+///
+/// Called in `stop_meeting_mode` after `finalize_labels()` to upgrade the
+/// real-time online labels to globally-optimal agglomerative labels before
+/// writing the transcript to SQLite.
+pub fn update_wal_speakers(wal: &str, labels: &[(f64, f64, String)]) -> String {
+    wal.lines()
+        .map(|line| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                return line.to_string();
+            }
+            let mut seg: WalSegment = match serde_json::from_str(trimmed) {
+                Ok(s) => s,
+                Err(_) => return line.to_string(), // plain-text line — keep as-is
+            };
+            // Match by (start, end) within 10 ms tolerance.
+            let matched = labels.iter().find(|(s, e, _)| {
+                (seg.start - s).abs() < 0.01 && (seg.end - e).abs() < 0.01
+            });
+            if let Some((_, _, spk)) = matched {
+                seg.speaker = spk.clone();
+            } else if !seg.speaker.is_empty() {
+                tracing::warn!(
+                    "[diarization] WAL segment [{:.3}–{:.3}s] not in agglomerative labels \
+                     — keeping online label {:?}",
+                    seg.start, seg.end, seg.speaker
+                );
+            }
+            serde_json::to_string(&seg).unwrap_or_else(|_| line.to_string())
+        })
+        .collect::<Vec<_>>()
+        .join("\n") + "\n"
 }
 
 pub fn finalize_note(
@@ -188,13 +355,34 @@ pub fn finalize_note(
 ) -> Result<(), String> {
     let conn = open_db(history_dir).map_err(|e| e.to_string())?;
     let now = now_millis();
-    let wc = transcript.unicode_words().count() as i64;
+    let wc = count_words_in_transcript(transcript) as i64;
     conn.execute(
         "UPDATE meeting_notes SET transcript = ?1, updated_at = ?2, duration_secs = ?3, is_recording = 0, word_count = ?4 WHERE id = ?5",
         params![transcript, now, duration_secs, wc, id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Count words in a transcript that may be JSONL (new format) or plain text (legacy).
+fn count_words_in_transcript(transcript: &str) -> u64 {
+    let mut count = 0u64;
+    let mut found_jsonl = false;
+    for line in transcript.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Ok(seg) = serde_json::from_str::<WalSegment>(line) {
+            count += seg.text.unicode_words().count() as u64;
+            found_jsonl = true;
+        }
+    }
+    if !found_jsonl {
+        // Legacy plain text.
+        count = transcript.unicode_words().count() as u64;
+    }
+    count
 }
 
 pub fn rename_note(history_dir: &Path, id: &str, title: &str) -> Result<(), String> {
@@ -257,7 +445,7 @@ pub fn delete_all_notes(history_dir: &Path) -> Result<(), String> {
 /// On startup, recover notes stuck in is_recording=1 from a previous crash.
 /// Reads any WAL file to restore the transcript, then marks the note as finalized.
 /// Also finalizes any pending audio WAL into a WAV file.
-pub fn recover_stuck_notes(history_dir: &Path, audio_dir: &Path) {
+pub fn recover_stuck_notes(history_dir: &Path, _audio_dir: &Path) {
     let conn = match open_db(history_dir) {
         Ok(c) => c,
         Err(e) => {
@@ -287,12 +475,10 @@ pub fn recover_stuck_notes(history_dir: &Path, audio_dir: &Path) {
         // Try to read WAL file for the transcript.
         let wal = wal_path(history_dir, id);
         let transcript = std::fs::read_to_string(&wal).unwrap_or_default();
-        let wc = transcript.unicode_words().count() as i64;
-        // Also finalize any pending audio WAL.
-        let audio_path = finalize_audio(history_dir, id, audio_dir);
+        let wc = count_words_in_transcript(&transcript) as i64;
         let _ = conn.execute(
-            "UPDATE meeting_notes SET transcript = ?1, updated_at = ?2, is_recording = 0, word_count = ?3, audio_path = ?4 WHERE id = ?5",
-            params![transcript, now, wc, audio_path, id],
+            "UPDATE meeting_notes SET transcript = ?1, updated_at = ?2, is_recording = 0, word_count = ?3 WHERE id = ?4",
+            params![transcript, now, wc, id],
         );
         let _ = std::fs::remove_file(&wal);
     }
@@ -330,6 +516,7 @@ fn audio_wal_path(history_dir: &Path, id: &str) -> PathBuf {
 
 /// Append raw 16 kHz mono f32 samples to the audio WAL file.
 /// Called from the meeting feeder segmenter thread for each segment.
+#[allow(dead_code)]
 pub fn append_audio_wal(history_dir: &Path, id: &str, samples: &[f32]) {
     use std::io::Write;
     let path = audio_wal_path(history_dir, id);
@@ -480,14 +667,29 @@ mod tests {
 
     // ── WAL file: the "everything is a file" design ──
 
+    fn make_seg(text: &str) -> WalSegment {
+        WalSegment {
+            speaker: "SPEAKER_00".to_string(),
+            start: 0.0,
+            end: 1.0,
+            text: text.to_string(),
+            words: vec![],
+        }
+    }
+
     #[test]
     fn wal_multi_append_accumulates() {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path();
-        append_wal(p, "n1", "Hello ");
-        append_wal(p, "n1", "world ");
-        append_wal(p, "n1", "foo");
-        assert_eq!(read_wal(p, "n1"), "Hello world foo");
+        append_wal(p, "n1", &make_seg("Hello"));
+        append_wal(p, "n1", &make_seg("world"));
+        append_wal(p, "n1", &make_seg("foo"));
+        let raw = read_wal(p, "n1");
+        // Each line is a JSON object; extract texts via transcript_from_wal.
+        let text = transcript_from_wal(&raw);
+        assert!(text.contains("Hello"));
+        assert!(text.contains("world"));
+        assert!(text.contains("foo"));
     }
 
     #[test]
@@ -506,9 +708,10 @@ mod tests {
         let mut note = make_note("rec");
         note.is_recording = true;
         create_note(p, &note).unwrap();
-        append_wal(p, "rec", "live transcript data");
+        append_wal(p, "rec", &make_seg("live transcript data"));
         let fetched = get_note(p, "rec").unwrap();
-        assert_eq!(fetched.transcript, "live transcript data");
+        // Transcript is raw JSONL; verify the text is inside.
+        assert!(fetched.transcript.contains("live transcript data"));
         // word_count should be recomputed from WAL content
         assert!(fetched.word_count > 0);
     }
@@ -540,13 +743,14 @@ mod tests {
         let mut note = make_note("stuck");
         note.is_recording = true;
         create_note(p, &note).unwrap();
-        append_wal(p, "stuck", "recovered text");
+        append_wal(p, "stuck", &make_seg("recovered text"));
 
         recover_stuck_notes(p, p);
 
         let fetched = get_note(p, "stuck").unwrap();
         assert!(!fetched.is_recording);
-        assert_eq!(fetched.transcript, "recovered text");
+        // Transcript is stored as raw JSONL; verify the text is present via transcript_from_wal.
+        assert!(transcript_from_wal(&fetched.transcript).contains("recovered text"));
         assert_eq!(read_wal(p, "stuck"), "", "WAL should be cleaned up");
     }
 
@@ -574,7 +778,7 @@ mod tests {
         let p = dir.path();
         init_db(p);
         create_note(p, &make_note("1")).unwrap();
-        append_wal(p, "1", "data");
+        append_wal(p, "1", &make_seg("data"));
         delete_all_notes(p).unwrap();
         assert!(list_notes(p).is_empty());
         assert_eq!(read_wal(p, "1"), "");

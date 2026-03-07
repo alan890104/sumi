@@ -302,10 +302,10 @@ export const onMeetingNoteCreated = (
   listen('meeting-note-created', (e) => cb(e.payload as { id: string; note: MeetingNote }));
 
 export const onMeetingNoteUpdated = (
-  cb: (p: { id: string; delta: string; duration_secs: number }) => void,
+  cb: (p: { id: string; delta: string; duration_secs: number; speaker?: string; start?: number; end?: number }) => void,
 ): Promise<UnlistenFn> =>
   listen('meeting-note-updated', (e) =>
-    cb(e.payload as { id: string; delta: string; duration_secs: number }),
+    cb(e.payload as { id: string; delta: string; duration_secs: number; speaker?: string; start?: number; end?: number }),
   );
 
 export const polishMeetingNote = (id: string) =>
@@ -315,6 +315,22 @@ export const onMeetingNoteFinalized = (
   cb: (p: { id: string }) => void,
 ): Promise<UnlistenFn> =>
   listen('meeting-note-finalized', (e) => cb(e.payload as { id: string }));
+
+// ── Infra downloads ──
+
+export const startInfraDownloads = () => invoke<void>('start_infra_downloads');
+
+export const checkInfraModelsReady = () =>
+  invoke<{ ready: boolean; vad: boolean; segmentation: boolean; embedding: boolean }>(
+    'check_infra_models_ready',
+  );
+
+export const onInfraDownloadProgress = (
+  cb: (p: { model: string; downloaded: number; total: number; status: string }) => void,
+): Promise<UnlistenFn> =>
+  listen('infra-download-progress', (e) =>
+    cb(e.payload as { model: string; downloaded: number; total: number; status: string }),
+  );
 
 // ── Audio Import ──
 

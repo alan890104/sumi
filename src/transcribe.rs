@@ -1,10 +1,14 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Instant;
-use whisper_rs::{WhisperContext, WhisperContextParameters, WhisperVadContext, WhisperVadContextParams, WhisperVadParams};
+use whisper_rs::{DtwMode, DtwModelPreset, DtwParameters, WhisperContext, WhisperContextParameters, WhisperVadContext, WhisperVadContextParams, WhisperVadParams};
 
 use crate::settings::models_dir;
 use crate::whisper_models::WhisperModel;
+
+/// Cross-attention cache for Whisper DTW word-timestamp alignment.
+/// 128 MiB is sufficient for LargeV3Turbo; allocated once per context.
+const DTW_MEM_SIZE: usize = 128 * 1024 * 1024;
 
 /// Cached whisper context that tracks which model file is loaded.
 /// When the requested model path differs from the loaded one, the context
@@ -210,6 +214,13 @@ pub fn warm_whisper_cache(
 
     let mut ctx_params = WhisperContextParameters::new();
     ctx_params.use_gpu(true);
+    // DTW is always enabled so the loaded context is ready for meeting-mode word
+    // timestamps without a model reload (a reload costs 5–10 s on first use).
+    // Cost: ~128 MiB of Metal/GPU memory per loaded model, even for non-meeting sessions.
+    ctx_params.dtw_parameters(DtwParameters {
+        mode: dtw_mode_for(model),
+        dtw_mem_size: DTW_MEM_SIZE,
+    });
     let ctx = WhisperContext::new_with_params(
         model_path.to_str().ok_or("Invalid model path")?,
         ctx_params,
@@ -261,6 +272,10 @@ pub fn transcribe_with_cached_whisper(
         );
         let mut ctx_params = WhisperContextParameters::new();
         ctx_params.use_gpu(true);
+        ctx_params.dtw_parameters(DtwParameters {
+            mode: dtw_mode_for(model),
+            dtw_mem_size: DTW_MEM_SIZE,
+        });
         let ctx = WhisperContext::new_with_params(
             model_path.to_str().ok_or("Invalid model path")?,
             ctx_params,
@@ -414,4 +429,104 @@ pub fn num_cpus() -> usize {
     std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4)
+}
+
+/// Map a WhisperModel to its DTW cross-attention preset.
+/// Fine-tuned variants of LargeV3Turbo share the same architecture and use the same preset.
+fn dtw_mode_for(model: &WhisperModel) -> DtwMode<'static> {
+    match model {
+        WhisperModel::LargeV3Turbo
+        | WhisperModel::LargeV3TurboQ5
+        | WhisperModel::LargeV3TurboZhTw => DtwMode::ModelPreset {
+            model_preset: DtwModelPreset::LargeV3Turbo,
+        },
+        WhisperModel::Medium => DtwMode::ModelPreset {
+            model_preset: DtwModelPreset::Medium,
+        },
+        WhisperModel::Small => DtwMode::ModelPreset {
+            model_preset: DtwModelPreset::Small,
+        },
+        WhisperModel::Base => DtwMode::ModelPreset {
+            model_preset: DtwModelPreset::Base,
+        },
+    }
+}
+
+/// Extract token-level timestamps from DTW alignment after Whisper inference.
+///
+/// `audio_start_secs` is the start time of this audio chunk relative to the meeting start.
+///
+/// Each Whisper segment's text (correctly decoded via the segment-level API) is
+/// proportionally sliced across its valid-DTW tokens so that each token gets a
+/// character substring sized proportionally to `1/n_valid_tokens`.  This approach:
+///
+/// * Preserves correct text even for rare CJK characters encoded as byte-level BPE
+///   tokens (individual token strings from whisper-rs may be garbled for those).
+/// * Provides token-level timestamps so that diarization can assign sub-slices of
+///   text to the correct speaker sub-segment.
+/// * Works for both space-separated scripts (English) and CJK scripts (Chinese,
+///   Japanese, Korean) — no special-casing required.
+///
+/// Special tokens (`t_dtw == -1`) are skipped.
+pub fn extract_dtw_words(
+    wh_state: &whisper_rs::WhisperState,
+    audio_start_secs: f64,
+) -> Vec<crate::meeting_notes::WordTs> {
+    use crate::meeting_notes::WordTs;
+
+    let mut words = Vec::new();
+    let num_segments = wh_state.full_n_segments();
+
+    for seg_idx in 0..num_segments {
+        let Some(seg) = wh_state.get_segment(seg_idx) else {
+            continue;
+        };
+
+        // Collect DTW timestamps for all valid tokens (t_dtw >= 0).
+        let n_tokens = seg.n_tokens();
+        let valid_ts: Vec<i64> = (0..n_tokens)
+            .filter_map(|i| {
+                let tok = seg.get_token(i)?;
+                let td = tok.token_data();
+                if td.t_dtw < 0 { None } else { Some(td.t_dtw) }
+            })
+            .collect();
+
+        if valid_ts.is_empty() {
+            continue;
+        }
+
+        // Use the segment-level text (correctly decoded, byte-BPE tokens reassembled).
+        let seg_text = match seg.to_str_lossy() {
+            Ok(s) => s.into_owned(),
+            Err(_) => continue,
+        };
+        let chars: Vec<char> = seg_text.chars().collect();
+        let n_chars = chars.len();
+        let n_valid = valid_ts.len();
+
+        if n_chars == 0 {
+            continue;
+        }
+
+        // Distribute character slices proportionally across tokens.
+        // Token i gets chars[i*n_chars/n_valid .. (i+1)*n_chars/n_valid].
+        // Consecutive tokens assigned to the same sub-segment will produce
+        // contiguous character slices that concatenate back to the original text.
+        for (pos, t_dtw) in valid_ts.iter().enumerate() {
+            let char_start = pos * n_chars / n_valid;
+            let char_end = ((pos + 1) * n_chars / n_valid).min(n_chars);
+            if char_start >= n_chars {
+                break;
+            }
+            let w: String = chars[char_start..char_end].iter().collect();
+            if w.trim().is_empty() {
+                continue;
+            }
+            let t = audio_start_secs + *t_dtw as f64 / 100.0;
+            words.push(WordTs { w, s: t, e: t });
+        }
+    }
+
+    words
 }

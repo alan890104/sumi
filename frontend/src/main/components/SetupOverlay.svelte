@@ -43,6 +43,9 @@
     checkVadModelStatus,
     downloadVadModel,
     onVadModelDownloadProgress,
+    startInfraDownloads,
+    checkInfraModelsReady,
+    onInfraDownloadProgress,
     listPolishModels,
     switchPolishModel,
     downloadPolishModel,
@@ -77,6 +80,7 @@
     | 'polishChoice'
     | 'llmDownloading'
     | 'llmActivating'
+    | 'infraWaiting'
     | 'error';
 
   let currentState = $state<SetupState>('permissions');
@@ -122,8 +126,20 @@
     await openPermissionSettings('accessibility');
   }
 
+  // ── Infra downloads ──
+
+  let infraDownloadUnlisten: (() => void) | null = null;
+  let infraVad = $state(false);
+  let infraSeg = $state(false);
+  let infraEmb = $state(false);
+  let infraDownloaded = $state(0);
+  let infraTotal = $state(0);
+
   async function onPermissionsContinue() {
     stopPermissionPolling();
+    // Fire-and-forget: start VAD + segmentation + embedding downloads in background.
+    // By the time the user reaches finishSetup they will almost always be done.
+    startInfraDownloads().catch(() => {});
     currentState = 'dataRoot';
     dataRootPath = await getDataRoot().catch(() => null);
   }
@@ -424,16 +440,21 @@
     if (vadDownloadUnlisten) { vadDownloadUnlisten(); vadDownloadUnlisten = null; }
     if (qwen3DownloadUnlisten) { qwen3DownloadUnlisten(); qwen3DownloadUnlisten = null; }
 
-    // Start VAD model download in parallel (~1.6 MB)
-    vadDownloadUnlisten = await onVadModelDownloadProgress((p: DownloadProgress) => {
-      if (p.status === 'complete') {
+    // VAD is handled by the infra background download started at permissions continue.
+    // Check if it's already done; if not, listen for the infra completion event.
+    try {
+      const vadStatus = await checkVadModelStatus();
+      if (vadStatus.downloaded) {
         vadDone = true;
-      } else if (p.status === 'error') {
-        console.warn('VAD model download failed:', p.message);
-        vadDone = true; // treat as done — VAD has RMS fallback
+      } else {
+        vadDownloadUnlisten = await onInfraDownloadProgress((p) => {
+          if (p.model === 'vad' && p.status === 'complete') vadDone = true;
+          if (p.model === 'vad' && (p.status as string) === 'error') vadDone = true; // RMS fallback
+        });
       }
-    });
-    downloadVadModel().catch(() => { vadDone = true; });
+    } catch {
+      vadDone = true; // assume done on error — VAD has RMS fallback
+    }
 
     if (selectedLocalEngine === 'whisper') {
       // Start Whisper model download with progress tracking
@@ -699,6 +720,50 @@
       console.error('Failed to save onboarding completed:', e);
     }
 
+    // Wait for infra models (VAD + diarization) to finish downloading.
+    // They started in the background at onPermissionsContinue, so they are
+    // almost always done by the time the user reaches this point.
+    // Poll up to 60 s, then skip (all 3 have fallbacks or are optional).
+    try {
+      const initial = await checkInfraModelsReady();
+      if (!initial.ready) {
+        currentState = 'infraWaiting';
+        infraVad = initial.vad;
+        infraSeg = initial.segmentation;
+        infraEmb = initial.embedding;
+        infraDownloaded = 0;
+        infraTotal = 0;
+
+        // Track progress bytes for the waiting screen.
+        if (!infraDownloadUnlisten) {
+          infraDownloadUnlisten = await onInfraDownloadProgress((p) => {
+            if (p.status === 'downloading') {
+              infraDownloaded += 0; // bytes are per-model, just show spinner
+              infraTotal = (infraTotal || 1); // keep non-zero
+            } else if (p.status === 'complete') {
+              if (p.model === 'vad') infraVad = true;
+              if (p.model === 'segmentation') infraSeg = true;
+              if (p.model === 'embedding') infraEmb = true;
+            }
+          });
+        }
+
+        const deadline = Date.now() + 60_000;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 1000));
+          const status = await checkInfraModelsReady().catch(() => ({ ready: true, vad: true, segmentation: true, embedding: true }));
+          infraVad = status.vad;
+          infraSeg = status.segmentation;
+          infraEmb = status.embedding;
+          if (status.ready) break;
+        }
+
+        if (infraDownloadUnlisten) { infraDownloadUnlisten(); infraDownloadUnlisten = null; }
+      }
+    } catch {
+      // Infra check failed — proceed anyway (all models are optional at runtime)
+    }
+
     // Fade out
     fadeOut = true;
     setTimeout(() => {
@@ -736,6 +801,7 @@
     if (vadDownloadUnlisten) { vadDownloadUnlisten(); vadDownloadUnlisten = null; }
     if (qwen3DownloadUnlisten) { qwen3DownloadUnlisten(); qwen3DownloadUnlisten = null; }
     if (llmDownloadUnlisten) { llmDownloadUnlisten(); llmDownloadUnlisten = null; }
+    if (infraDownloadUnlisten) { infraDownloadUnlisten(); infraDownloadUnlisten = null; }
   });
 </script>
 
@@ -1216,6 +1282,31 @@
         </div>
       {/if}
 
+      <!-- ═══ Infra Waiting ═══ -->
+      {#if currentState === 'infraWaiting'}
+        <div class="setup-state-content" style="animation: setupFadeIn 0.4s ease">
+          <svg class="setup-spinner infra-spinner" width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <circle cx="24" cy="24" r="20" stroke="rgba(0,122,255,0.15)" stroke-width="4"/>
+            <path d="M24 4a20 20 0 0 1 20 20" stroke="#007AFF" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+          <div class="setup-title" style="margin-top:16px">準備中…</div>
+          <div class="setup-desc" style="margin-top:8px">
+            正在下載語音分析模型（{[infraVad, infraSeg, infraEmb].filter(Boolean).length}/3 完成）
+          </div>
+          <div class="infra-model-list">
+            <div class="infra-model-row" class:done={infraVad}>
+              <span class="infra-check">{infraVad ? '✓' : '○'}</span>VAD 靜音偵測
+            </div>
+            <div class="infra-model-row" class:done={infraSeg}>
+              <span class="infra-check">{infraSeg ? '✓' : '○'}</span>說話段落分割
+            </div>
+            <div class="infra-model-row" class:done={infraEmb}>
+              <span class="infra-check">{infraEmb ? '✓' : '○'}</span>說話者嵌入
+            </div>
+          </div>
+        </div>
+      {/if}
+
       <!-- ═══ Error ═══ -->
       {#if currentState === 'error'}
         <div class="setup-state-content" style="animation: setupFadeIn 0.4s ease">
@@ -1497,6 +1588,40 @@
 
   .setup-spinner {
     animation: spin 0.8s linear infinite;
+  }
+
+  /* ── Infra waiting ── */
+  .infra-spinner {
+    display: block;
+    margin: 0 auto;
+  }
+
+  .infra-model-list {
+    margin: 16px auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 200px;
+    text-align: left;
+  }
+
+  .infra-model-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    transition: color 0.2s ease;
+  }
+
+  .infra-model-row.done {
+    color: #34C759;
+  }
+
+  .infra-check {
+    font-size: 13px;
+    width: 14px;
+    text-align: center;
   }
 
   .setup-retry-btn {
