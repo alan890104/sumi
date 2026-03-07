@@ -2401,10 +2401,16 @@ pub fn download_qwen3_asr_model(
 
 // ── Model deletion ─────────────────────────────────────────────────────────
 
-/// Guard helper: returns Err if recording, processing, downloading, or switching.
+/// Guard helper: returns Err if recording, processing, downloading, switching, or meeting active.
 fn guard_model_op(state: &AppState) -> Result<(), String> {
     if state.is_recording.load(Ordering::SeqCst) || state.is_processing.load(Ordering::SeqCst) {
         return Err("Cannot delete model while recording or processing".to_string());
+    }
+    if state.meeting_active.load(Ordering::SeqCst) {
+        // meeting_active stays true until stop_meeting_mode completes (after the
+        // feeder worker finishes and finalize_labels is called).  Blocking delete
+        // here ensures diarization_ctx is not modified while a feeder holds the lock.
+        return Err("Cannot delete model while a meeting is in progress".to_string());
     }
     if state.downloading.load(Ordering::SeqCst) {
         return Err("Cannot delete model while a download is in progress".to_string());
@@ -2539,6 +2545,419 @@ pub fn delete_vad_model(state: State<'_, AppState>) -> Result<u64, String> {
     Ok(size)
 }
 
+// ── Diarization Model ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn check_diarization_model_status() -> serde_json::Value {
+    let path = crate::settings::diarization_model_path();
+    let downloaded = path.exists();
+    let file_size_on_disk = if downloaded {
+        std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0)
+    } else {
+        0
+    };
+    serde_json::json!({
+        "downloaded": downloaded,
+        "file_size_on_disk": file_size_on_disk,
+        "url": crate::diarization::WESPEAKER_URL,
+    })
+}
+
+#[tauri::command]
+pub fn download_diarization_model(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    use std::io::Read as _;
+
+    let url = crate::diarization::WESPEAKER_URL;
+    let model_path = crate::settings::diarization_model_path();
+    if model_path.exists() {
+        let _ = app.emit(
+            "diarization-model-download-progress",
+            serde_json::json!({ "status": "complete" }),
+        );
+        return Ok(());
+    }
+
+    if state.downloading.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        return Err("A model download is already in progress".to_string());
+    }
+
+    if let Some(dir) = model_path.parent() {
+        if let Err(e) = std::fs::create_dir_all(dir) {
+            state.downloading.store(false, Ordering::SeqCst);
+            return Err(e.to_string());
+        }
+    }
+
+    let tmp_path = model_path.with_extension("onnx.part");
+    let _ = std::fs::remove_file(&tmp_path);
+
+    std::thread::spawn(move || {
+        let emit_err = |msg: String| {
+            let _ = app.emit(
+                "diarization-model-download-progress",
+                serde_json::json!({ "status": "error", "message": msg }),
+            );
+        };
+        (|| -> Result<(), String> {
+            let client = reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(300))
+                .build()
+                .map_err(|e| e.to_string())?;
+
+            let resp = client.get(url).send().map_err(|e| e.to_string())?;
+            let total = resp.content_length().unwrap_or(0);
+            let mut file = std::fs::File::create(&tmp_path).map_err(|e| e.to_string())?;
+
+            let mut downloaded: u64 = 0;
+            let mut buf = [0u8; 65536];
+            let mut reader = resp;
+            loop {
+                let n = match reader.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => n,
+                    Err(e) => return Err(e.to_string()),
+                };
+                std::io::Write::write_all(&mut file, &buf[..n]).map_err(|e| e.to_string())?;
+                downloaded += n as u64;
+                let _ = app.emit(
+                    "diarization-model-download-progress",
+                    serde_json::json!({ "downloaded": downloaded, "total": total }),
+                );
+            }
+            drop(file);
+            std::fs::rename(&tmp_path, &model_path).map_err(|e| e.to_string())?;
+            let _ = app.emit(
+                "diarization-model-download-progress",
+                serde_json::json!({ "status": "complete" }),
+            );
+            Ok(())
+        })()
+        .unwrap_or_else(|e| {
+            // Remove partial file so a retry starts clean rather than seeing a stale .part.
+            let _ = std::fs::remove_file(&tmp_path);
+            emit_err(e);
+        });
+        app.state::<AppState>().downloading.store(false, Ordering::SeqCst);
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_diarization_model(state: State<'_, AppState>) -> Result<u64, String> {
+    guard_model_op(&state)?;
+
+    let path = crate::settings::diarization_model_path();
+    if !path.exists() {
+        return Err("Diarization model not found".to_string());
+    }
+
+    let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+
+    if let Ok(mut ctx) = state.diarization_ctx.lock() {
+        *ctx = None;
+    }
+
+    std::fs::remove_file(&path).map_err(|e| format!("Failed to delete diarization model: {e}"))?;
+    tracing::info!("Deleted diarization model, freed {} bytes", size);
+    Ok(size)
+}
+
+// ── Segmentation model (pyannote segmentation-3.0.onnx) ──
+
+#[tauri::command]
+pub fn check_segmentation_model_status() -> serde_json::Value {
+    let path = crate::settings::segmentation_model_path();
+    let downloaded = path.exists();
+    let file_size_on_disk = if downloaded {
+        std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0)
+    } else {
+        0
+    };
+    serde_json::json!({
+        "downloaded": downloaded,
+        "file_size_on_disk": file_size_on_disk,
+        "url": crate::diarization::SEGMENTATION_URL,
+    })
+}
+
+#[tauri::command]
+pub fn download_segmentation_model(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    use std::io::Read as _;
+
+    let url = crate::diarization::SEGMENTATION_URL;
+    let model_path = crate::settings::segmentation_model_path();
+    if model_path.exists() {
+        let _ = app.emit(
+            "segmentation-model-download-progress",
+            serde_json::json!({ "status": "complete" }),
+        );
+        return Ok(());
+    }
+
+    if state.downloading.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        return Err("A model download is already in progress".to_string());
+    }
+
+    if let Some(dir) = model_path.parent() {
+        if let Err(e) = std::fs::create_dir_all(dir) {
+            state.downloading.store(false, Ordering::SeqCst);
+            return Err(e.to_string());
+        }
+    }
+
+    let tmp_path = model_path.with_extension("onnx.part");
+    let _ = std::fs::remove_file(&tmp_path);
+
+    std::thread::spawn(move || {
+        let emit_err = |msg: String| {
+            let _ = app.emit(
+                "segmentation-model-download-progress",
+                serde_json::json!({ "status": "error", "message": msg }),
+            );
+        };
+        (|| -> Result<(), String> {
+            let client = reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(300))
+                .build()
+                .map_err(|e| e.to_string())?;
+
+            let resp = client.get(url).send().map_err(|e| e.to_string())?;
+            let total = resp.content_length().unwrap_or(0);
+            let mut file = std::fs::File::create(&tmp_path).map_err(|e| e.to_string())?;
+
+            let mut downloaded: u64 = 0;
+            let mut buf = [0u8; 65536];
+            let mut reader = resp;
+            loop {
+                let n = match reader.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => n,
+                    Err(e) => return Err(e.to_string()),
+                };
+                std::io::Write::write_all(&mut file, &buf[..n]).map_err(|e| e.to_string())?;
+                downloaded += n as u64;
+                let _ = app.emit(
+                    "segmentation-model-download-progress",
+                    serde_json::json!({ "downloaded": downloaded, "total": total }),
+                );
+            }
+            drop(file);
+            std::fs::rename(&tmp_path, &model_path).map_err(|e| e.to_string())?;
+            let _ = app.emit(
+                "segmentation-model-download-progress",
+                serde_json::json!({ "status": "complete" }),
+            );
+            Ok(())
+        })()
+        .unwrap_or_else(|e| {
+            // Remove partial file so a retry starts clean rather than seeing a stale .part.
+            let _ = std::fs::remove_file(&tmp_path);
+            emit_err(e);
+        });
+        app.state::<AppState>().downloading.store(false, Ordering::SeqCst);
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_segmentation_model(state: State<'_, AppState>) -> Result<u64, String> {
+    guard_model_op(&state)?;
+
+    let path = crate::settings::segmentation_model_path();
+    if !path.exists() {
+        return Err("Segmentation model not found".to_string());
+    }
+
+    let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+
+    // Unload the engine so the next meeting session reloads without segmentation.
+    if let Ok(mut ctx) = state.diarization_ctx.lock() {
+        *ctx = None;
+    }
+
+    std::fs::remove_file(&path)
+        .map_err(|e| format!("Failed to delete segmentation model: {e}"))?;
+    tracing::info!("Deleted segmentation model, freed {} bytes", size);
+    Ok(size)
+}
+
+// ── Infra downloads (background, fire-and-forget) ────────────────────────────
+
+/// Download the 3 infrastructure models (VAD, segmentation, embedding) in
+/// background threads.  Fire-and-forget: called at onboarding start, does not
+/// block, and silently skips models that are already present.
+#[tauri::command]
+pub fn start_infra_downloads(app: AppHandle) {
+    let dir = settings::models_dir();
+    if std::fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+
+    // VAD model (~1.6 MB)
+    {
+        let app2 = app.clone();
+        let vad_path = crate::transcribe::vad_model_path();
+        if !vad_path.exists() {
+            std::thread::spawn(move || {
+                download_infra_file(
+                    &app2,
+                    "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin",
+                    &vad_path,
+                    "vad",
+                );
+            });
+        }
+    }
+
+    // Segmentation model (~5.9 MB)
+    {
+        let app2 = app.clone();
+        let seg_path = settings::segmentation_model_path();
+        if !seg_path.exists() {
+            std::thread::spawn(move || {
+                download_infra_file(
+                    &app2,
+                    crate::diarization::SEGMENTATION_URL,
+                    &seg_path,
+                    "segmentation",
+                );
+            });
+        }
+    }
+
+    // Embedding model (~26.5 MB)
+    {
+        let app2 = app.clone();
+        let emb_path = settings::diarization_model_path();
+        if !emb_path.exists() {
+            std::thread::spawn(move || {
+                download_infra_file(
+                    &app2,
+                    crate::diarization::WESPEAKER_URL,
+                    &emb_path,
+                    "embedding",
+                );
+            });
+        }
+    }
+}
+
+/// Download a single infrastructure model file.  Uses a `.ipart` tmp extension
+/// distinct from the `.part` suffix used by user-initiated downloads, so the
+/// two can coexist without clobbering each other.
+fn download_infra_file(app: &AppHandle, url: &str, dest: &std::path::Path, model: &str) {
+    use std::io::Read as _;
+
+    // If another thread (or a prior call) already placed the final file, skip.
+    if dest.exists() {
+        return;
+    }
+
+    let tmp = dest.with_extension("ipart");
+
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(300))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("infra {}: build client: {}", model, e);
+            return;
+        }
+    };
+
+    let resp = match client.get(url).send() {
+        Ok(r) if r.status().is_success() => r,
+        Ok(r) => {
+            tracing::warn!("infra {}: HTTP {}", model, r.status());
+            return;
+        }
+        Err(e) => {
+            tracing::warn!("infra {}: request failed: {}", model, e);
+            return;
+        }
+    };
+
+    let total = resp.content_length().unwrap_or(0);
+
+    let mut file = match std::fs::File::create(&tmp) {
+        Ok(f) => f,
+        Err(e) => {
+            tracing::warn!("infra {}: create tmp: {}", model, e);
+            return;
+        }
+    };
+
+    let mut downloaded: u64 = 0;
+    let mut buf = [0u8; 65536];
+    let mut reader = resp;
+    let mut last_emit = Instant::now();
+
+    loop {
+        let n = match reader.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(e) => {
+                tracing::warn!("infra {}: read error: {}", model, e);
+                let _ = std::fs::remove_file(&tmp);
+                return;
+            }
+        };
+        if let Err(e) = std::io::Write::write_all(&mut file, &buf[..n]) {
+            tracing::warn!("infra {}: write error: {}", model, e);
+            let _ = std::fs::remove_file(&tmp);
+            return;
+        }
+        downloaded += n as u64;
+
+        if last_emit.elapsed() >= std::time::Duration::from_millis(500) {
+            let _ = app.emit(
+                "infra-download-progress",
+                serde_json::json!({
+                    "model": model,
+                    "downloaded": downloaded,
+                    "total": total,
+                    "status": "downloading",
+                }),
+            );
+            last_emit = Instant::now();
+        }
+    }
+
+    drop(file);
+    if let Err(e) = std::fs::rename(&tmp, dest) {
+        tracing::warn!("infra {}: rename failed: {}", model, e);
+        let _ = std::fs::remove_file(&tmp);
+        return;
+    }
+
+    let _ = app.emit(
+        "infra-download-progress",
+        serde_json::json!({
+            "model": model,
+            "status": "complete",
+            "downloaded": downloaded,
+            "total": total,
+        }),
+    );
+    tracing::info!("infra {} complete: {:?}", model, dest);
+}
+
+#[tauri::command]
+pub fn check_infra_models_ready() -> serde_json::Value {
+    let vad = crate::transcribe::vad_model_path().exists();
+    let seg = settings::segmentation_model_path().exists();
+    let emb = settings::diarization_model_path().exists();
+    serde_json::json!({
+        "ready": vad && seg && emb,
+        "vad": vad,
+        "segmentation": seg,
+        "embedding": emb,
+    })
+}
+
 // ── Meeting Notes ──
 
 #[tauri::command]
@@ -2660,7 +3079,8 @@ pub async fn polish_meeting_note(
         (config, model_dir, stt_language)
     };
 
-    let transcript = note.transcript.clone();
+    // Convert JSONL transcript to human-readable text for LLM (preserves speaker labels).
+    let transcript = meeting_notes::transcript_from_wal(&note.transcript);
     let fallback_title = note.title.clone();
 
     // Run the heavy LLM inference on a blocking thread so the UI stays responsive.

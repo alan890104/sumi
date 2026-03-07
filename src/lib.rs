@@ -2,7 +2,7 @@ mod audio;
 mod audio_devices;
 mod audio_import;
 mod commands;
-mod segment_spacing;
+pub mod diarization;
 mod context_detect;
 mod credentials;
 mod history;
@@ -141,6 +141,9 @@ pub struct AppState {
     pub import_active: AtomicBool,
     /// Set to true to cancel a running audio file import.
     pub import_cancelled: AtomicBool,
+    /// Optional speaker diarization engine (WeSpeaker ONNX).
+    /// Loaded at meeting start when diarization model files are present.
+    pub diarization_ctx: Mutex<Option<diarization::DiarizationEngine>>,
 }
 
 /// Emit a `"transcription-partial"` event to the overlay window.
@@ -759,6 +762,18 @@ fn cleanup_obsolete_models(models_dir: &std::path::Path) {
         known_dirs.insert(model.model_dir_name());
     }
 
+    // Diarization infra models (speaker embedding + segmentation).
+    let diar_filenames: Vec<String> = [
+        settings::diarization_model_path(),
+        settings::segmentation_model_path(),
+    ]
+    .iter()
+    .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(str::to_owned))
+    .collect();
+    for name in &diar_filenames {
+        known_files.insert(name.as_str());
+    }
+
     let Ok(entries) = std::fs::read_dir(models_dir) else {
         tracing::warn!("[model-cleanup] Cannot read models dir");
         return;
@@ -857,6 +872,12 @@ pub fn run() {
             commands::delete_polish_model,
             commands::delete_qwen3_asr_model,
             commands::delete_vad_model,
+            commands::check_diarization_model_status,
+            commands::download_diarization_model,
+            commands::delete_diarization_model,
+            commands::check_segmentation_model_status,
+            commands::download_segmentation_model,
+            commands::delete_segmentation_model,
             commands::update_meeting_hotkey,
             commands::list_meeting_notes,
             commands::get_meeting_note,
@@ -869,6 +890,8 @@ pub fn run() {
             commands::delete_meeting_audio,
             commands::import_meeting_audio,
             commands::cancel_import,
+            commands::start_infra_downloads,
+            commands::check_infra_models_ready,
         ])
         .setup(|app| {
             // Initialize logger
@@ -1013,6 +1036,7 @@ pub fn run() {
                 last_recording_end: Mutex::new(None),
                 import_active: AtomicBool::new(false),
                 import_cancelled: AtomicBool::new(false),
+                diarization_ctx: Mutex::new(None),
             });
 
             // Register a CoreAudio listener for default-input-device changes.
@@ -1818,7 +1842,7 @@ fn start_meeting_mode(app: &AppHandle) {
         *ctx = Some(captured_ctx);
     }
 
-    let (stt_mode, local_engine, qwen3_model, whisper_model, lang, cloud_config, record_meeting_audio) = state
+    let (stt_mode, local_engine, qwen3_model, whisper_model, lang, cloud_config) = state
         .settings
         .lock()
         .map(|s| (
@@ -1828,7 +1852,6 @@ fn start_meeting_mode(app: &AppHandle) {
             s.stt.whisper_model.clone(),
             s.stt.language.clone(),
             s.stt.cloud.clone(),
-            s.record_meeting_audio,
         ))
         .unwrap_or_default();
 
@@ -1847,6 +1870,28 @@ fn start_meeting_mode(app: &AppHandle) {
     state.meeting_cancelled.store(false, Ordering::SeqCst);
     state.meeting_stopping.store(false, Ordering::SeqCst);
     state.meeting_feeder_done.store(false, Ordering::SeqCst);
+
+    // Load the speaker diarization engine *outside* the lock so model I/O
+    // (2–5 s) does not block concurrent diarization_ctx readers.
+    // Load diarization engine if models are present; no explicit enable toggle.
+    let new_diar_engine: Option<diarization::DiarizationEngine> = {
+        let model_path = settings::diarization_model_path();
+        let seg_path = settings::segmentation_model_path();
+        if model_path.exists() && seg_path.exists() {
+            match diarization::DiarizationEngine::new(&model_path, Some(&seg_path)) {
+                Ok(engine) => Some(engine),
+                Err(e) => {
+                    tracing::warn!("[diarization] failed to load model: {e}");
+                    None
+                }
+            }
+        } else {
+            tracing::info!("[diarization] models not found, running meeting without speaker labels");
+            None
+        }
+    };
+    // Swap in atomically; lock held only for the pointer swap, not model I/O.
+    *state.diarization_ctx.lock().unwrap_or_else(|e| e.into_inner()) = new_diar_engine;
 
     let preferred_device = state.settings.lock().ok().and_then(|s| s.mic_device.clone());
 
@@ -1988,7 +2033,7 @@ fn start_meeting_mode(app: &AppHandle) {
                         hide_overlay_delayed(&feeder_app, 2000);
                         return;
                     }
-                    qwen3_asr::run_meeting_feeder_loop(feeder_app, lang, session_id, record_meeting_audio);
+                    qwen3_asr::run_meeting_feeder_loop(feeder_app, lang, session_id);
                 });
             }
             stt::LocalSttEngine::Whisper => {
@@ -2022,7 +2067,7 @@ fn start_meeting_mode(app: &AppHandle) {
                         hide_overlay_delayed(&feeder_app, 2000);
                         return;
                     }
-                    whisper_streaming::run_whisper_meeting_feeder_loop(feeder_app, lang, session_id, record_meeting_audio);
+                    whisper_streaming::run_whisper_meeting_feeder_loop(feeder_app, lang, session_id);
                 });
             }
         },
@@ -2034,7 +2079,7 @@ fn start_meeting_mode(app: &AppHandle) {
                 cloud.api_key = key;
             }
             std::thread::spawn(move || {
-                stt::run_cloud_meeting_feeder_loop(feeder_app, cloud, lang, session_id, record_meeting_audio);
+                stt::run_cloud_meeting_feeder_loop(feeder_app, cloud, lang, session_id);
             });
         }
     }
@@ -2122,10 +2167,29 @@ fn stop_meeting_mode(app: &AppHandle) {
         .ok()
         .and_then(|nid| nid.clone());
     let hdir = settings::history_dir();
-    let transcript = note_id
+    let raw_transcript = note_id
         .as_deref()
         .map(|id| meeting_notes::read_wal(&hdir, id))
         .unwrap_or_default();
+
+    // Run agglomerative clustering over all buffered embeddings for optimal
+    // speaker labels, then update the WAL transcript before writing to SQLite.
+    let final_labels: Vec<(f64, f64, String)> = {
+        let mut diar = state.diarization_ctx.lock().unwrap_or_else(|e| e.into_inner());
+        diar.as_mut()
+            .map(|engine| engine.finalize_labels())
+            .unwrap_or_default()
+    };
+    let transcript = if final_labels.is_empty() {
+        raw_transcript
+    } else {
+        tracing::info!(
+            "[diarization] applying {} agglomerative labels to WAL",
+            final_labels.len()
+        );
+        meeting_notes::update_wal_speakers(&raw_transcript, &final_labels)
+    };
+
     if let Some(ref id) = note_id {
         if let Err(e) = meeting_notes::finalize_note(&hdir, id, &transcript, duration_secs) {
             tracing::error!("Failed to finalize meeting note: {}", e);

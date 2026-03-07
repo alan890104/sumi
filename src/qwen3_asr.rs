@@ -320,7 +320,7 @@ pub(crate) fn run_feeder_loop(app: AppHandle, language: String, session_id: u64)
 ///
 /// Delegates to `meeting_feeder::run_meeting_feeder` with a Qwen3-ASR transcription
 /// closure.  Force-flushes segments at 120 s to bound per-segment inference cost.
-pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, session_id: u64, record_audio: bool) {
+pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, session_id: u64) {
     let state = app.state::<crate::AppState>();
 
     let model = {
@@ -338,19 +338,66 @@ pub(crate) fn run_meeting_feeder_loop(app: tauri::AppHandle, language: String, s
     }
 
     let app_for_closure = app.clone();
-    let transcribe: Box<dyn FnMut(&[f32], &str) -> String + Send + 'static> =
-        Box::new(move |samples, _prev_text| {
-            let state = app_for_closure.state::<crate::AppState>();
-            transcribe_with_cached_qwen3_asr(&state.qwen3_asr_ctx, samples, &model, &language)
-                .unwrap_or_default()
-        });
+    let transcribe: Box<
+        dyn FnMut(&[f32], f64, f64, &str) -> Vec<crate::meeting_notes::WalSegment>
+            + Send
+            + 'static,
+    > = Box::new(move |samples, start_secs, end_secs, _prev_text| {
+        use crate::meeting_notes::WalSegment;
+        let state = app_for_closure.state::<crate::AppState>();
+
+        // Diarization sub-segmentation (segment model + online cluster).
+        // guard_model_op rejects delete_diarization_model while meeting_active=true, so
+        // holding the lock for the full inference duration is safe: no contention with delete.
+        let sub_segs: Vec<(f64, f64, String)> = {
+            let mut ctx = state.diarization_ctx.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(ref mut engine) = *ctx {
+                let segs = engine.process_vad_chunk(samples, start_secs);
+                if segs.is_empty() { vec![(start_secs, end_secs, String::new())] } else { segs }
+            } else {
+                vec![(start_secs, end_secs, String::new())]
+            }
+        };
+
+        // Qwen3-ASR has no word timestamps — STT on full chunk,
+        // assign text to the longest (primary) sub-segment.
+        let text = transcribe_with_cached_qwen3_asr(
+            &state.qwen3_asr_ctx,
+            samples,
+            &model,
+            &language,
+        )
+        .unwrap_or_default();
+
+        if text.is_empty() {
+            return vec![];
+        }
+
+        let primary_idx = sub_segs
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, (s, e, _))| ((e - s) * 1000.0) as u64)
+            .map(|(i, _)| i)
+            .unwrap_or(0);
+
+        // Qwen3-ASR has no word timestamps, so we can't split the transcribed text
+        // across sub-segments.  Assign all text to the longest sub-segment and emit
+        // the others with empty text so their speaker labels are preserved in the WAL.
+        sub_segs
+            .into_iter()
+            .enumerate()
+            .map(|(i, (s, e, speaker))| {
+                let t = if i == primary_idx { text.clone() } else { String::new() };
+                WalSegment { speaker, start: s, end: e, text: t, words: vec![] }
+            })
+            .collect()
+    });
     crate::meeting_feeder::run_meeting_feeder(
         app,
         session_id,
         "qwen3-meeting",
         Some(120 * 16_000),
         transcribe,
-        record_audio,
     );
 }
 

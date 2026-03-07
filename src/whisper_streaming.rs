@@ -271,13 +271,15 @@ pub(crate) fn run_whisper_preview_loop(app: AppHandle, language: String, session
 
 /// Transcribe `samples` (16 kHz) from the already-loaded `WhisperContextCache`.
 /// Uses `initial_prompt` for previous-segment context biasing.
-/// Returns an empty string (never an error) if the context is not loaded.
+/// `audio_start_secs` is used to anchor DTW word timestamps to meeting time.
+/// Returns `(text, words)`. On error or missing context, returns `("", vec![])`.
 pub(crate) fn transcribe_meeting_chunk<'a>(
     ctx_guard: &std::sync::MutexGuard<'_, Option<crate::transcribe::WhisperContextCache>>,
     samples: &[f32],
     language: &'a str,
     initial_prompt: Option<&'a str>,
-) -> Result<String, String> {
+    audio_start_secs: f64,
+) -> Result<(String, Vec<crate::meeting_notes::WordTs>), String> {
     let c = ctx_guard.as_ref().ok_or("Whisper context not loaded")?;
     let mut wh_state = c
         .ctx
@@ -325,28 +327,132 @@ pub(crate) fn transcribe_meeting_chunk<'a>(
             }
         }
     }
-    Ok(text.trim().to_string())
+
+    let words = crate::transcribe::extract_dtw_words(&wh_state, audio_start_secs);
+    Ok((text.trim().to_string(), words))
 }
 
 /// Meeting-mode feeder for continuous long-form transcription with Whisper.
 ///
-/// Delegates to `meeting_feeder::run_meeting_feeder` with a Whisper transcription
-/// closure that uses `initial_prompt` context from the WAL file.
-pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, session_id: u64, record_audio: bool) {
+/// Two-phase diarization:
+///   Real-time: segmentation model splits each VAD chunk at speaker boundaries;
+///              WeSpeaker + online clustering assigns immediate labels.
+///   Finalization: agglomerative clustering re-labels all segments optimally.
+///
+/// Word timestamps from DTW allow precise text assignment to each sub-segment.
+pub(crate) fn run_whisper_meeting_feeder_loop(app: AppHandle, language: String, session_id: u64) {
+    use crate::meeting_notes::WalSegment;
+
     let app_for_closure = app.clone();
-    let transcribe: Box<dyn FnMut(&[f32], &str) -> String + Send + 'static> =
-        Box::new(move |samples, prev_text| {
-            let state = app_for_closure.state::<crate::AppState>();
-            let ctx_guard = state.whisper_ctx.lock().unwrap_or_else(|e| e.into_inner());
-            transcribe_meeting_chunk(
-                &ctx_guard,
-                samples,
-                &language,
-                if prev_text.is_empty() { None } else { Some(prev_text) },
-            )
-            .unwrap_or_default()
-        });
+    let transcribe: Box<
+        dyn FnMut(&[f32], f64, f64, &str) -> Vec<WalSegment> + Send + 'static,
+    > = Box::new(move |samples, start_secs, end_secs, prev_text| {
+        let state = app_for_closure.state::<crate::AppState>();
+
+        // Phase 1: diarization sub-segmentation (segmentation model + online cluster).
+        // Returns (start_abs, end_abs, speaker_label) per sub-segment within this chunk.
+        // guard_model_op rejects delete_diarization_model while meeting_active=true, so
+        // holding the lock for the full inference duration is safe: no contention with delete.
+        let sub_segs: Vec<(f64, f64, String)> = {
+            let mut ctx = state.diarization_ctx.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(ref mut engine) = *ctx {
+                let segs = engine.process_vad_chunk(samples, start_secs);
+                if segs.is_empty() {
+                    // Diarization engine found no speech — fall back to whole chunk.
+                    vec![(start_secs, end_secs, String::new())]
+                } else {
+                    segs
+                }
+            } else {
+                // No diarization engine — whole chunk as one segment.
+                vec![(start_secs, end_secs, String::new())]
+            }
+        };
+
+        // STT on full chunk (better quality than per-sub-segment due to context).
+        let ctx_guard = state.whisper_ctx.lock().unwrap_or_else(|e| e.into_inner());
+        let (text, words) = transcribe_meeting_chunk(
+            &ctx_guard,
+            samples,
+            &language,
+            if prev_text.is_empty() { None } else { Some(prev_text) },
+            start_secs,
+        )
+        .unwrap_or_default();
+        drop(ctx_guard);
+
+        if sub_segs.len() == 1 {
+            // Fast path: no sub-segmentation.
+            let (s, e, speaker) = sub_segs.into_iter().next().unwrap();
+            return if text.is_empty() {
+                vec![]
+            } else {
+                vec![WalSegment { speaker, start: s, end: e, text, words }]
+            };
+        }
+
+        // Assign words to sub-segments by their absolute timestamp.
+        // Words not covered by any sub-segment are assigned to the last sub-segment.
+        let mut result: Vec<WalSegment> = sub_segs
+            .iter()
+            .map(|(s, e, speaker)| WalSegment {
+                speaker: speaker.clone(),
+                start: *s,
+                end: *e,
+                text: String::new(),
+                words: Vec::new(),
+            })
+            .collect();
+
+        for word in &words {
+            // Find the sub-segment whose time range contains this word.
+            let idx = sub_segs
+                .iter()
+                .position(|(s, e, _)| word.s >= *s && word.s < *e)
+                .unwrap_or(result.len() - 1);
+            result[idx].words.push(word.clone());
+        }
+
+        // Build text from assigned words; fall back to full text for the
+        // longest sub-segment if words are missing (e.g. DTW disabled).
+        let any_words = result.iter().any(|s| !s.words.is_empty());
+        if any_words {
+            for seg in &mut result {
+                // Each word.w is a proportional character slice of the original
+                // Whisper segment text.  Direct concatenation reconstructs the
+                // original text (spaces are embedded in the slices).
+                seg.text = seg
+                    .words
+                    .iter()
+                    .map(|w| w.w.as_str())
+                    .collect::<String>()
+                    .trim()
+                    .to_string();
+            }
+        } else {
+            // No word timestamps — assign full text to the longest sub-segment.
+            let longest = result
+                .iter()
+                .enumerate()
+                .max_by_key(|(_, s)| ((s.end - s.start) * 1000.0) as u64)
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+            result[longest].text = text;
+        }
+
+        // Do NOT retain only non-empty segments: persist_and_emit writes all sub-segments
+        // to WAL (suppressing the frontend event for empty-text ones) so that
+        // update_wal_speakers can find them by (start, end) timestamp at meeting stop.
+        result
+    });
+
     // Cap each segment at 120 s so the Final segment never exceeds ~12 s of
     // Whisper inference time, keeping stop_meeting_mode well within the 5-min timeout.
-    crate::meeting_feeder::run_meeting_feeder(app, session_id, "whisper-meeting", Some(120 * 16_000), transcribe, record_audio);
+    crate::meeting_feeder::run_meeting_feeder(
+        app,
+        session_id,
+        "whisper-meeting",
+        Some(120 * 16_000),
+        transcribe,
+    );
 }

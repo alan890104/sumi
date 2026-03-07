@@ -71,6 +71,77 @@
     return marked.parse(md, { async: false }) as string;
   }
 
+  // Format seconds-from-start as "M:SS".
+  function formatSegTime(secs: number): string {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  // Speaker color palette — cycles for Speaker 1, 2, 3 …
+  const SPEAKER_COLORS = ['#4A90D9', '#E07B3A', '#45A86B', '#9B59B6', '#E74C3C', '#16A085'];
+
+  // Convert diarization label "SPEAKER_00" → "Speaker 1", etc.
+  function formatSpeaker(raw: string): string {
+    const m = raw.match(/^SPEAKER_(\d+)$/i);
+    if (m) return `Speaker ${parseInt(m[1], 10) + 1}`;
+    return raw;
+  }
+
+  // Parse JSONL WAL into structured segments for display.
+  // Returns null when the transcript is legacy plain text (no JSON lines).
+  function parseTranscriptSegs(
+    raw: string,
+  ): { speaker: string; start: number; text: string }[] | null {
+    if (!raw) return null;
+    const segs: { speaker: string; start: number; text: string }[] = [];
+    let hasJsonl = false;
+    for (const line of raw.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const s = JSON.parse(trimmed) as { speaker?: string; text?: string; start?: number };
+        if (s && typeof s === 'object' && s.text) {
+          hasJsonl = true;
+          segs.push({ speaker: s.speaker ?? '', start: s.start ?? 0, text: s.text });
+        }
+      } catch { /* plain-text line, skip */ }
+    }
+    return hasJsonl ? segs : null;
+  }
+
+  // Group consecutive segments from the same speaker into a single block.
+  function groupSegsBySpeaker(segs: { speaker: string; start: number; text: string }[]) {
+    const speakerOrder: string[] = [];
+    const groups: { speaker: string; speakerIdx: number; start: number; text: string }[] = [];
+    for (const seg of segs) {
+      if (seg.speaker && !speakerOrder.includes(seg.speaker)) speakerOrder.push(seg.speaker);
+      const speakerIdx = seg.speaker ? speakerOrder.indexOf(seg.speaker) : -1;
+      const last = groups[groups.length - 1];
+      if (last && last.speaker === seg.speaker) {
+        last.text += ' ' + seg.text;
+      } else {
+        groups.push({ speaker: seg.speaker, speakerIdx, start: seg.start, text: seg.text });
+      }
+    }
+    return groups;
+  }
+
+  // Plain-text version of the transcript for copy / sidebar preview.
+  function walToText(raw: string): string {
+    if (!raw) return '';
+    const segs = parseTranscriptSegs(raw);
+    if (!segs) return raw;
+    return segs
+      .filter((s) => s.text)
+      .map((s) => {
+        const ts = `[${formatSegTime(s.start)}]`;
+        const spk = s.speaker ? ` ${formatSpeaker(s.speaker)}:` : '';
+        return `${ts}${spk} ${s.text}`;
+      })
+      .join('\n');
+  }
+
   // Auto-set active tab when note changes
   $effect(() => {
     if (selectedNote) {
@@ -100,7 +171,7 @@
 
   function preview(text: string, maxLen = 80): string {
     if (!text) return '';
-    const oneLine = text.replace(/\n/g, ' ');
+    const oneLine = walToText(text).replace(/\n/g, ' ');
     return oneLine.length > maxLen ? oneLine.slice(0, maxLen) + '…' : oneLine;
   }
 
@@ -211,7 +282,7 @@
     if (activeTab === 'summary' && selectedNote.summary) {
       await copyText(stripMarkdown(selectedNote.summary));
     } else {
-      await copyText(selectedNote.transcript);
+      await copyText(walToText(selectedNote.transcript));
     }
   }
 
@@ -372,13 +443,22 @@
       notes = [p.note, ...notes];
       selectedId = p.id;
       userScrolledUp = false;
+      // Link the new note to the active import so the processing indicator
+      // appears immediately (before the first import-progress event with id).
+      if (importing) importingNoteId = p.id;
     });
 
     const u2 = await onMeetingNoteUpdated((p) => {
       const n = notes.find((x) => x.id === p.id);
       if (n) {
-        // Accumulate delta — the backend sends only finalized segment text.
-        n.transcript += p.delta;
+        if (p.start !== undefined) {
+          // Import path: build JSONL segment so walToText renders timestamps + speaker labels.
+          const seg = JSON.stringify({ speaker: p.speaker ?? '', text: p.delta, start: p.start, end: p.end ?? p.start, words: [] });
+          n.transcript = n.transcript ? n.transcript + '\n' + seg : seg;
+        } else {
+          // Live meeting feeder: plain-text delta accumulation (no timestamps yet).
+          n.transcript += p.delta;
+        }
         n.duration_secs = p.duration_secs;
         notes = [...notes];
       }
@@ -467,7 +547,11 @@
         disabled={importing}
         title={t('meeting.import')}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        {#if importing && !importingNoteId}
+          <span class="spinner-small" style="width:16px;height:16px;border-width:2px;"></span>
+        {:else}
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        {/if}
       </button>
     </div>
 
@@ -607,7 +691,36 @@
             <p class="no-content">{t('meeting.noSummaryYet')}</p>
           {/if}
         {:else if selectedNote.transcript}
-          <pre class="transcript-text">{selectedNote.transcript}</pre>
+          {@const segs = parseTranscriptSegs(selectedNote.transcript)}
+          {#if segs}
+            {@const groups = groupSegsBySpeaker(segs)}
+            {@const hasSpeakers = segs.some((s) => s.speaker !== '')}
+            <div class="transcript-body">
+              {#each groups as group}
+                <div
+                  class="speaker-block"
+                  style={hasSpeakers
+                    ? `--spk-color: ${SPEAKER_COLORS[group.speakerIdx % SPEAKER_COLORS.length]}`
+                    : ''}
+                >
+                  <div class="speaker-header">
+                    {#if group.speaker}
+                      <span class="speaker-label">{formatSpeaker(group.speaker)}</span>
+                    {/if}
+                    <span class="speaker-ts">{formatSegTime(group.start)}</span>
+                  </div>
+                  <p class="speaker-text">{group.text}</p>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <pre class="transcript-text">{selectedNote.transcript}</pre>
+          {/if}
+        {:else if importing && importingNoteId === selectedNote.id}
+          <div class="processing-state">
+            <span class="spinner-small"></span>
+            <p class="no-content">{t('meeting.processingAudio')}</p>
+          </div>
         {:else if selectedNote.is_recording}
           <p class="no-content">{t('meeting.noSpeechDetected')}</p>
         {:else}
@@ -950,6 +1063,51 @@
     min-height: 0;
   }
 
+  /* ── Speaker-differentiated transcript blocks ── */
+  .transcript-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .speaker-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-left: 12px;
+    border-left: 2.5px solid var(--spk-color, var(--border-divider));
+  }
+
+  .speaker-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .speaker-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--spk-color, var(--text-tertiary));
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+  }
+
+  .speaker-ts {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+  }
+
+  .speaker-text {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text-primary);
+    margin: 0;
+    word-break: break-word;
+  }
+
+  /* Legacy plain-text fallback */
   .transcript-text {
     font-size: 14px;
     line-height: 1.7;
@@ -965,6 +1123,14 @@
     color: var(--text-tertiary);
     font-style: italic;
     margin: 0;
+  }
+
+  .processing-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding-top: 40px;
   }
 
   .content-footer {
