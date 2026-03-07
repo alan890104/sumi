@@ -590,12 +590,15 @@ pub(crate) fn run_cloud_meeting_feeder_loop(
             .map(|(i, _)| i)
             .unwrap_or(0);
 
+        // Cloud STT has no word timestamps. Assign text to the primary (longest)
+        // sub-segment; emit the others with empty text so that update_wal_speakers
+        // can relabel them during agglomerative finalization (same as Qwen3-ASR path).
         sub_segs
             .into_iter()
             .enumerate()
-            .filter_map(|(i, (s, e, speaker))| {
+            .map(|(i, (s, e, speaker))| {
                 let t = if i == primary_idx { text.clone() } else { String::new() };
-                if t.is_empty() { None } else { Some(WalSegment { speaker, start: s, end: e, text: t, words: vec![] }) }
+                WalSegment { speaker, start: s, end: e, text: t, words: vec![] }
             })
             .collect()
     });

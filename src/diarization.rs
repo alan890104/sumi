@@ -103,17 +103,15 @@ impl SegmentationModel {
         let mut padded = scaled;
         padded.extend(std::iter::repeat(0.0f32).take(pad));
 
-        let mut offset: usize = SEG_FRAME_START;
         // None = silence, Some(cls) = speech with class cls.
         let mut cur_class: Option<usize> = None;
         let mut seg_start_sample: usize = 0;
         let mut segments: Vec<(usize, usize)> = Vec::new();
 
         for win_start in (0..padded.len()).step_by(SEG_WINDOW_SAMPLES) {
-            // Reset offset at each window so per-window frame indices stay
-            // anchored to their window start; avoids accumulated drift from
-            // SEG_FRAME_HOP being an approximation of the model's true stride.
-            offset = win_start + SEG_FRAME_START;
+            // offset is per-window: anchored to win_start so per-window frame
+            // indices don't drift across windows (SEG_FRAME_HOP is approximate).
+            let mut offset: usize = win_start + SEG_FRAME_START;
             let window = &padded[win_start..win_start + SEG_WINDOW_SAMPLES];
 
             let array = match Array1::from_vec(window.to_vec())
@@ -624,7 +622,7 @@ pub fn f32_to_i16(samples: &[f32]) -> Vec<i16> {
 }
 
 fn cosine_dist(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len(), "cosine_dist: embedding dimension mismatch ({} vs {})", a.len(), b.len());
+    assert_eq!(a.len(), b.len(), "cosine_dist: embedding dimension mismatch ({} vs {})", a.len(), b.len());
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let na: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
     let nb: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();

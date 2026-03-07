@@ -6,6 +6,10 @@ use whisper_rs::{DtwMode, DtwModelPreset, DtwParameters, WhisperContext, Whisper
 use crate::settings::models_dir;
 use crate::whisper_models::WhisperModel;
 
+/// Cross-attention cache for Whisper DTW word-timestamp alignment.
+/// 128 MiB is sufficient for LargeV3Turbo; allocated once per context.
+const DTW_MEM_SIZE: usize = 128 * 1024 * 1024;
+
 /// Cached whisper context that tracks which model file is loaded.
 /// When the requested model path differs from the loaded one, the context
 /// is automatically reloaded.
@@ -212,7 +216,7 @@ pub fn warm_whisper_cache(
     ctx_params.use_gpu(true);
     ctx_params.dtw_parameters(DtwParameters {
         mode: dtw_mode_for(model),
-        dtw_mem_size: 1024 * 1024 * 128,
+        dtw_mem_size: DTW_MEM_SIZE,
     });
     let ctx = WhisperContext::new_with_params(
         model_path.to_str().ok_or("Invalid model path")?,
@@ -267,7 +271,7 @@ pub fn transcribe_with_cached_whisper(
         ctx_params.use_gpu(true);
         ctx_params.dtw_parameters(DtwParameters {
             mode: dtw_mode_for(model),
-            dtw_mem_size: 1024 * 1024 * 128,
+            dtw_mem_size: DTW_MEM_SIZE,
         });
         let ctx = WhisperContext::new_with_params(
             model_path.to_str().ok_or("Invalid model path")?,

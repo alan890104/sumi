@@ -3,7 +3,6 @@ mod audio_devices;
 mod audio_import;
 mod commands;
 pub mod diarization;
-mod segment_spacing;
 mod context_detect;
 mod credentials;
 mod history;
