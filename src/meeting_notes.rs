@@ -284,6 +284,16 @@ pub fn read_wal(history_dir: &Path, id: &str) -> String {
     std::fs::read_to_string(&path).unwrap_or_default()
 }
 
+/// Overwrite the WAL file with new content.
+/// Used after agglomerative speaker relabeling in the import pipeline to
+/// replace online speaker labels with globally-optimal ones before finalizing.
+pub fn write_wal(history_dir: &Path, id: &str, content: &str) {
+    let path = wal_path(history_dir, id);
+    if let Err(e) = std::fs::write(&path, content) {
+        tracing::warn!("Failed to overwrite meeting WAL: {}", e);
+    }
+}
+
 /// Remove the transcript file after a successful finalize.
 pub fn remove_wal(history_dir: &Path, id: &str) {
     let path = wal_path(history_dir, id);
