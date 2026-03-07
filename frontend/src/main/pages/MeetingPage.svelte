@@ -66,30 +66,44 @@
     return marked.parse(md, { async: false }) as string;
   }
 
-  // Mirror of Rust's `transcript_from_wal`: converts JSONL WAL to human-readable text.
-  // Groups consecutive same-speaker segments. Falls back gracefully for legacy plain text.
+  // Format seconds-from-start as "M:SS".
+  function formatSegTime(secs: number): string {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  // Convert diarization label "SPEAKER_00" → "Speaker 1", etc.
+  function formatSpeaker(raw: string): string {
+    const m = raw.match(/^SPEAKER_(\d+)$/i);
+    if (m) return `Speaker ${parseInt(m[1], 10) + 1}`;
+    return raw;
+  }
+
+  // Converts JSONL WAL to human-readable timestamped transcript.
+  // Each segment becomes "[M:SS] (Speaker N:) text".
+  // Falls back gracefully for legacy plain-text transcripts.
   function walToText(raw: string): string {
     if (!raw) return '';
     let out = '';
-    let prevSpeaker = '';
+    let isJsonl = false;
     for (const line of raw.split('\n')) {
       const trimmed = line.trim();
       if (!trimmed) continue;
       try {
-        const seg = JSON.parse(trimmed) as { speaker: string; text: string };
+        const seg = JSON.parse(trimmed) as { speaker: string; text: string; start: number };
+        isJsonl = true;
         if (!seg.text) continue;
-        if (seg.speaker !== prevSpeaker) {
-          if (out) out += '\n';
-          if (seg.speaker) out += seg.speaker + ': ';
-          prevSpeaker = seg.speaker;
-        }
-        out += seg.text + '\n';
+        if (out) out += '\n';
+        const ts = `[${formatSegTime(seg.start ?? 0)}]`;
+        const spk = seg.speaker ? ` ${formatSpeaker(seg.speaker)}:` : '';
+        out += `${ts}${spk} ${seg.text}`;
       } catch {
-        // Legacy plain-text line
+        // Legacy plain-text line — pass through as-is
         out += trimmed + '\n';
       }
     }
-    return out || raw;
+    return isJsonl ? out : raw;
   }
 
   // Auto-set active tab when note changes
