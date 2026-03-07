@@ -114,11 +114,11 @@ pub fn logs_dir() -> PathBuf {
 }
 
 pub fn diarization_model_path() -> PathBuf {
-    models_dir().join("campplus_zh_cn_common_200k.onnx")
+    models_dir().join("speaker-embedding.onnx")
 }
 
 pub fn segmentation_model_path() -> PathBuf {
-    models_dir().join("segmentation-3.0.onnx")
+    models_dir().join("speech-turn-detector.onnx")
 }
 
 pub fn settings_path() -> PathBuf {

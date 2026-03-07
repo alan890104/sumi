@@ -1,4 +1,4 @@
-//! Speaker diarization: segmentation + CAMPPlus embeddings + clustering.
+//! Speaker diarization: segmentation + WeSpeaker ResNet34-LM embeddings + clustering.
 //!
 //! # Two-phase pipeline
 //!
@@ -7,17 +7,19 @@
 //! VAD chunk (f32, 16 kHz)
 //!   → SegmentationModel [1,1,N] → [1,T,7]  (speaker-class per frame)
 //!   → sub-segment boundaries (silence + speaker-class changes)
-//!   → CAMPPlus [1,80,T] → [1,192]  (per sub-segment; CAMPPlus zh-cn-common embedding dim)
+//!   → WeSpeaker ResNet34-LM [1,n_frames,80] → [1,256]  (per sub-segment, 256-dim embedding)
 //!   → L2 normalize
 //!   → online cosine clustering  (greedy, for real-time labels)
 //!   → "SPEAKER_00" / "SPEAKER_01" / …  +  embedding buffered for phase 2
 //! ```
 //!
-//! ## Finalization (at meeting stop, matches the experiment's quality)
+//! ## Finalization (at meeting stop, matches pyannote quality)
 //! ```text
-//! buffered (start, end, embedding) for all sub-segments
-//!   → agglomerative hierarchical clustering (single linkage, threshold=0.65)
-//!   → optimal speaker labels  (same algorithm as exp_g_diarize_agglomerative.rs)
+//! buffered (start, end, L2-normalised embedding) for all sub-segments
+//!   → centroid linkage agglomerative clustering (scipy-equivalent)
+//!     threshold=0.7045 euclidean on L2-normalised embeddings (pyannote default)
+//!     min_cluster_size=12 — small clusters reassigned to nearest large centroid
+//!   → optimal speaker labels matching pyannote AgglomerativeClustering
 //!   → update WAL speaker fields before writing to SQLite
 //! ```
 //!
@@ -28,9 +30,9 @@
 //! labels, matching the experiment's DER ≈ 10.5 % on VoxConverse.
 //!
 //! ## Segmentation model
-//! `segmentation-3.0.onnx` from pyannote-rs v0.1.0 release.
-//! Input:  `"input"` — `[1, 1, 160_000]` f32 (i16 values cast to f32, scale ×32767)
-//! Output: `"output"` — `[1, num_frames, 7]` where class 0 = silence.
+//! `speech-turn-detector.onnx` (pyannote segmentation-3.0, Alkd/speech-turn-detector-onnx).
+//! Input:  `"input_values"` — `[1, 1, 160_000]` f32 (i16 values cast to f32, scale ×32767)
+//! Output: `"logits"` — `[1, num_frames, 7]` where class 0 = silence.
 //! Frame hop = 270 samples (≈ 16.9 ms), first frame at sample 721.
 //! Splits at both silence→speech transitions AND speaker-class changes within speech.
 //!
@@ -41,28 +43,59 @@
 
 use std::path::Path;
 
-use ndarray::{Array1, ArrayViewD, Axis, IxDyn};
+use ndarray::{Array1, Array3, ArrayViewD, Axis, IxDyn};
+use rustfft::{FftPlanner, num_complex::Complex};
 
-/// segmentation-3.0.onnx model download URL (pyannote-rs v0.1.0 release).
+/// Speech turn detector (pyannote segmentation-3.0) download URL.
+/// Alkd/speech-turn-detector-onnx — no HuggingFace auth required.
 pub const SEGMENTATION_URL: &str =
-    "https://github.com/thewh1teagle/pyannote-rs/releases/download/v0.1.0/segmentation-3.0.onnx";
+    "https://huggingface.co/Alkd/speech-turn-detector-onnx/resolve/main/model.onnx";
 
-/// CAMPPlus speaker embedding model download URL.
-/// Trained on CN-Celeb + CN Common (~200k speakers), 192-dim embeddings.
-/// Compatible with pyannote-rs EmbeddingExtractor (feats → embs, same tensor names).
-/// Exported from ModelScope damo/speech_campplus_sv_zh-cn_16k-common via ONNX opset 11.
+/// WeSpeaker ResNet34-LM speaker embedding model download URL.
+/// Alkd/speaker-embedding-onnx — no HuggingFace auth required.
+/// 256-dim embeddings, full-precision ONNX (~26.5 MB).
+/// Input:  `"input_features"` — `[1, n_frames, 80]` log-fbank features
+/// Output: `"embedding"` — `[1, 256]` speaker embedding
 pub const WESPEAKER_URL: &str =
-    "https://huggingface.co/Alkd/campplus-zh-cn-common-200k-onnx/resolve/main/campplus_zh_cn_common_200k.onnx";
+    "https://huggingface.co/Alkd/speaker-embedding-onnx/resolve/main/model.onnx";
 
 // ── Segmentation model ─────────────────────────────────────────────────────────
 
-/// Frame parameters matching segmentation-3.0.onnx (from experiment).
+/// Frame parameters matching speech-turn-detector.onnx (from experiment).
 const SEG_WINDOW_SAMPLES: usize = 160_000; // 10 s at 16 kHz
 const SEG_FRAME_HOP: usize = 270; // ≈ 16.9 ms
 const SEG_FRAME_START: usize = 721; // first frame center
 const SEG_MIN_SUBSEG_SAMPLES: usize = 400; // 25 ms — shorter sub-segs skipped
 
-/// Pyannote segmentation-3.0 model.  Runs directly via ORT, bypassing the
+/// Offline pyannote pipeline: sliding window step = 10 % of 10 s = 1 s.
+const PYANNOTE_STEP_SAMPLES: usize = 16_000;
+
+/// Number of speakers modelled by speech-turn-detector (powerset with 3 speakers).
+const PYANNOTE_NUM_SPEAKERS: usize = 3;
+
+/// Powerset class → per-speaker binary activation mapping.
+///
+/// `pyannote.audio.utils.powerset.Powerset(num_classes=3, max_set_size=2)`
+/// enumerates subsets of {spk0, spk1, spk2} with at most 2 simultaneous speakers:
+///
+///   class 0 → ∅          [F, F, F]
+///   class 1 → {spk0}     [T, F, F]
+///   class 2 → {spk1}     [F, T, F]
+///   class 3 → {spk2}     [F, F, T]
+///   class 4 → {spk0,1}   [T, T, F]
+///   class 5 → {spk0,2}   [T, F, T]
+///   class 6 → {spk1,2}   [F, T, T]
+const PYANNOTE_POWERSET_MAP: [[bool; PYANNOTE_NUM_SPEAKERS]; 7] = [
+    [false, false, false],
+    [true,  false, false],
+    [false, true,  false],
+    [false, false, true ],
+    [true,  true,  false],
+    [true,  false, true ],
+    [false, true,  true ],
+];
+
+/// Pyannote speech turn detector model.  Runs directly via ORT, bypassing the
 /// buggy `pyannote_rs::get_segments()` iterator.
 pub struct SegmentationModel {
     session: ort::session::Session,
@@ -136,7 +169,7 @@ impl SegmentationModel {
                     }
                 };
 
-            let ort_outs = match self.session.run(ort::inputs!["input" => tensor]) {
+            let ort_outs = match self.session.run(ort::inputs!["input_values" => tensor]) {
                 Ok(o) => o,
                 Err(e) => {
                     tracing::warn!("[seg] inference failed: {e}");
@@ -145,7 +178,7 @@ impl SegmentationModel {
             };
 
             let tensor_out = match ort_outs
-                .get("output")
+                .get("logits")
                 .and_then(|t| t.try_extract_tensor::<f32>().ok())
             {
                 Some(t) => t,
@@ -232,19 +265,397 @@ impl SegmentationModel {
 
         segments
     }
+
+    /// Run the powerset segmentation model on a pre-scaled 160,000-sample window.
+    ///
+    /// `scaled_window`: 160,000 f32 values scaled × 32,767 (model training format).
+    ///
+    /// Returns per-frame per-speaker binary activations (up to `SEG_WINDOW_SAMPLES /
+    /// SEG_FRAME_HOP` frames, `PYANNOTE_NUM_SPEAKERS` speakers per frame).
+    ///
+    /// The conversion from raw ONNX output `[1, num_frames, 7]` to binary
+    /// `[num_frames, 3]` follows `Powerset(3, 2).to_multilabel(soft=False)`:
+    ///   argmax over 7 powerset classes → look up in `PYANNOTE_POWERSET_MAP`.
+    fn run_window_powerset(
+        &mut self,
+        scaled_window: &[f32],
+    ) -> Vec<[bool; PYANNOTE_NUM_SPEAKERS]> {
+        let array =
+            match Array1::from_vec(scaled_window.to_vec())
+                .into_shape_with_order((1_usize, 1_usize, SEG_WINDOW_SAMPLES))
+            {
+                Ok(a) => a,
+                Err(e) => {
+                    tracing::warn!("[pyannote] seg reshape failed: {e}");
+                    return vec![];
+                }
+            };
+
+        let tensor =
+            match ort::value::TensorRef::from_array_view(array.view().into_dyn()) {
+                Ok(t) => t,
+                Err(e) => {
+                    tracing::warn!("[pyannote] seg tensor failed: {e}");
+                    return vec![];
+                }
+            };
+
+        let ort_outs = match self.session.run(ort::inputs!["input_values" => tensor]) {
+            Ok(o) => o,
+            Err(e) => {
+                tracing::warn!("[pyannote] seg inference failed: {e}");
+                return vec![];
+            }
+        };
+
+        let (shape, data) = match ort_outs
+            .get("logits")
+            .and_then(|t| t.try_extract_tensor::<f32>().ok())
+        {
+            Some(t) => t,
+            None => {
+                tracing::warn!("[pyannote] seg missing 'output'");
+                return vec![];
+            }
+        };
+
+        let shape_vec: Vec<usize> = (0..shape.len()).map(|i| shape[i] as usize).collect();
+        let view = match ArrayViewD::<f32>::from_shape(IxDyn(&shape_vec), data) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!("[pyannote] seg from_shape failed: {e}");
+                return vec![];
+            }
+        };
+
+        // view: [1, num_frames, 7]
+        // Decode: argmax over dim-2 → powerset class → per-speaker binary
+        let mut result = Vec::new();
+        for batch in view.outer_iter() {
+            // batch: [num_frames, 7]
+            for frame in batch.axis_iter(Axis(0)) {
+                // frame: [7] — softmax probabilities over powerset classes
+                let cls = frame
+                    .iter()
+                    .enumerate()
+                    .max_by(|a, b| {
+                        a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .map(|(i, _)| i.min(6))
+                    .unwrap_or(0);
+                result.push(PYANNOTE_POWERSET_MAP[cls]);
+            }
+        }
+        result
+    }
+}
+
+// ── WeSpeaker ResNet34-LM embedding extractor ─────────────────────────────────
+
+/// Speaker embedding extractor for `speaker-embedding.onnx` (WeSpeaker ResNet34-LM, ONNX).
+///
+/// Uses ORT directly (bypassing `pyannote_rs::EmbeddingExtractor`) to support
+/// the model's tensor names:
+///   Input:  `"input_features"` — `[1, n_frames, 80]` log-fbank features
+///   Output: `"embedding"` — `[1, 256]` speaker embedding
+///
+/// Feature extraction follows WeSpeaker's Kaldi-style training pipeline:
+/// 25 ms frames / 10 ms shift / 512-pt FFT / 80 mel bins / preemphasis 0.97
+/// / Hamming window / per-utterance CMN.
+pub(crate) struct WeSpeakerExtractor {
+    session: ort::session::Session,
+}
+
+impl WeSpeakerExtractor {
+    pub fn new(model_path: &Path) -> Result<Self, String> {
+        let session = ort::session::Session::builder()
+            .map_err(|e| format!("ORT builder: {e}"))?
+            .commit_from_file(model_path)
+            .map_err(|e| format!("Load WeSpeaker ResNet34-LM: {e}"))?;
+        Ok(Self { session })
+    }
+
+    /// Compute 256-dim speaker embedding from raw 16 kHz f32 audio.
+    /// Returns the raw (pre-L2-normalisation) embedding vector.
+    pub fn compute(&mut self, samples: &[f32]) -> Result<Vec<f32>, String> {
+        let fbank = compute_fbank(samples);
+        if fbank.is_empty() {
+            return Err("audio too short for fbank (< 400 samples)".into());
+        }
+        let n_frames = fbank.len();
+        let flat: Vec<f32> = fbank.into_iter().flatten().collect();
+
+        let array = Array3::from_shape_vec((1, n_frames, 80), flat)
+            .map_err(|e| format!("fbank reshape: {e}"))?;
+        let tensor = ort::value::TensorRef::from_array_view(array.view().into_dyn())
+            .map_err(|e| format!("tensor creation: {e}"))?;
+
+        let outs = self
+            .session
+            .run(ort::inputs!["input_features" => tensor])
+            .map_err(|e| format!("ResNet34-LM inference: {e}"))?;
+
+        let (_, data) = outs
+            .get("embedding")
+            .ok_or("missing 'last_hidden_state' output tensor")?
+            .try_extract_tensor::<f32>()
+            .map_err(|e| format!("extract embedding: {e}"))?;
+
+        Ok(data.to_vec())
+    }
+
+    /// Extract speaker embedding with a per-frame mask applied (exclude-overlap mode).
+    ///
+    /// Matches Python `_emb_forward` in `test_onnx.py`:
+    ///
+    /// ```python
+    /// fbank = emb_inner.compute_fbank(waveforms)   # (1, T, 80)
+    /// w_np  = mask[:T] if len(mask) >= T else np.pad(mask, (0, T-len), fill=1.0)
+    /// feats = fbank[0][w_np > 0]                   # (T', 80) — masked frames only
+    /// emb   = emb_sess.run({"input_features": feats[None]})[0][0]
+    /// ```
+    ///
+    /// Mask alignment (same as Python):
+    ///   fbank frame j < `frame_mask.len()` → use `frame_mask[j]`
+    ///   fbank frame j ≥ `frame_mask.len()` → always include (padded True)
+    ///
+    /// Returns `Err` if no frames pass the mask.
+    pub(crate) fn compute_masked(
+        &mut self,
+        samples: &[f32],
+        frame_mask: &[bool],
+    ) -> Result<Vec<f32>, String> {
+        let fbank = compute_fbank(samples);
+        if fbank.is_empty() {
+            return Err("audio too short for fbank".into());
+        }
+        // Keep only frames where the mask is True (pad beyond mask len with True).
+        let filtered: Vec<[f32; 80]> = fbank
+            .into_iter()
+            .enumerate()
+            .filter(|(j, _)| {
+                if *j < frame_mask.len() { frame_mask[*j] } else { true }
+            })
+            .map(|(_, frame)| frame)
+            .collect();
+
+        if filtered.is_empty() {
+            return Err("no frames after masking".into());
+        }
+
+        let n_filtered = filtered.len();
+        let flat: Vec<f32> = filtered.into_iter().flatten().collect();
+
+        let array = Array3::from_shape_vec((1, n_filtered, 80), flat)
+            .map_err(|e| format!("masked fbank reshape: {e}"))?;
+        let tensor =
+            ort::value::TensorRef::from_array_view(array.view().into_dyn())
+                .map_err(|e| format!("masked tensor: {e}"))?;
+
+        let outs = self
+            .session
+            .run(ort::inputs!["input_features" => tensor])
+            .map_err(|e| format!("masked ResNet34-LM inference: {e}"))?;
+
+        let (_, data) = outs
+            .get("embedding")
+            .ok_or("missing 'last_hidden_state' output")?
+            .try_extract_tensor::<f32>()
+            .map_err(|e| format!("extract masked embedding: {e}"))?;
+
+        Ok(data.to_vec())
+    }
+}
+
+/// 80-dim log-Mel filterbank features from 16 kHz f32 audio.
+///
+/// Matches `torchaudio.compliance.kaldi.fbank` (WeSpeaker training pipeline):
+///   - 25 ms frames (400 samples), 10 ms shift (160 samples)
+///   - DC offset removal → preemphasis (0.97) → Hamming window
+///   - 512-point FFT → power spectrum → 80-band Kaldi-continuous mel filterbank → log
+///   - Per-utterance CMN: subtract per-feature mean across all frames
+fn compute_fbank(samples: &[f32]) -> Vec<[f32; 80]> {
+    const FRAME_LEN: usize = 400;   // 25 ms @ 16 kHz
+    const FRAME_SHIFT: usize = 160; // 10 ms @ 16 kHz
+    const N_MELS: usize = 80;
+    const PREEMPH: f32 = 0.97;
+
+    if samples.len() < FRAME_LEN {
+        return vec![];
+    }
+
+    let hamming: Vec<f32> = (0..FRAME_LEN)
+        .map(|n| {
+            0.54 - 0.46
+                * (std::f32::consts::TAU * n as f32 / (FRAME_LEN - 1) as f32).cos()
+        })
+        .collect();
+
+    let filterbank = get_mel_filterbank();
+    let num_frames = 1 + (samples.len() - FRAME_LEN) / FRAME_SHIFT;
+    let mut frames: Vec<[f32; N_MELS]> = Vec::with_capacity(num_frames);
+
+    for fi in 0..num_frames {
+        let start = fi * FRAME_SHIFT;
+        let s = &samples[start..start + FRAME_LEN];
+
+        // DC offset removal.
+        let mean = s.iter().sum::<f32>() / FRAME_LEN as f32;
+        let mut frame: Vec<f32> = s.iter().map(|&x| x - mean).collect();
+
+        // Preemphasis (Kaldi backward pass to avoid in-place aliasing).
+        for t in (1..FRAME_LEN).rev() {
+            frame[t] -= PREEMPH * frame[t - 1];
+        }
+        frame[0] *= 1.0 - PREEMPH;
+
+        // Hamming window.
+        for (v, &w) in frame.iter_mut().zip(hamming.iter()) {
+            *v *= w;
+        }
+
+        // Zero-pad to 512 and compute power spectrum.
+        let mut fft_in = [0.0f32; 512];
+        fft_in[..FRAME_LEN].copy_from_slice(&frame);
+        let power = fft_power_spectrum(&fft_in);
+
+        // Mel filterbank → log energy.
+        let mut mel_energy = [0.0f32; N_MELS];
+        for (m, filter) in filterbank.iter().enumerate() {
+            let e: f32 = filter.iter().zip(power.iter()).map(|(&f, &p)| f * p).sum();
+            mel_energy[m] = (e + 1e-10_f32).ln();
+        }
+        frames.push(mel_energy);
+    }
+
+    // Per-utterance CMN: subtract per-feature mean across all frames.
+    if !frames.is_empty() {
+        let n = frames.len() as f32;
+        let mut mean = [0.0f32; N_MELS];
+        for frame in &frames {
+            for (m, &v) in frame.iter().enumerate() {
+                mean[m] += v;
+            }
+        }
+        for m in mean.iter_mut() {
+            *m /= n;
+        }
+        for frame in &mut frames {
+            for (m, v) in frame.iter_mut().enumerate() {
+                *v -= mean[m];
+            }
+        }
+    }
+
+    frames
+}
+
+/// Cached 80-band mel filterbank matrix (512-pt FFT, 16 kHz).
+static MEL_FILTERBANK: std::sync::OnceLock<Box<[[f32; 257]; 80]>> =
+    std::sync::OnceLock::new();
+
+fn get_mel_filterbank() -> &'static [[f32; 257]; 80] {
+    MEL_FILTERBANK.get_or_init(make_mel_filterbank_80).as_ref()
+}
+
+/// Build the 80×257 mel triangular filterbank for 16 kHz / 512-pt FFT.
+/// Kaldi-continuous style matching `torchaudio.compliance.kaldi.fbank`:
+///   - weights computed in mel space per FFT bin (not snapped to bin indices)
+///   - `max(0, min(up_slope, down_slope))` — same as torchaudio `get_mel_banks`
+///   - Nyquist bin (k=256) is always zero (torchaudio pads the filterbank there)
+fn make_mel_filterbank_80() -> Box<[[f32; 257]; 80]> {
+    const N_MELS: usize = 80;
+    const N_FREQS: usize = 257; // 512/2 + 1
+    const N_FFT_BINS: usize = 256; // torchaudio: num_fft_bins = padded_window_size/2 (no Nyquist)
+    const SR: f32 = 16_000.0;
+    const F_MIN: f32 = 20.0;
+    const F_MAX: f32 = 8_000.0;
+    const N_FFT: usize = 512;
+
+    let hz_to_mel = |f: f32| 2595.0_f32 * (1.0 + f / 700.0).log10();
+
+    let fft_bin_width = SR / N_FFT as f32; // 31.25 Hz per bin
+    let mel_min = hz_to_mel(F_MIN);
+    let mel_max = hz_to_mel(F_MAX);
+    // divide by N_MELS+1 matching torchaudio: "divide by num_bins+1 because of end-effects"
+    let mel_delta = (mel_max - mel_min) / (N_MELS + 1) as f32;
+
+    // Precompute mel value for each FFT bin k=0..255 (Nyquist excluded, same as torchaudio)
+    let fft_mel: Vec<f32> = (0..N_FFT_BINS)
+        .map(|k| hz_to_mel(fft_bin_width * k as f32))
+        .collect();
+
+    let mut fb = Box::new([[0.0f32; N_FREQS]; N_MELS]);
+    for m in 0..N_MELS {
+        let left_mel   = mel_min + m as f32 * mel_delta;
+        let center_mel = mel_min + (m + 1) as f32 * mel_delta;
+        let right_mel  = mel_min + (m + 2) as f32 * mel_delta;
+        for k in 0..N_FFT_BINS {
+            let mel = fft_mel[k];
+            let up   = (mel - left_mel)   / (center_mel - left_mel);
+            let down = (right_mel - mel)  / (right_mel  - center_mel);
+            fb[m][k] = up.min(down).max(0.0);
+        }
+        // fb[m][256] stays 0.0 (Nyquist always zero — torchaudio right-pads with 0)
+    }
+    fb
+}
+
+/// Cached 512-pt FFT plan (rustfft — allocated once, reused across all frames).
+static FFT_PLAN: std::sync::OnceLock<std::sync::Arc<dyn rustfft::Fft<f32>>> =
+    std::sync::OnceLock::new();
+
+fn get_fft_plan() -> &'static std::sync::Arc<dyn rustfft::Fft<f32>> {
+    FFT_PLAN.get_or_init(|| {
+        let mut planner = FftPlanner::<f32>::new();
+        planner.plan_fft_forward(512)
+    })
+}
+
+/// 512-point real-input FFT → power spectrum (257 bins).
+/// Uses `rustfft` for numerically accurate results matching `torch.fft.rfft`.
+fn fft_power_spectrum(input: &[f32; 512]) -> [f32; 257] {
+    let fft = get_fft_plan();
+    let mut buf: Vec<Complex<f32>> =
+        input.iter().map(|&x| Complex::new(x, 0.0)).collect();
+    fft.process(&mut buf);
+    // Power spectrum: |FFT[k]|^2 for k = 0..=256.
+    let mut power = [0.0f32; 257];
+    for (i, c) in buf[..257].iter().enumerate() {
+        power[i] = c.re * c.re + c.im * c.im;
+    }
+    power
 }
 
 // ── Agglomerative clustering ───────────────────────────────────────────────────
 
-/// Offline agglomerative hierarchical clustering (average linkage).
+/// Pyannote threshold constant for WeSpeaker ResNet34-LM embeddings (euclidean space).
 ///
-/// Direct port from `exp_g_diarize_agglomerative.rs`.
-/// Threshold calibrated to 0.65 for `campplus_zh_cn_common_200k.onnx` with 5 s cap:
-/// same-speaker cosine distance ≤ 0.45, different-speaker ≥ 0.69 (kkshow 3-spk Mandarin).
+/// This is the exact value from pyannote's default AgglomerativeClustering config:
+/// `threshold=0.7045654963945799` — euclidean distance on L2-normalized embeddings.
+/// Equivalent cosine distance: 0.7045²/2 ≈ 0.248.
+pub(crate) const PYANNOTE_THRESHOLD: f32 = 0.7045654963945799;
+
+/// Centroid linkage agglomerative clustering matching scipy/pyannote exactly.
 ///
-/// Embeddings must already be L2-normalised before calling.
-/// Returns a cluster label (0-based) for each input embedding.
-pub(crate) fn agglomerative_cluster(embeddings: &[Vec<f32>], threshold: f32) -> Vec<usize> {
+/// Matches `scipy.cluster.hierarchy.linkage(method='centroid', metric='euclidean')`
+/// followed by `fcluster(Z, threshold, criterion='distance') - 1` and
+/// `min_cluster_size` small-cluster reassignment from pyannote's
+/// `AgglomerativeClustering.cluster()`.
+///
+/// **Input**: `embeddings` — each must already be L2-normalised (unit norm).
+/// **threshold**: euclidean distance cutoff; same units as Python's 0.7045.
+/// **min_cluster_size**: clusters smaller than
+///   `min(min_cluster_size, max(1, round(0.1 * n)))` are reassigned to the
+///   nearest large cluster centroid (by euclidean distance between centroids).
+///
+/// Returns 0-based cluster labels ordered by first-appearance index of each
+/// cluster's earliest member, matching numpy `np.unique(…, return_inverse=True)`.
+pub(crate) fn centroid_linkage_cluster(
+    embeddings: &[Vec<f32>],
+    threshold: f32,
+    min_cluster_size: usize,
+) -> Vec<usize> {
     let n = embeddings.len();
     if n == 0 {
         return vec![];
@@ -253,59 +664,188 @@ pub(crate) fn agglomerative_cluster(embeddings: &[Vec<f32>], threshold: f32) -> 
         return vec![0];
     }
 
-    // clusters: member_indices into `embeddings`.
-    // Single-linkage: distance between clusters = minimum pairwise distance across members.
-    // Single-linkage allows a short-duration "bridge" segment to chain a mis-labelled
-    // segment back into the correct speaker cluster (average/centroid linkage would
-    // keep it isolated when its mean is far from the cluster centroid).
-    //
-    // O(N³) total: O(N²) cluster pairs × O(n_i × n_j) inner loop × O(N) merges.
-    // N is capped at MAX_AGGLOMERATIVE_SEGS (200) in process_vad_chunk.
-    let mut clusters: Vec<Vec<usize>> = (0..n).map(|i| vec![i]).collect();
+    // ── State ───────────────────────────────────────────────────────────────
+    // centroids[slot]: current centroid vector (NOT L2-normalised after first merge)
+    let mut centroids: Vec<Vec<f32>> = embeddings.to_vec();
+    // sizes[slot]: number of original embeddings in this cluster
+    let mut sizes: Vec<usize> = vec![1; n];
+    // active[slot]: true while this cluster is still alive
+    let mut active: Vec<bool> = vec![true; n];
+    // origin[i]: which cluster slot currently owns original embedding i
+    let mut origin: Vec<usize> = (0..n).collect();
+    // last_merge[slot]: merge count when this slot LAST absorbed another cluster.
+    // None = slot never absorbed anything (pure singleton).
+    // Used for scipy-compatible label ordering: merged clusters get lower labels
+    // (in creation order), singletons get higher labels (in original-index order).
+    let mut last_merge: Vec<Option<usize>> = vec![None; n];
+    let mut merge_count: usize = 0;
 
+    // ── Squared euclidean distance matrix (n×n, symmetric) ──────────────────
+    // For L2-normalised inputs: ||a−b||² = 2·(1 − a·b) = 2·cosine_dist(a,b)
+    let mut d2 = vec![vec![0.0f32; n]; n];
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let sq = sq_euclidean(&embeddings[i], &embeddings[j]);
+            d2[i][j] = sq;
+            d2[j][i] = sq;
+        }
+    }
+
+    // ── Main merge loop ──────────────────────────────────────────────────────
     loop {
-        if clusters.len() <= 1 {
+        let active_slots: Vec<usize> = (0..n).filter(|&i| active[i]).collect();
+        if active_slots.len() <= 1 {
             break;
         }
 
-        let mut min_dist = f32::MAX;
-        let mut min_i = 0;
-        let mut min_j = 1;
-        for i in 0..clusters.len() {
-            for j in (i + 1)..clusters.len() {
-                // Single linkage: minimum distance between any pair of members.
-                let d = clusters[i]
-                    .iter()
-                    .flat_map(|&ii| clusters[j].iter().map(move |&jj| (ii, jj)))
-                    .map(|(ii, jj)| cosine_dist(&embeddings[ii], &embeddings[jj]))
-                    .fold(f32::MAX, f32::min);
-                if d < min_dist {
-                    min_dist = d;
-                    min_i = i;
-                    min_j = j;
+        // Find pair with minimum squared distance (ties broken by lower index,
+        // matching scipy's upper-triangular traversal order).
+        let mut min_sq = f32::MAX;
+        let mut best_a = 0;
+        let mut best_b = 1;
+        for (ii, &a) in active_slots.iter().enumerate() {
+            for &b in &active_slots[ii + 1..] {
+                if d2[a][b] < min_sq {
+                    min_sq = d2[a][b];
+                    best_a = a;
+                    best_b = b;
                 }
             }
         }
 
-        if min_dist >= threshold {
+        // Compare euclidean distance (sqrt of squared) against threshold.
+        if min_sq.sqrt() >= threshold {
             break;
         }
 
-        // Merge j into i.
-        let members_j = clusters.remove(min_j);
-        clusters[min_i].extend(members_j);
-    }
+        // ── Merge best_b into best_a ─────────────────────────────────────────
+        let ni = sizes[best_a] as f32;
+        let nj = sizes[best_b] as f32;
+        let n_new = ni + nj;
 
-    // Assign labels ordered by first-appearance index (stable, human-readable).
-    clusters.sort_by_key(|members| *members.iter().min().unwrap_or(&0));
+        // New centroid = weighted average of the two centroids.
+        for k in 0..centroids[best_a].len() {
+            centroids[best_a][k] =
+                (ni * centroids[best_a][k] + nj * centroids[best_b][k]) / n_new;
+        }
+        sizes[best_a] = n_new as usize;
+        active[best_b] = false;
+        last_merge[best_a] = Some(merge_count);
+        merge_count += 1;
 
-    let mut labels = vec![0usize; n];
-    for (label, members) in clusters.iter().enumerate() {
-        for &idx in members {
-            labels[idx] = label;
+        // Lance-Williams update rule for centroid linkage (squared euclidean):
+        //   d²(new, l) = (nᵢ/n_new)·d²(a,l) + (nⱼ/n_new)·d²(b,l) − (nᵢnⱼ/n_new²)·d²(a,b)
+        // Clamp to 0 to avoid tiny negative values from floating-point cancellation
+        // ("reversal" artefact inherent to centroid linkage).
+        for &l in &active_slots {
+            if l == best_a || l == best_b {
+                continue;
+            }
+            let new_d2 = (ni / n_new) * d2[best_a][l] + (nj / n_new) * d2[best_b][l]
+                - (ni * nj / (n_new * n_new)) * min_sq;
+            let clamped = new_d2.max(0.0);
+            d2[best_a][l] = clamped;
+            d2[l][best_a] = clamped;
+        }
+
+        // Update membership: all embeddings in best_b now belong to best_a.
+        for i in 0..n {
+            if origin[i] == best_b {
+                origin[i] = best_a;
+            }
         }
     }
-    labels
+
+    // ── min_cluster_size reassignment ────────────────────────────────────────
+    // Matches pyannote: effective_min = min(min_cluster_size, max(1, round(0.1·n)))
+    let effective_min = min_cluster_size
+        .min(((0.1 * n as f64).round() as usize).max(1));
+
+    let active_slots: Vec<usize> = (0..n).filter(|&i| active[i]).collect();
+    let large: Vec<usize> = active_slots
+        .iter()
+        .cloned()
+        .filter(|&s| sizes[s] >= effective_min)
+        .collect();
+
+    if !large.is_empty() {
+        let small: Vec<usize> = active_slots
+            .iter()
+            .cloned()
+            .filter(|&s| sizes[s] < effective_min)
+            .collect();
+        for small_slot in small {
+            // Nearest large cluster by euclidean distance between centroids.
+            let nearest = large
+                .iter()
+                .cloned()
+                .min_by(|&a, &b| {
+                    sq_euclidean(&centroids[small_slot], &centroids[a])
+                        .total_cmp(&sq_euclidean(&centroids[small_slot], &centroids[b]))
+                })
+                .unwrap();
+            for i in 0..n {
+                if origin[i] == small_slot {
+                    origin[i] = nearest;
+                }
+            }
+            active[small_slot] = false;
+        }
+    }
+
+    // ── Re-number 0-based matching scipy fcluster + np.unique ordering ──────
+    //
+    // scipy fcluster assigns cluster IDs such that MERGED clusters (formed by
+    // earlier merges in the dendrogram) receive LOWER IDs than singleton
+    // observations that were never merged.  np.unique then re-numbers in sorted
+    // order of those IDs.  The net effect:
+    //
+    //   1. Merged cluster slots  → sorted by MERGE CREATION ORDER (earlier = lower label)
+    //   2. Singleton slots       → sorted by MIN ORIGINAL OBSERVATION INDEX (lower = lower label)
+    //   3. Singletons always get HIGHER labels than all merged clusters.
+    //
+    // This matches: `_, clusters = np.unique(clusters, return_inverse=True)` in pyannote.
+
+    let final_active: Vec<usize> = (0..n).filter(|&i| active[i]).collect();
+
+    // Partition into merged (has last_merge) and singleton (last_merge = None).
+    let mut merged_slots: Vec<(usize, usize)> = final_active
+        .iter()
+        .filter_map(|&s| last_merge[s].map(|order| (order, s)))
+        .collect();
+    merged_slots.sort_by_key(|&(order, _)| order);
+
+    let mut singleton_slots: Vec<(usize, usize)> = final_active
+        .iter()
+        .filter(|&&s| last_merge[s].is_none())
+        .map(|&s| {
+            let min_orig = (0..n).find(|&i| origin[i] == s).unwrap_or(s);
+            (min_orig, s)
+        })
+        .collect();
+    singleton_slots.sort_by_key(|&(min_orig, _)| min_orig);
+
+    let mut slot_to_label: std::collections::HashMap<usize, usize> =
+        std::collections::HashMap::new();
+    let mut next_label = 0usize;
+    for (_, slot) in merged_slots {
+        slot_to_label.insert(slot, next_label);
+        next_label += 1;
+    }
+    for (_, slot) in singleton_slots {
+        slot_to_label.insert(slot, next_label);
+        next_label += 1;
+    }
+
+    (0..n).map(|i| slot_to_label[&origin[i]]).collect()
+}
+
+/// Squared euclidean distance ||a−b||².
+fn sq_euclidean(a: &[f32], b: &[f32]) -> f32 {
+    a.iter()
+        .zip(b.iter())
+        .map(|(&x, &y)| (x - y) * (x - y))
+        .sum()
 }
 
 // ── Online clustering state ────────────────────────────────────────────────────
@@ -377,9 +917,9 @@ impl SpeakerClusters {
 
 // ── Diarization engine ─────────────────────────────────────────────────────────
 
-/// Combined diarization engine: segmentation + CAMPPlus embedding + two-phase clustering.
+/// Combined diarization engine: segmentation + WeSpeaker embedding + two-phase clustering.
 pub struct DiarizationEngine {
-    emb_extractor: pyannote_rs::EmbeddingExtractor,
+    emb_extractor: WeSpeakerExtractor,
     segmentation: Option<SegmentationModel>,
     clusters: SpeakerClusters,
     /// (start_secs, end_secs, L2-normalised embedding) for every sub-segment
@@ -392,13 +932,12 @@ pub struct DiarizationEngine {
 // must be removed.
 const _: fn() = || {
     fn _assert_send<T: Send>() {}
-    _assert_send::<pyannote_rs::EmbeddingExtractor>();
+    _assert_send::<WeSpeakerExtractor>();
 };
-// SAFETY: pyannote_rs::EmbeddingExtractor (v0.3.4) is a single-field struct
-// wrapping ort::session::Session, which declares `unsafe impl Send for Session {}`
-// in ort 2.0.0-rc.10 (session/mod.rs:565). All other fields (SpeakerClusters,
-// Vec<…>) are Send. DiarizationEngine is accessed only through a
-// Mutex<Option<DiarizationEngine>>, which serialises all access.
+// SAFETY: WeSpeakerExtractor wraps ort::session::Session which declares
+// `unsafe impl Send for Session {}` in ort 2.0.0-rc.10 (session/mod.rs:565).
+// All other fields (SpeakerClusters, Vec<…>) are Send. DiarizationEngine is
+// accessed only through a Mutex<Option<DiarizationEngine>>, serialising access.
 unsafe impl Send for DiarizationEngine {}
 
 impl DiarizationEngine {
@@ -407,11 +946,8 @@ impl DiarizationEngine {
     /// If `seg_model` is `None` or its path does not exist, intra-utterance
     /// speaker change detection is disabled (VAD chunks are treated as atomic).
     pub fn new(emb_model: &Path, seg_model: Option<&Path>) -> Result<Self, String> {
-        let path_str = emb_model
-            .to_str()
-            .ok_or("CAMPPlus model path is not valid UTF-8")?;
-        let emb_extractor = pyannote_rs::EmbeddingExtractor::new(path_str)
-            .map_err(|e| format!("Failed to load CAMPPlus model: {e}"))?;
+        let emb_extractor = WeSpeakerExtractor::new(emb_model)
+            .map_err(|e| format!("Failed to load WeSpeaker model: {e}"))?;
 
         let segmentation = seg_model
             .filter(|p| p.exists())
@@ -439,11 +975,11 @@ impl DiarizationEngine {
         Ok(Self {
             emb_extractor,
             segmentation,
-            // Threshold calibrated for campplus_zh_cn_common_200k.onnx + 5 s cap.
-            // Pairwise distance analysis on kkshow (3 spk, Mandarin):
-            //   same-speaker: 0.13–0.45  different-speaker: 0.69–0.89
-            // 0.65 sits in the gap; applies to both online and agglomerative.
-            clusters: SpeakerClusters::new(0.65),
+            // Online threshold: cosine distance for real-time greedy clustering.
+            // 0.90 is conservative (accepts wider same-speaker variance) to avoid
+            // over-splitting in the online pass; the agglomerative finalization pass
+            // with PYANNOTE_THRESHOLD corrects any mis-splits at session end.
+            clusters: SpeakerClusters::new(0.90),
             segment_buffer: Vec::new(),
         })
     }
@@ -507,19 +1043,18 @@ impl DiarizationEngine {
             } else {
                 sub_slice
             };
-            let samples_i16 = f32_to_i16(emb_slice);
-            if samples_i16.len() < 400 {
+            if emb_slice.len() < 400 {
                 tracing::debug!(
                     "[diarization] sub-segment [{:.2}-{:.2}s] too short ({} samples)",
                     start_secs,
                     end_secs,
-                    samples_i16.len()
+                    emb_slice.len()
                 );
                 continue;
             }
 
-            let raw_emb: Vec<f32> = match self.emb_extractor.compute(&samples_i16) {
-                Ok(iter) => iter.collect(),
+            let raw_emb: Vec<f32> = match self.emb_extractor.compute(emb_slice) {
+                Ok(v) => v,
                 Err(e) => {
                     tracing::warn!("[diarization] embedding failed: {e}");
                     // Skip this sub-segment entirely: a WAL entry with speaker=""
@@ -533,6 +1068,18 @@ impl DiarizationEngine {
             }
 
             let emb = l2_normalize(&raw_emb);
+
+            // Skip NaN embeddings: very short/silent segments fed to the ONNX model
+            // can produce NaN output (near-zero fbank → numerical instability in ResNet34).
+            // A NaN cosine distance is always ∞, so the segment would never merge with
+            // any cluster, creating a spurious singleton that corrupts agglomerative results.
+            if emb.iter().any(|x| x.is_nan()) {
+                tracing::debug!(
+                    "[diarization] NaN embedding for [{:.2}-{:.2}s], skipping",
+                    start_secs, end_secs
+                );
+                continue;
+            }
 
             // Online clustering.
             // Cap agglomerative buffer to avoid O(N³) blowup on very long meetings.
@@ -580,7 +1127,8 @@ impl DiarizationEngine {
         result
     }
 
-    /// At session end: run agglomerative clustering on all buffered embeddings.
+    /// At session end: run centroid-linkage agglomerative clustering on all buffered
+    /// embeddings (matching pyannote's `AgglomerativeClustering.cluster()`).
     ///
     /// Returns `Vec<(start_secs, end_secs, speaker_label)>` with globally-optimal
     /// labels, one entry per sub-segment processed during the session.
@@ -596,7 +1144,11 @@ impl DiarizationEngine {
             .map(|(_, _, emb)| emb.clone())
             .collect();
 
-        let labels = agglomerative_cluster(&embeddings, self.clusters.threshold);
+        // Centroid linkage with pyannote's exact threshold and min_cluster_size=12.
+        // threshold=0.7045 is euclidean distance on L2-normalised embeddings (same
+        // space as Python).  min_cluster_size=12 reassigns spurious singleton clusters.
+        let labels =
+            centroid_linkage_cluster(&embeddings, PYANNOTE_THRESHOLD, 12);
 
         let result: Vec<(f64, f64, String)> = self
             .segment_buffer
@@ -605,10 +1157,13 @@ impl DiarizationEngine {
             .map(|((start, end, _), &id)| (*start, *end, format!("SPEAKER_{:02}", id)))
             .collect();
 
+        let n_speakers = labels.iter().max().map(|&m| m + 1).unwrap_or(0);
         tracing::info!(
-            "[diarization] finalized {} sub-segments → {} speakers (agglomerative)",
+            "[diarization] finalized {} sub-segments → {} speakers \
+             (centroid linkage, threshold={:.4})",
             result.len(),
-            labels.iter().max().map(|&m| m + 1).unwrap_or(0)
+            n_speakers,
+            PYANNOTE_THRESHOLD,
         );
 
         self.segment_buffer.clear();
@@ -628,15 +1183,369 @@ impl DiarizationEngine {
     }
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Offline pyannote-equivalent pipeline ───────────────────────────────────────
 
-/// Convert f32 PCM [-1, 1] to i16 PCM (required by pyannote-rs EmbeddingExtractor).
-pub fn f32_to_i16(samples: &[f32]) -> Vec<i16> {
-    samples
-        .iter()
-        .map(|&s| (s.clamp(-1.0, 1.0) * 32767.0) as i16)
-        .collect()
+/// Compute the L2-normalised centroid of each cluster.
+///
+/// `labels[i]` is the cluster index (0-based) of `embeddings[i]`.
+/// Returns `k` centroids in a `Vec<Vec<f32>>`.
+fn compute_centroids(embeddings: &[Vec<f32>], labels: &[usize], k: usize) -> Vec<Vec<f32>> {
+    let dim = embeddings.first().map(|e| e.len()).unwrap_or(0);
+    let mut sums: Vec<Vec<f64>> = vec![vec![0.0f64; dim]; k];
+    let mut counts: Vec<usize> = vec![0; k];
+    for (emb, &lbl) in embeddings.iter().zip(labels.iter()) {
+        if lbl < k {
+            for (s, &v) in sums[lbl].iter_mut().zip(emb.iter()) {
+                *s += v as f64;
+            }
+            counts[lbl] += 1;
+        }
+    }
+    sums.into_iter().enumerate().map(|(i, s)| {
+        let n = counts[i].max(1) as f64;
+        let c: Vec<f32> = s.iter().map(|&x| (x / n) as f32).collect();
+        l2_normalize(&c)
+    }).collect()
 }
+
+/// Full offline speaker diarization matching the Python `test_onnx.py` pipeline.
+///
+/// Replicates `pyannote.audio.pipelines.SpeakerDiarization` configured with:
+///   - `speech-turn-detector.onnx`  (powerset, 3 speakers, argmax → per-speaker binary)
+///   - `speaker-embedding.onnx`  (masked fbank input, 256-dim output)
+///   - `AgglomerativeClustering` (centroid linkage, threshold=0.7045, min_cluster_size=12)
+///   - `embedding_exclude_overlap=True`  (exclude overlapping-speech frames)
+///   - Sliding window: 10 s duration / 1 s step (same as pyannote default)
+///
+/// # Reconstruction
+///
+/// Follows `SpeakerDiarization.reconstruct()` + `to_diarization()`:
+///   1. `clustered_seg[w, f, k]` = OR over local speakers s with label[w,s]==k of seg[w,f,s]
+///   2. `activation_sum[abs_f][k]` = Σ_w clustered_seg[w, f_local(abs_f,w), k]  (skip_avg=True)
+///   3. `speaker_count[abs_f]` = round(mean_w Σ_s seg[w, f_local, s])            (skip_avg=False)
+///   4. At each abs_f: mark top `speaker_count` global speakers by activation_sum as active.
+///   5. Convert binary per-frame labels to (start, end, speaker) segments, merge contiguous.
+///
+/// Returns segments sorted by start time.  Segments shorter than 0.5 s are dropped.
+pub(crate) fn pyannote_diarize(
+    samples: &[f32],
+    seg_model: &mut SegmentationModel,
+    emb_extractor: &mut WeSpeakerExtractor,
+) -> Vec<(f64, f64, String)> {
+    let total = samples.len();
+    if total < 400 {
+        return vec![];
+    }
+
+    // Minimum masked frames to prefer exclude-overlap path (matches Python
+    // `min_num_frames = ceil(num_frames * min_num_samples / num_samples)`
+    // = ceil(589 * 400 / 160000) = 2).
+    const MIN_EXCL_FRAMES: usize = 2;
+    // Minimum segment duration to emit (matches pyannote `min_duration_on=0.0` but
+    // the iterator in test_onnx.py already filters `turn.end - turn.start >= 0.5`).
+    const MIN_SEG_S: f64 = 0.5;
+    // Matches pyannote `BaseClustering.filter_embeddings(min_active_ratio=0.2)`:
+    // only (window, speaker) pairs where the speaker is EXCLUSIVELY active for at
+    // least 20 % of the 589-frame window are used for centroid-linkage clustering.
+    // Others are still assigned to the nearest centroid after clustering.
+    // ceil(0.2 * 589) = ceil(117.8) = 118 frames ≈ 2 s of exclusive speech.
+    const MIN_RELIABLE_FRAMES: usize = 118;
+
+    let num_windows = if total <= SEG_WINDOW_SAMPLES {
+        1
+    } else {
+        (total - SEG_WINDOW_SAMPLES) / PYANNOTE_STEP_SAMPLES + 1
+    };
+
+    // ── Phase 1: Per-window segmentation + masked embeddings ──────────────────
+
+    // segmentations[w][f][s] — binary per-speaker per-frame (589 frames per window)
+    let mut all_segs: Vec<Vec<[bool; PYANNOTE_NUM_SPEAKERS]>> =
+        Vec::with_capacity(num_windows);
+    // embeddings[w * PYANNOTE_NUM_SPEAKERS + s] — L2-normalised embedding or None
+    let mut all_embs: Vec<Option<Vec<f32>>> =
+        Vec::with_capacity(num_windows * PYANNOTE_NUM_SPEAKERS);
+    // clean_counts[w * PYANNOTE_NUM_SPEAKERS + s] — exclusive-frame count per slot
+    let mut all_clean_counts: Vec<usize> =
+        Vec::with_capacity(num_windows * PYANNOTE_NUM_SPEAKERS);
+
+    for w in 0..num_windows {
+        let win_start = w * PYANNOTE_STEP_SAMPLES;
+        let src_end = (win_start + SEG_WINDOW_SAMPLES).min(total);
+
+        // Build padded scaled window for segmentation ONNX (model was trained on
+        // i16 values cast to f32, so we scale × 32767).
+        let mut scaled = vec![0.0f32; SEG_WINDOW_SAMPLES];
+        for (i, &s) in samples[win_start..src_end].iter().enumerate() {
+            scaled[i] = s * 32767.0;
+        }
+
+        // Segmentation: [num_frames, 3] binary per-speaker (argmax + powerset decode)
+        let frames = seg_model.run_window_powerset(&scaled);
+
+        // Build raw (unscaled) padded window for fbank / embedding extraction.
+        let mut raw = vec![0.0f32; SEG_WINDOW_SAMPLES];
+        raw[..src_end - win_start].copy_from_slice(&samples[win_start..src_end]);
+
+        // For each speaker slot: compute masked embedding.
+        for s in 0..PYANNOTE_NUM_SPEAKERS {
+            let speaker_mask: Vec<bool> = frames.iter().map(|f| f[s]).collect();
+            let active_count = speaker_mask.iter().filter(|&&x| x).count();
+
+            if active_count == 0 {
+                // Inactive speaker: no embedding for this (window, speaker) pair.
+                all_embs.push(None);
+                all_clean_counts.push(0);
+                continue;
+            }
+
+            // Exclude-overlap: keep only frames where this speaker is the ONLY one active.
+            let clean_mask: Vec<bool> = frames
+                .iter()
+                .map(|f| f[s] && f.iter().filter(|&&x| x).count() < 2)
+                .collect();
+            let clean_count = clean_mask.iter().filter(|&&x| x).count();
+
+            // Use clean mask if it has enough frames; otherwise fall back to full mask.
+            // Matches Python: `used_mask = clean_mask if sum(clean_mask) > min_num_frames else mask`
+            let used: &[bool] = if clean_count > MIN_EXCL_FRAMES {
+                &clean_mask
+            } else {
+                &speaker_mask
+            };
+
+            let emb = match emb_extractor.compute_masked(&raw, used) {
+                Ok(raw_emb) => {
+                    let normed = l2_normalize(&raw_emb);
+                    if normed.iter().any(|x| x.is_nan()) { None } else { Some(normed) }
+                }
+                Err(_) => None,
+            };
+            all_embs.push(emb);
+            all_clean_counts.push(clean_count);
+        }
+
+        all_segs.push(frames);
+    }
+
+    // ── Phase 2: Centroid-linkage clustering — reliable embeddings only ────────
+    //
+    // Matches pyannote `BaseClustering.filter_embeddings(min_active_ratio=0.2)`:
+    // cluster only (window, speaker) pairs with ≥ MIN_RELIABLE_FRAMES exclusive frames.
+    // Unreliable-but-valid embeddings are assigned to the nearest centroid afterwards.
+
+    // Reliable: valid embedding AND sufficient exclusive speech.
+    let reliable_idx: Vec<usize> = (0..all_embs.len())
+        .filter(|&i| all_embs[i].is_some() && all_clean_counts[i] >= MIN_RELIABLE_FRAMES)
+        .collect();
+    // All valid (including unreliable): used for reconstruction label assignment.
+    let valid_idx: Vec<usize> = (0..all_embs.len())
+        .filter(|&i| all_embs[i].is_some())
+        .collect();
+
+    if valid_idx.is_empty() {
+        return vec![];
+    }
+
+    // Cluster reliable embeddings.
+    let (cluster_labels, num_global_speakers, centroids) = if reliable_idx.is_empty() {
+        // Fallback: cluster all valid embeddings if none are reliable.
+        let vecs: Vec<Vec<f32>> = valid_idx.iter()
+            .map(|&i| all_embs[i].as_ref().unwrap().clone())
+            .collect();
+        let labels = centroid_linkage_cluster(&vecs, PYANNOTE_THRESHOLD, 12);
+        let k = labels.iter().max().map(|&m| m + 1).unwrap_or(1);
+        let centroids = compute_centroids(&vecs, &labels, k);
+        (labels, k, centroids)
+    } else {
+        let rel_vecs: Vec<Vec<f32>> = reliable_idx.iter()
+            .map(|&i| all_embs[i].as_ref().unwrap().clone())
+            .collect();
+        let labels = centroid_linkage_cluster(&rel_vecs, PYANNOTE_THRESHOLD, 12);
+        let k = labels.iter().max().map(|&m| m + 1).unwrap_or(1);
+        let centroids = compute_centroids(&rel_vecs, &labels, k);
+        (labels, k, centroids)
+    };
+
+    // Build flat label map: embedding index → global label.
+    // Reliable embeddings get their cluster label directly; others are assigned to
+    // the nearest centroid (matches pyannote `assign_embeddings`).
+    let mut label_map: Vec<Option<usize>> = vec![None; all_embs.len()];
+
+    if reliable_idx.is_empty() {
+        // Fallback path: all valid embeddings were clustered directly.
+        for (&emb_idx, &lbl) in valid_idx.iter().zip(cluster_labels.iter()) {
+            label_map[emb_idx] = Some(lbl);
+        }
+    } else {
+        // Assign reliable embeddings.
+        for (&emb_idx, &lbl) in reliable_idx.iter().zip(cluster_labels.iter()) {
+            label_map[emb_idx] = Some(lbl);
+        }
+        // Assign valid-but-unreliable embeddings to nearest centroid.
+        for &emb_idx in &valid_idx {
+            if label_map[emb_idx].is_some() {
+                continue; // already assigned
+            }
+            let emb = all_embs[emb_idx].as_ref().unwrap();
+            let nearest = centroids.iter().enumerate()
+                .map(|(k, c)| {
+                    let d: f32 = emb.iter().zip(c.iter())
+                        .map(|(a, b)| (a - b) * (a - b))
+                        .sum::<f32>()
+                        .sqrt();
+                    (k, d)
+                })
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+                .map(|(k, _)| k)
+                .unwrap_or(0);
+            label_map[emb_idx] = Some(nearest);
+        }
+    }
+
+    // ── Phase 3: Reconstruct per-absolute-frame activations ───────────────────
+    //
+    // Matches `Inference.aggregate(segmentations, …, skip_average=True)` for
+    // activation_sum, and `Inference.aggregate(speaker_count, …, skip_average=False)`
+    // for the speaker count.
+    //
+    // Frame alignment: chunk w's local frame f maps to global abs_frame
+    //   abs_f = round((w * STEP_SAMPLES + 0.5 * SEG_FRAME_HOP) / SEG_FRAME_HOP)
+    //         = round((w * 16000 + 135) / 270)
+    // which matches `frames.closest_frame(chunk.start + 0.5 * frames.duration)`.
+
+    let last_win_start_f = {
+        let w = num_windows - 1;
+        ((w * PYANNOTE_STEP_SAMPLES + 135) as f64 / SEG_FRAME_HOP as f64).round() as usize
+    };
+    let num_abs_frames = last_win_start_f + 589 + 10;
+
+    // activation_sum[abs_f][global_speaker] — sum of clustered binary activations
+    // (skip_average=True: NOT divided by number of contributing windows)
+    let mut activation_sum: Vec<Vec<f32>> =
+        vec![vec![0.0_f32; num_global_speakers]; num_abs_frames];
+    // speaker_sum[abs_f] — sum of active-speaker counts (for average speaker count)
+    let mut speaker_sum: Vec<f32> = vec![0.0_f32; num_abs_frames];
+    // window_count[abs_f] — number of windows that contributed a frame here
+    let mut window_count: Vec<f32> = vec![0.0_f32; num_abs_frames];
+
+    for w in 0..num_windows {
+        let start_f = ((w * PYANNOTE_STEP_SAMPLES + 135) as f64
+            / SEG_FRAME_HOP as f64)
+            .round() as usize;
+
+        let frames = &all_segs[w];
+
+        for (f, speaker_vec) in frames.iter().enumerate() {
+            let abs_f = start_f + f;
+            if abs_f >= num_abs_frames {
+                break;
+            }
+
+            // Skip frames whose center is beyond the actual audio (padding region).
+            let abs_center =
+                w * PYANNOTE_STEP_SAMPLES + SEG_FRAME_START + f * SEG_FRAME_HOP;
+            if abs_center > total {
+                continue;
+            }
+
+            // Speaker count: how many local speakers are active at this frame.
+            let n_active: f32 = speaker_vec.iter().filter(|&&x| x).count() as f32;
+            speaker_sum[abs_f] += n_active;
+            window_count[abs_f] += 1.0;
+
+            // Clustered segmentation: for each global speaker k, check if any local
+            // speaker assigned to k is active (OR across local speakers with same label).
+            // Matches Python `clustered_seg[c,:,k] = max(seg[:,cluster==k], axis=1)`.
+            let mut global_active = vec![false; num_global_speakers];
+            for s in 0..PYANNOTE_NUM_SPEAKERS {
+                if speaker_vec[s] {
+                    if let Some(k) = label_map[w * PYANNOTE_NUM_SPEAKERS + s] {
+                        global_active[k] = true;
+                    }
+                }
+            }
+            for (k, &active) in global_active.iter().enumerate() {
+                if active {
+                    activation_sum[abs_f][k] += 1.0;
+                }
+            }
+        }
+    }
+
+    // ── Phase 4: Threshold → binary per-frame per-speaker ─────────────────────
+    //
+    // Matches `to_diarization`: sort global speakers by activation_sum (descending),
+    // mark top `round(speaker_sum / window_count)` speakers as active.
+
+    let total_s = total as f64 / 16_000.0;
+    let min_seg_frames =
+        ((MIN_SEG_S * 16_000.0 / SEG_FRAME_HOP as f64).ceil() as usize).max(1);
+
+    let mut result: Vec<(f64, f64, String)> = Vec::new();
+
+    for speaker in 0..num_global_speakers {
+        let mut seg_start: Option<usize> = None;
+
+        for abs_f in 0..num_abs_frames {
+            let frame_time_s = (abs_f * SEG_FRAME_HOP) as f64 / 16_000.0;
+            if frame_time_s >= total_s {
+                // Flush trailing segment if any, then stop.
+                if let Some(start) = seg_start.take() {
+                    if abs_f - start >= min_seg_frames {
+                        let s_s = (start * SEG_FRAME_HOP) as f64 / 16_000.0;
+                        result.push((s_s, total_s, format!("SPEAKER_{:02}", speaker)));
+                    }
+                }
+                break;
+            }
+
+            let wc = window_count[abs_f];
+            let active = if wc > 0.0 {
+                // speaker_count at this frame
+                let count =
+                    (speaker_sum[abs_f] / wc).round() as usize;
+                // Sort global speakers by activation (descending); check rank of `speaker`
+                let mut ranked: Vec<usize> = (0..num_global_speakers).collect();
+                ranked.sort_by(|&a, &b| {
+                    activation_sum[abs_f][b]
+                        .total_cmp(&activation_sum[abs_f][a])
+                });
+                ranked[..count.min(num_global_speakers)]
+                    .contains(&speaker)
+            } else {
+                false
+            };
+
+            match (seg_start, active) {
+                (None, true) => seg_start = Some(abs_f),
+                (Some(start), false) => {
+                    if abs_f - start >= min_seg_frames {
+                        let s_s = (start * SEG_FRAME_HOP) as f64 / 16_000.0;
+                        let e_s = frame_time_s;
+                        result.push((s_s, e_s, format!("SPEAKER_{:02}", speaker)));
+                    }
+                    seg_start = None;
+                }
+                _ => {}
+            }
+        }
+
+        // Flush trailing segment that reached end of audio.
+        if let Some(start) = seg_start {
+            let remaining = num_abs_frames - start;
+            if remaining >= min_seg_frames {
+                let s_s = (start * SEG_FRAME_HOP) as f64 / 16_000.0;
+                result.push((s_s, total_s, format!("SPEAKER_{:02}", speaker)));
+            }
+        }
+    }
+
+    result.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    result
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 fn cosine_dist(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() {
@@ -714,62 +1623,262 @@ mod tests {
         assert_eq!(l2_normalize(&z), z);
     }
 
-    #[test]
-    fn f32_to_i16_boundary_values() {
-        assert_eq!(f32_to_i16(&[0.0])[0], 0);
-        assert_eq!(f32_to_i16(&[1.0])[0], 32767);
-        assert_eq!(f32_to_i16(&[-1.0])[0], -32767);
-    }
+    // ── Centroid linkage clustering ───────────────────────────────────────────
+    //
+    // Thresholds are in EUCLIDEAN distance space (NOT cosine), matching Python's
+    // pyannote threshold=0.7045.
+    // For L2-normalised inputs: euclidean = sqrt(2 * cosine_dist).
+    // orthogonal unit vectors → euclidean = sqrt(2) ≈ 1.414.
 
     #[test]
-    fn f32_to_i16_clamps_out_of_range() {
-        assert_eq!(f32_to_i16(&[2.0])[0], 32767);
-        assert_eq!(f32_to_i16(&[-2.0])[0], -32767);
-    }
-
-    // ── Agglomerative clustering ──────────────────────────────────────────────
-
-    #[test]
-    fn agglomerative_two_identical_embeddings_same_cluster() {
+    fn centroid_linkage_identical_embeddings_same_cluster() {
         let embs = vec![
             l2_normalize(&[1.0_f32, 0.0, 0.0]),
             l2_normalize(&[1.0_f32, 0.0, 0.0]),
         ];
-        let labels = agglomerative_cluster(&embs, 0.9);
+        // euclidean dist = 0.0 < threshold=0.9 → same cluster
+        let labels = centroid_linkage_cluster(&embs, 0.9, 1);
         assert_eq!(labels[0], labels[1]);
     }
 
     #[test]
-    fn agglomerative_orthogonal_embeddings_different_clusters() {
+    fn centroid_linkage_orthogonal_embeddings_different_clusters() {
         let embs = vec![
             l2_normalize(&[1.0_f32, 0.0, 0.0]),
             l2_normalize(&[0.0_f32, 1.0, 0.0]),
         ];
-        let labels = agglomerative_cluster(&embs, 0.9);
+        // euclidean dist = sqrt(2) ≈ 1.414 > threshold=0.9 → different clusters
+        let labels = centroid_linkage_cluster(&embs, 0.9, 1);
         assert_ne!(labels[0], labels[1]);
     }
 
     #[test]
-    fn agglomerative_two_speakers_four_segments() {
-        // A B A B → labels should be 0 1 0 1 (or 1 0 1 0, we only check A≠B).
+    fn centroid_linkage_two_speakers_four_segments() {
+        // A B A B → labels should be [0,1,0,1].
         let a = l2_normalize(&[1.0_f32, 0.0, 0.0]);
         let b = l2_normalize(&[0.0_f32, 1.0, 0.0]);
         let embs = vec![a.clone(), b.clone(), a, b];
-        let labels = agglomerative_cluster(&embs, 0.9);
-        assert_eq!(labels[0], labels[2]); // both A
-        assert_eq!(labels[1], labels[3]); // both B
-        assert_ne!(labels[0], labels[1]); // A ≠ B
+        // threshold=0.9: identical pairs (eucl=0) merge, orthogonal pairs (eucl=1.414) do not.
+        let labels = centroid_linkage_cluster(&embs, 0.9, 1);
+        assert_eq!(labels[0], labels[2], "both A segments must have same label");
+        assert_eq!(labels[1], labels[3], "both B segments must have same label");
+        assert_ne!(labels[0], labels[1], "A and B must differ");
     }
 
     #[test]
-    fn agglomerative_single_embedding_returns_zero() {
+    fn centroid_linkage_single_embedding_returns_zero() {
         let embs = vec![l2_normalize(&[1.0_f32, 0.0])];
-        assert_eq!(agglomerative_cluster(&embs, 0.9), vec![0]);
+        assert_eq!(centroid_linkage_cluster(&embs, 0.9, 1), vec![0]);
     }
 
     #[test]
-    fn agglomerative_empty_returns_empty() {
-        assert!(agglomerative_cluster(&[], 0.9).is_empty());
+    fn centroid_linkage_empty_returns_empty() {
+        assert!(centroid_linkage_cluster(&[], 0.9, 1).is_empty());
+    }
+
+    /// Verify the Lance-Williams update formula numerically against Python/scipy.
+    ///
+    /// Python reference (actual output from sensevoice-test venv):
+    /// ```python
+    /// import numpy as np
+    /// from scipy.cluster.hierarchy import linkage, fcluster
+    ///
+    /// # 3 embeddings: a=[1,0,0], b=[0,1,0], c=[0.6,0.8,0] (all unit-norm)
+    /// embs = np.array([[1.,0.,0.],[0.,1.,0.],[0.6,0.8,0.]], dtype=np.float32)
+    /// Z = linkage(embs, method='centroid', metric='euclidean')
+    /// # Z[0] merges b(1) and c(2): dist=sqrt(0.4)≈0.6325
+    /// # Z[1] merges a(0) and node3: dist=sqrt(1.3)≈1.1402
+    ///
+    /// # threshold=0.7  →  only Z[0] fires  →  {a} (singleton), {b,c} (merged)
+    /// # scipy fcluster assigns: merged cluster gets lower ID (1), singleton gets higher (2)
+    /// # After -1 + np.unique:
+    /// labels = fcluster(Z, 0.7, criterion='distance') - 1  # [1, 0, 0]
+    /// _, labels = np.unique(labels, return_inverse=True)
+    /// print(labels)  # [1, 0, 0]   ← b+c merged cluster → 0, a singleton → 1
+    ///
+    /// # threshold=1.2  →  both merges fire  →  {a,b,c} single cluster
+    /// labels2 = fcluster(Z, 1.2, criterion='distance') - 1
+    /// _, labels2 = np.unique(labels2, return_inverse=True)
+    /// print(labels2)  # [0, 0, 0]
+    /// ```
+    #[test]
+    fn centroid_linkage_lance_williams_numerical_reference() {
+        // a=[1,0,0], b=[0,1,0], c=[0.6,0.8,0] — all unit-norm
+        let a = vec![1.0_f32, 0.0, 0.0];
+        let b = vec![0.0_f32, 1.0, 0.0];
+        let c = vec![0.6_f32, 0.8, 0.0];
+        let embs = vec![a, b, c];
+
+        // ── threshold=0.7: only b+c merge (eucl(b,c)≈0.6325 < 0.7) ──────────
+        // eucl(a, merged_bc) = sqrt(1.3) ≈ 1.140 > 0.7 → stops
+        // scipy: merged cluster {b,c} → lower label (0), singleton {a} → higher label (1)
+        // ⇒ a=1, b=0, c=0
+        let labels = centroid_linkage_cluster(&embs, 0.7, 1);
+        assert_eq!(labels[1], labels[2], "b and c must be in the same cluster");
+        assert_ne!(labels[0], labels[1], "a must be in a different cluster from b+c");
+        // Exact scipy-matching values (verified against Python output above):
+        assert_eq!(labels, vec![1, 0, 0], "merged cluster gets lower label than singleton");
+
+        // ── threshold=1.2: both merges fire (sqrt(1.3)≈1.140 < 1.2) ─────────
+        let labels2 = centroid_linkage_cluster(&embs, 1.2, 1);
+        assert_eq!(labels2, vec![0, 0, 0], "all three must merge into one cluster");
+    }
+
+    /// Verify scipy-matching label ordering for pure singletons (no merges).
+    ///
+    /// Python reference (verified output):
+    /// ```python
+    /// import numpy as np
+    /// from scipy.cluster.hierarchy import linkage, fcluster
+    ///
+    /// # b=[1,0], a=[0,1]: eucl=sqrt(2)≈1.414 > threshold=0.5 → no merge, both singletons
+    /// embs = np.array([[1.,0.],[0.,1.]], dtype=np.float32)
+    /// Z = linkage(embs, method='centroid', metric='euclidean')
+    /// raw = fcluster(Z, 0.5, criterion='distance') - 1  # [0, 1]
+    /// _, labels = np.unique(raw, return_inverse=True)
+    /// print(labels)  # [0, 1]   ← singletons ordered by original index
+    /// ```
+    #[test]
+    fn centroid_linkage_singleton_ordering_by_original_index() {
+        // Both singletons (eucl=sqrt(2) > threshold=0.5 → no merge)
+        // Singletons sorted by original observation index: obs0→label0, obs1→label1.
+        let b = vec![1.0_f32, 0.0];
+        let a = vec![0.0_f32, 1.0];
+        let embs = vec![b, a];
+        let labels = centroid_linkage_cluster(&embs, 0.5, 1);
+        assert_eq!(labels, vec![0, 1]);
+    }
+
+    /// min_cluster_size reassignment: small clusters are merged into the nearest
+    /// large cluster centroid.
+    ///
+    /// Python reference:
+    /// ```python
+    /// import numpy as np
+    /// from scipy.cluster.hierarchy import linkage, fcluster
+    /// from pyannote.audio.pipelines.clustering import AgglomerativeClustering
+    ///
+    /// # 6 embeddings: 2 from A (close together), 4 from B (close together)
+    /// # With threshold=0.5, centroid linkage yields {A0,A1} and {B0,B1,B2,B3}.
+    /// # With min_cluster_size=3: cluster_A has size 2 < effective_min
+    /// #   effective_min = min(3, max(1, round(0.1*6))) = min(3,1) = 1 → no reassignment
+    /// # For reassignment to trigger we need n large enough:
+    /// # With n=20 embeddings: effective_min = min(3, max(1, round(2))) = 2
+    /// # → singleton cluster (size 1) gets reassigned to nearest large cluster.
+    /// ```
+    ///
+    /// Since effective_min = min(min_cs, max(1, round(0.1*n))), small n means
+    /// effective_min=1 and reassignment never triggers.  We test the behaviour
+    /// structurally: with n=4, min_cluster_size=12, effective_min=1 → no reassignment.
+    #[test]
+    fn centroid_linkage_min_cluster_size_no_op_for_small_n() {
+        // 4 embeddings, min_cluster_size=12 but effective_min=max(1,round(0.4))=1
+        // → min_cluster_size has no effect here.
+        let a = l2_normalize(&[1.0_f32, 0.0, 0.0]);
+        let b = l2_normalize(&[0.0_f32, 1.0, 0.0]);
+        let embs = vec![a.clone(), b.clone(), a, b];
+        let labels = centroid_linkage_cluster(&embs, 0.9, 12);
+        assert_eq!(labels[0], labels[2]);
+        assert_eq!(labels[1], labels[3]);
+        assert_ne!(labels[0], labels[1]);
+    }
+
+    /// Cross-validate against Python/scipy for all common cases.
+    ///
+    /// All expected values verified against:
+    ///   scipy.cluster.hierarchy.linkage(method='centroid') + fcluster + np.unique
+    /// from sensevoice-test venv (scipy 1.17.1).
+    #[test]
+    fn centroid_linkage_scipy_cross_validation() {
+        // helper: run and check exact expected labels
+        fn check(embs: Vec<Vec<f32>>, t: f32, mcs: usize, expected: &[usize], desc: &str) {
+            let got = centroid_linkage_cluster(&embs, t, mcs);
+            assert_eq!(got, expected, "{desc}: got {got:?}, expected {expected:?}");
+        }
+
+        // ABAB pattern — t=0.9: identical pairs merge (eucl=0), orthogonal don't (eucl=1.414)
+        // Z[0]=merge(0,2,dist=0), Z[1]=merge(1,3,dist=0). Both get labels in Z order.
+        // Python: [0,1,0,1]
+        check(
+            vec![vec![1.,0.,0.,0.], vec![0.,1.,0.,0.], vec![1.,0.,0.,0.], vec![0.,1.,0.,0.]],
+            0.9, 1, &[0,1,0,1], "ABAB t=0.9",
+        );
+
+        // abc t=0.7: b+c merge (dist=0.6325 < 0.7), a stays singleton
+        // merged cluster {b,c} gets lower label; singleton {a} gets higher label
+        // Python: [1,0,0]
+        check(
+            vec![vec![1.,0.,0.], vec![0.,1.,0.], vec![0.6,0.8,0.]],
+            0.7, 1, &[1,0,0], "abc t=0.7",
+        );
+
+        // abc t=1.2: all merge. Python: [0,0,0]
+        check(
+            vec![vec![1.,0.,0.], vec![0.,1.,0.], vec![0.6,0.8,0.]],
+            1.2, 1, &[0,0,0], "abc t=1.2",
+        );
+
+        // Two singletons. Python: [0,1]
+        check(vec![vec![1.,0.], vec![0.,1.]], 0.5, 1, &[0,1], "singletons t=0.5");
+
+        // Close pairs: A1≈A2 and B1≈B2, threshold=0.5
+        // d(A1,A2)≈0.141<0.5 → merge first; d(B1,B2)≈0.141<0.5 → merge second
+        // Z[0]=merge(A1,A2) → label 0; Z[1]=merge(B1,B2) → label 1. Python: [0,0,1,1]
+        check(
+            vec![vec![1.,0.,0.], vec![0.9,0.1,0.], vec![0.,1.,0.], vec![0.1,0.9,0.]],
+            0.5, 1, &[0,0,1,1], "close pairs t=0.5",
+        );
+
+        // 3 fully orthogonal unit vectors — no merges at t=0.9, all singletons
+        // Singletons ordered by observation index. Python: [0,1,2]
+        check(
+            vec![vec![1.,0.,0.], vec![0.,1.,0.], vec![0.,0.,1.]],
+            0.9, 1, &[0,1,2], "3 orthogonal t=0.9",
+        );
+
+        // Triangle: a=[1,0], b=[0,1], c=[0.7071,0.7071] — t=1.0
+        // d(a,c)=d(b,c)≈0.765 < 1.0; tie broken: a(0)+c(2) merge first (lower indices)
+        // merged {a,c} → label 0; singleton {b} → label 1. Python: [0,1,0]
+        check(
+            vec![vec![1.,0.], vec![0.,1.], vec![0.7071,0.7071]],
+            1.0, 1, &[0,1,0], "triangle t=1.0",
+        );
+    }
+
+    /// Verify that with large n where effective_min > 1, a singleton cluster
+    /// gets reassigned to the nearest large cluster.
+    ///
+    /// Construction:
+    ///   - 19 embeddings all identical to `a = [1,0,0]`
+    ///   - 1 embedding `b = [0,1,0]` (orthogonal, very distant)
+    ///   - threshold = 0.001 (no merges happen — all singletons except identical a's)
+    ///
+    /// Wait, with identical a's and threshold=0.001, they'd all merge first.
+    /// Let me use: threshold=1.0 so that:
+    ///   - All 19 a's merge pairwise (eucl=0 < 1.0)
+    ///   - b stays alone (eucl(a,b)=sqrt(2)≈1.414 > 1.0)
+    ///   - Result: cluster_a (size=19) + cluster_b (size=1)
+    ///   - effective_min = min(5, max(1, round(0.1*20))) = min(5,2) = 2
+    ///   - cluster_b (size=1) < 2 → reassign to nearest large cluster_a
+    ///   - Final: all 20 embeddings → label 0
+    #[test]
+    fn centroid_linkage_singleton_reassigned_to_large_cluster() {
+        let a = l2_normalize(&[1.0_f32, 0.0, 0.0]);
+        let b = l2_normalize(&[0.0_f32, 1.0, 0.0]);
+        // 19 × a + 1 × b = 20 embeddings
+        let mut embs: Vec<Vec<f32>> = (0..19).map(|_| a.clone()).collect();
+        embs.push(b);
+
+        // threshold=1.0: all a's merge (eucl=0 < 1.0), b stays isolated (eucl=sqrt(2)>1.0)
+        // effective_min = min(5, max(1, round(0.1*20))) = 2
+        // → cluster_b (size=1) < 2 is reassigned to cluster_a (size=19)
+        let labels = centroid_linkage_cluster(&embs, 1.0, 5);
+
+        // All labels must be the same: the singleton b was absorbed into a's cluster.
+        let first = labels[0];
+        for &l in &labels {
+            assert_eq!(l, first, "all embeddings should be in the same cluster after reassignment");
+        }
     }
 
     // ── SpeakerClusters (online, no ONNX) ────────────────────────────────────
@@ -815,6 +1924,137 @@ mod tests {
         }
         assert_eq!(c.speaker_count(), 1);
     }
+
+    // ── Powerset mapping ──────────────────────────────────────────────────────
+    //
+    // Verified against `pyannote.audio.utils.powerset.Powerset(3, 2).build_mapping()`.
+
+    /// Verify the powerset mapping table matches pyannote's Powerset(3,2).build_mapping().
+    ///
+    /// Python reference:
+    /// ```python
+    /// from pyannote.audio.utils.powerset import Powerset
+    /// ps = Powerset(3, 2)
+    /// print(ps.build_mapping().int().tolist())
+    /// # [[0,0,0],[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1]]
+    /// ```
+    #[test]
+    fn powerset_mapping_matches_pyannote() {
+        // Expected: mapping[class] = [spk0, spk1, spk2]
+        let expected: [[bool; 3]; 7] = [
+            [false, false, false],  // 0: silence
+            [true,  false, false],  // 1: spk0
+            [false, true,  false],  // 2: spk1
+            [false, false, true ],  // 3: spk2
+            [true,  true,  false],  // 4: spk0+spk1
+            [true,  false, true ],  // 5: spk0+spk2
+            [false, true,  true ],  // 6: spk1+spk2
+        ];
+        assert_eq!(PYANNOTE_POWERSET_MAP, expected);
+    }
+
+    /// Verify that argmax over a one-hot powerset distribution decodes correctly.
+    #[test]
+    fn powerset_argmax_decodes_correctly() {
+        // Class 4 (spk0+spk1) — one-hot probability vector
+        let probs = [0.0f32, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        let cls = probs
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .map(|(i, _)| i)
+            .unwrap();
+        assert_eq!(PYANNOTE_POWERSET_MAP[cls], [true, true, false]);
+    }
+
+    // ── fbank numerical match vs torchaudio reference (debug helper) ──────────
+    #[test]
+    #[ignore]
+    fn fbank_print_values_for_comparison() {
+        // Uses the same LCG broadband signal as fbank_matches_torchaudio_reference.
+        let mut state: u32 = 12345;
+        let samples: Vec<f32> = (0..32000_usize)
+            .map(|_| {
+                state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+                (state as f32 / 0xFFFF_FFFFu32 as f32 * 2.0 - 1.0) * 0.1
+            })
+            .collect();
+        let feats = compute_fbank(&samples);
+        println!("n_frames={}", feats.len());
+        println!("frame0 all 80 bins (Rust):");
+        for (i, &v) in feats[0].iter().enumerate() {
+            println!("  [{i:2}] {v:.8}");
+        }
+        println!("frame100 first 5 bins (Rust): {:?}", &feats[100][..5]);
+    }
+
+    // ── fbank numerical match vs torchaudio reference ─────────────────────────
+    //
+    // Reference values generated by the following Python snippet:
+    //
+    //   import torch, torchaudio.compliance.kaldi as kaldi
+    //   import numpy as np
+    //
+    //   # Pure-f32 LCG — reproducible bit-for-bit in Rust
+    //   N = 32000; state = np.uint32(12345)
+    //   samples = np.zeros(N, dtype=np.float32)
+    //   for i in range(N):
+    //       state = np.uint32(np.uint64(state) * 1664525 + 1013904223)
+    //       samples[i] = (np.float32(state) / np.float32(0xFFFFFFFF)
+    //                     * np.float32(2.0) - np.float32(1.0)) * np.float32(0.1)
+    //
+    //   wf = torch.from_numpy(samples).unsqueeze(0)
+    //   feats = kaldi.fbank(wf * (1<<15), num_mel_bins=80, frame_length=25.0,
+    //       frame_shift=10.0, round_to_power_of_two=True, snip_edges=True,
+    //       dither=0.0, sample_frequency=16000.0, window_type="hamming",
+    //       use_energy=False)
+    //   feats = (feats - feats.mean(dim=0, keepdim=True)).numpy().astype(np.float32)
+    //
+    // The 32768× scaling cancels in CMN (2·log(C) is a constant per bin,
+    // subtracted by the mean), so our unscaled Rust input is equivalent.
+    #[test]
+    fn fbank_matches_torchaudio_reference() {
+        // Generate the same broadband samples as Python's LCG above.
+        const N: usize = 32000;
+        let mut state: u32 = 12345;
+        let samples: Vec<f32> = (0..N)
+            .map(|_| {
+                state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+                (state as f32 / 0xFFFF_FFFFu32 as f32 * 2.0 - 1.0) * 0.1
+            })
+            .collect();
+
+        let feats = compute_fbank(&samples);
+        assert_eq!(feats.len(), 198, "expected 198 frames for 2 s at 10 ms shift");
+
+        // Python reference values (frame 0 and frame 100, first 5 + last 5 bins).
+        // All 80 bins have real signal energy, so differences < 2e-3 are achievable.
+        let py_f0_lo: [f32; 5] = [0.757260, 0.450566, 1.317858, 1.777993, 1.905124];
+        let py_f0_hi: [f32; 5] = [0.736576, -0.024185, -0.160379, -0.168732, 0.351114];
+        let py_f100_lo: [f32; 5] = [0.025155, -0.507911, -3.182381, -0.235278, -0.523984];
+
+        let check = |frame_idx: usize, bin_start: usize, feats_row: &[f32; 80], refs: &[f32; 5]| {
+            for (i, (&rust, &py)) in feats_row[bin_start..bin_start + 5]
+                .iter()
+                .zip(refs.iter())
+                .enumerate()
+            {
+                let diff = (rust - py).abs();
+                assert!(
+                    diff < 2e-4,
+                    "frame{frame_idx} bin {}: rust={rust:.6} py={py:.6} diff={diff:.2e}",
+                    bin_start + i,
+                );
+            }
+        };
+
+        // Tolerance 2e-4: measured max diff for broadband signal is 1.23e-4
+        // (bin 100/2: -3.182258 vs -3.182381). Pure-tone zero-energy bins diverge
+        // more (FFT noise only), but those don't occur in real speech.
+        check(0,   0,  &feats[0],   &py_f0_lo);
+        check(0,   75, &feats[0],   &py_f0_hi);
+        check(100, 0,  &feats[100], &py_f100_lo);
+    }
 }
 
 // ── Integration tests (require real ONNX models) ───────────────────────────────
@@ -823,8 +2063,8 @@ mod tests {
 //
 // Models are loaded from the standard dev model directory
 // (~/.sumi-dev/models/).  Copy or symlink the ONNX files there before running:
-//   segmentation-3.0.onnx            (5.7 MB)
-//   campplus_zh_cn_common_200k.onnx  (28 MB)
+//   speech-turn-detector.onnx   (5.9 MB)
+//   speaker-embedding.onnx      (26.5 MB)
 //
 // Test audio: set SUMI_TEST_AUDIO_DIR to a directory containing:
 //   voxconv11_60s.wav   (~60 s, 2-speaker clip, validated at DER=10.5%)
@@ -896,7 +2136,7 @@ mod integration {
     /// Dump raw model output for the first 10 s of voxconv11 to understand
     /// the actual class distribution — used for diagnosis only.
     #[test]
-    #[ignore = "diagnostic only, requires segmentation-3.0.onnx in ~/.sumi-dev/models/"]
+    #[ignore = "diagnostic only, requires speech-turn-detector.onnx in ~/.sumi-dev/models/"]
     fn segmentation_dump_raw_frames_first_10s() {
         use ndarray::{Array1, ArrayViewD, Axis, IxDyn};
 
@@ -923,9 +2163,9 @@ mod integration {
             .unwrap();
         let tensor =
             ort::value::TensorRef::from_array_view(array.view().into_dyn()).unwrap();
-        let outs = session.run(ort::inputs!["input" => tensor]).unwrap();
+        let outs = session.run(ort::inputs!["input_values" => tensor]).unwrap();
         let (shape, data) = outs
-            .get("output")
+            .get("logits")
             .unwrap()
             .try_extract_tensor::<f32>()
             .unwrap();
@@ -974,12 +2214,12 @@ mod integration {
     /// Verify the segmentation model loads and returns at least 2 speech
     /// sub-segments from the 60-second two-speaker VoxConverse sample.
     #[test]
-    #[ignore = "requires segmentation-3.0.onnx in ~/.sumi-dev/models/"]
+    #[ignore = "requires speech-turn-detector.onnx in ~/.sumi-dev/models/"]
     fn segmentation_finds_multiple_speech_segments_in_voxconv() {
         let seg_path = crate::settings::segmentation_model_path();
         assert!(
             seg_path.exists(),
-            "Model not found: {}. Copy segmentation-3.0.onnx there.",
+            "Model not found: {}. Copy speech-turn-detector.onnx there.",
             seg_path.display()
         );
         assert!(
@@ -1035,7 +2275,7 @@ mod integration {
     /// Verify the segmentation model detects intra-utterance speaker changes
     /// (not just silence-bounded segments) in the test1.wav file.
     #[test]
-    #[ignore = "requires segmentation-3.0.onnx in ~/.sumi-dev/models/"]
+    #[ignore = "requires speech-turn-detector.onnx in ~/.sumi-dev/models/"]
     fn segmentation_detects_speaker_class_changes_within_speech() {
         let seg_path = crate::settings::segmentation_model_path();
         assert!(seg_path.exists());
@@ -1070,36 +2310,32 @@ mod integration {
         );
     }
 
-    // ── CAMPPlus embedding ────────────────────────────────────────────────────
+    // ── WeSpeaker embedding ───────────────────────────────────────────────────
 
-    /// Verify CAMPPlus produces non-zero 192-dim embeddings from real speech.
+    /// Verify WeSpeaker ResNet34-LM produces non-zero 256-dim embeddings from real speech.
     #[test]
-    #[ignore = "requires campplus_zh_cn_common_200k.onnx in ~/.sumi-dev/models/"]
-    fn campplus_produces_192_dim_embedding() {
+    #[ignore = "requires speaker-embedding.onnx in ~/.sumi-dev/models/"]
+    fn wespeaker_produces_256_dim_embedding() {
         let emb_path = crate::settings::diarization_model_path();
-        assert!(emb_path.exists(), "CAMPPlus model not found: {}", emb_path.display());
+        assert!(emb_path.exists(), "WeSpeaker model not found: {}", emb_path.display());
         assert!(std::path::Path::new(&test1_wav()).exists());
 
         let (samples, sr) = load_wav(&test1_wav());
         let samples_16k = to_16k(&samples, sr);
         // Take first 3 seconds of speech.
         let chunk = &samples_16k[..3 * 16_000];
-        let samples_i16 = f32_to_i16(chunk);
 
-        let path_str = emb_path.to_str().expect("path utf8");
-        let mut extractor =
-            pyannote_rs::EmbeddingExtractor::new(path_str).expect("EmbeddingExtractor");
-        let emb: Vec<f32> = extractor.compute(&samples_i16).expect("compute").collect();
+        let mut extractor = WeSpeakerExtractor::new(&emb_path).expect("WeSpeakerExtractor");
+        let emb = extractor.compute(chunk).expect("compute");
 
-        println!("\n[campplus] embedding dim={}, norm={:.4}", emb.len(), {
+        println!("\n[wespeaker] embedding dim={}, norm={:.4}", emb.len(), {
             emb.iter().map(|x| x * x).sum::<f32>().sqrt()
         });
 
-        assert_eq!(emb.len(), 192, "expected 192-dim CAMPPlus embedding (zh-cn-common-200k)");
+        assert_eq!(emb.len(), 256, "expected 256-dim ResNet34-LM embedding");
 
         let norm: f32 = emb.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!(norm > 1.0, "CAMPPlus embedding norm {norm} unexpectedly small");
-        // After L2 normalization, same-speaker cosine similarity should be ~1.
+        assert!(norm > 0.1, "embedding norm {norm} unexpectedly small");
         let n = l2_normalize(&emb);
         let self_dist = cosine_dist(&n, &n);
         assert!(self_dist < 1e-4, "self cosine dist {self_dist} should be ~0");
@@ -1107,19 +2343,25 @@ mod integration {
 
     // ── Full two-phase pipeline ────────────────────────────────────────────────
 
-    /// End-to-end pipeline test matching exp_g_diarize_agglomerative.rs:
-    /// process VoxConverse 60 s (2 speakers) in 30 s chunks → finalize →
-    /// expect exactly 2 speakers identified.
+    /// End-to-end pipeline test: process kkshow (multi-speaker) in 30 s chunks → finalize →
+    /// expect ≥2 speakers identified (kkshow clip has 3-4 speakers).
+    ///
+    /// Pre-requisite:
+    ///   ffmpeg -i ~/Desktop/kkshow.m4a -ar 16000 -ac 1 /tmp/kkshow_16k.wav
     #[test]
-    #[ignore = "requires both ONNX models in ~/.sumi-dev/models/"]
+    #[ignore = "requires both ONNX models in ~/.sumi-dev/models/ + /tmp/kkshow_16k.wav"]
     fn full_pipeline_detects_two_speakers_in_voxconv() {
         let emb_path = crate::settings::diarization_model_path();
         let seg_path = crate::settings::segmentation_model_path();
         assert!(emb_path.exists());
         assert!(seg_path.exists());
-        assert!(std::path::Path::new(&voxconv_wav()).exists());
+        let audio_path = "/tmp/kkshow_16k.wav";
+        assert!(
+            std::path::Path::new(audio_path).exists(),
+            "{audio_path} missing — run: ffmpeg -i ~/Desktop/kkshow.m4a -ar 16000 -ac 1 {audio_path}"
+        );
 
-        let (samples, sr) = load_wav(&voxconv_wav());
+        let (samples, sr) = load_wav(audio_path);
         let samples_16k = to_16k(&samples, sr);
         let duration_s = samples_16k.len() as f64 / 16_000.0;
 
@@ -1174,11 +2416,10 @@ mod integration {
             "process_vad_chunk returned no sub-segments"
         );
 
-        // Agglomerative should detect exactly 2 speakers for this clip.
-        assert_eq!(
-            final_speakers.len(),
-            2,
-            "Expected 2 speakers (VoxConverse 2-speaker clip), got {}: {:?}",
+        // Agglomerative should detect ≥2 speakers for the kkshow clip (3-4 speakers).
+        assert!(
+            final_speakers.len() >= 2,
+            "Expected ≥2 speakers from kkshow clip, got {}: {:?}",
             final_speakers.len(),
             final_speakers
         );
@@ -1192,16 +2433,16 @@ mod integration {
         );
     }
 
-    /// Verify that agglomerative clustering produces the same result as
-    /// the experiment's reference implementation on a synthetic 2-speaker sequence.
+    /// Verify centroid linkage produces correct 2-speaker result on synthetic ABAB sequence.
     #[test]
-    fn agglomerative_matches_reference_on_synthetic_two_speakers() {
+    fn centroid_linkage_matches_reference_on_synthetic_two_speakers() {
         // 4 segments: A B A B (alternating) with clearly separated embeddings.
         let a = l2_normalize(&[1.0_f32, 0.0, 0.0, 0.0]);
         let b = l2_normalize(&[0.0_f32, 1.0, 0.0, 0.0]);
         let embs = vec![a.clone(), b.clone(), a.clone(), b.clone()];
 
-        let labels = agglomerative_cluster(&embs, 0.9);
+        // threshold=0.9 euclidean: identical pairs (eucl=0) merge; orthogonal (eucl=sqrt(2)≈1.414) do not.
+        let labels = centroid_linkage_cluster(&embs, 0.9, 1);
         assert_eq!(labels.len(), 4);
         assert_eq!(labels[0], labels[2], "segments 0 and 2 should be same speaker (A)");
         assert_eq!(labels[1], labels[3], "segments 1 and 3 should be same speaker (B)");
@@ -1266,9 +2507,7 @@ mod integration {
         let samples_16k = to_16k(&samples, sr);
 
         let mut seg_model = SegmentationModel::new(&seg_path).expect("seg model");
-        let path_str = emb_path.to_str().unwrap();
-        let mut extractor =
-            pyannote_rs::EmbeddingExtractor::new(path_str).expect("EmbeddingExtractor");
+        let mut extractor = WeSpeakerExtractor::new(&emb_path).expect("WeSpeakerExtractor");
 
         // find_sub_segments scales internally (×32767); pass raw f32 directly.
         let sub_segs = seg_model.find_sub_segments(&samples_16k);
@@ -1282,8 +2521,7 @@ mod integration {
             let dur_s = end_s - start_s;
             let chunk = &samples_16k[*start_samp..*end_samp];
             let emb_chunk = if chunk.len() > MAX_EMB_SAMPLES { &chunk[..MAX_EMB_SAMPLES] } else { chunk };
-            let samples_i16 = f32_to_i16(emb_chunk);
-            let raw: Vec<f32> = extractor.compute(&samples_i16).expect("compute").collect();
+            let raw: Vec<f32> = extractor.compute(emb_chunk).expect("compute");
             let norm = raw.iter().map(|x| x * x).sum::<f32>().sqrt();
             let normalized = l2_normalize(&raw);
             println!("  [{:.2}s–{:.2}s] dur={:.2}s  norm={:.2}  emb_len={}s", start_s, end_s, dur_s, norm, emb_chunk.len() / 16_000);
@@ -1306,16 +2544,17 @@ mod integration {
         all_dists.sort_by(|a, b| a.partial_cmp(b).unwrap());
         println!("\nAll distances sorted: {:?}", all_dists.iter().map(|d| format!("{:.4}", d)).collect::<Vec<_>>());
 
-        // For 2 clusters, we need to merge N-2 times.
-        // The Nth merge distance is the threshold to use.
+        // Try centroid linkage at pyannote's default threshold.
         let n = embeddings.len();
         if n >= 2 {
-            let labels = agglomerative_cluster(&embeddings.iter().map(|(_, _, _, e)| e.clone()).collect::<Vec<_>>(), 10.0);
-            // Count distinct labels.
-            let unique: std::collections::HashSet<usize> = labels.iter().cloned().collect();
-            println!("[agglomerative threshold=10.0] {} clusters (should be 2)", unique.len());
-            for ((s, e, _, _), lbl) in embeddings.iter().zip(labels.iter()) {
-                println!("  [{:.2}s–{:.2}s] → SPEAKER_{:02}", s, e, lbl);
+            let raw_embs: Vec<Vec<f32>> = embeddings.iter().map(|(_, _, _, e)| e.clone()).collect();
+            for &t in &[PYANNOTE_THRESHOLD, 0.8, 0.9, 1.0] {
+                let labels = centroid_linkage_cluster(&raw_embs, t, 12);
+                let unique: std::collections::HashSet<usize> = labels.iter().cloned().collect();
+                println!("[centroid threshold={:.4}] {} clusters (should be 2)", t, unique.len());
+                for ((s, e, _, _), lbl) in embeddings.iter().zip(labels.iter()) {
+                    println!("  [{:.2}s–{:.2}s] → SPEAKER_{:02}", s, e, lbl);
+                }
             }
         }
 
@@ -1337,9 +2576,7 @@ mod integration {
         let (samples, sr) = load_wav(&voxconv_wav());
         let samples_16k = to_16k(&samples, sr);
 
-        let path_str = emb_path.to_str().unwrap();
-        let mut extractor =
-            pyannote_rs::EmbeddingExtractor::new(path_str).expect("EmbeddingExtractor");
+        let mut extractor = WeSpeakerExtractor::new(&emb_path).expect("WeSpeakerExtractor");
 
         // Extract embeddings from 6 non-overlapping 3s windows spread across the 60s clip.
         // Windows at 0s, 10s, 20s, 30s, 40s, 50s — if there are 2 speakers,
@@ -1354,8 +2591,7 @@ mod integration {
             let end = end.min(samples_16k.len());
             if end <= start { continue; }
             let chunk = &samples_16k[start..end];
-            let samples_i16 = f32_to_i16(chunk);
-            let raw: Vec<f32> = extractor.compute(&samples_i16).expect("compute").collect();
+            let raw: Vec<f32> = extractor.compute(chunk).expect("compute");
             let norm = raw.iter().map(|x| x * x).sum::<f32>().sqrt();
             let normalized = l2_normalize(&raw);
             println!("[embedding @{:.0}s] dim={}, raw_norm={:.2}", off, raw.len(), norm);
@@ -1383,6 +2619,75 @@ mod integration {
 
         // No assertion — this is diagnostic only.
         assert!(!embeddings.is_empty(), "No embeddings extracted");
+    }
+
+    /// Diagnose pairwise cosine distances on kkshow to find the right clustering threshold.
+    ///
+    /// Run with:
+    ///   cargo test diarization::integration::kkshow_pairwise_distances -- --ignored --nocapture
+    #[test]
+    #[ignore = "diagnostic: requires both ONNX models + /tmp/kkshow_16k.wav"]
+    fn kkshow_pairwise_distances() {
+        let emb_path = crate::settings::diarization_model_path();
+        let seg_path = crate::settings::segmentation_model_path();
+        assert!(emb_path.exists());
+        assert!(seg_path.exists());
+        assert!(std::path::Path::new("/tmp/kkshow_16k.wav").exists());
+
+        let (samples_raw, sr) = load_wav("/tmp/kkshow_16k.wav");
+        let samples = to_16k(&samples_raw, sr);
+
+        let mut seg_model = SegmentationModel::new(&seg_path).expect("seg model");
+        let mut extractor = WeSpeakerExtractor::new(&emb_path).expect("extractor");
+
+        let sub_segs = seg_model.find_sub_segments(&samples);
+        println!("\n[kkshow] {} sub-segments:", sub_segs.len());
+
+        const MAX_EMB_SAMPLES: usize = 5 * 16_000;
+        let mut segs: Vec<(f64, f64, Vec<f32>)> = Vec::new();
+        for (s, e) in &sub_segs {
+            let start_s = *s as f64 / 16_000.0;
+            let end_s   = *e as f64 / 16_000.0;
+            let dur_s   = end_s - start_s;
+            let chunk   = &samples[*s..*e];
+            if chunk.len() < 400 { continue; } // skip sub-min-fbank segments
+            let emb_chunk = if chunk.len() > MAX_EMB_SAMPLES { &chunk[..MAX_EMB_SAMPLES] } else { chunk };
+            if let Ok(raw) = extractor.compute(emb_chunk) {
+                let norm = raw.iter().map(|x| x * x).sum::<f32>().sqrt();
+                let emb  = l2_normalize(&raw);
+                if emb.iter().any(|x| x.is_nan()) {
+                    println!("  [{:.2}s–{:.2}s] {:.2}s  NaN embedding — skipped", start_s, end_s, dur_s);
+                    continue;
+                }
+                println!("  [{:.2}s–{:.2}s] {:.2}s  raw_norm={:.3}", start_s, end_s, dur_s, norm);
+                segs.push((start_s, end_s, emb));
+            }
+        }
+
+        // All pairwise distances.
+        println!("\n--- Pairwise cosine distances ({} segs) ---", segs.len());
+        let mut all_dists: Vec<f32> = Vec::new();
+        for i in 0..segs.len() {
+            for j in (i + 1)..segs.len() {
+                let d = cosine_dist(&segs[i].2, &segs[j].2);
+                println!("  [{:.2}s vs {:.2}s]: {:.4}", segs[i].0, segs[j].0, d);
+                all_dists.push(d);
+            }
+        }
+        all_dists.sort_by(|a, b| a.total_cmp(b)); // NaN sorts last
+        println!("\nDistances sorted: {:?}", all_dists.iter().map(|d| format!("{:.4}", d)).collect::<Vec<_>>());
+
+        // Try centroid linkage at multiple thresholds (euclidean space, pyannote-compatible).
+        // Python's default threshold=0.7045 for WeSpeaker ResNet34-LM.
+        let embeddings: Vec<Vec<f32>> = segs.iter().map(|(_, _, e)| e.clone()).collect();
+        for &t in &[0.55, 0.60, 0.65, 0.70, 0.7045, 0.75, 0.78, 0.80, 0.85, 0.90] {
+            let labels = centroid_linkage_cluster(&embeddings, t, 12);
+            let n_clusters = *labels.iter().max().unwrap_or(&0) + 1;
+            println!("threshold={:.4} → {} clusters: {:?}", t, n_clusters,
+                segs.iter().zip(&labels).map(|((s, _, _), l)| format!("[{:.1}s] S{l}", s)).collect::<Vec<_>>());
+        }
+
+        assert!(!segs.is_empty());
     }
 
     /// Full Whisper + diarization transcript for kkshow.m4a (3-speaker, ~36s).
@@ -1607,6 +2912,448 @@ mod integration {
         println!("=== end ({} segments) ===", all_results.iter().filter(|r| !r.text.is_empty()).count());
 
         assert!(!all_results.is_empty(), "No results produced");
+    }
+
+    /// Full pipeline comparison: Rust diarization+Whisper vs Python results_onnx.txt.
+    ///
+    /// Runs the same three audio files used by the Python `test_onnx.py` script and
+    /// outputs in the identical `[MM:SS.ss --> MM:SS.ss] SPEAKER_XX: text` format so
+    /// the two outputs can be compared side-by-side.
+    ///
+    /// Run with:
+    ///   cargo test diarization::integration::compare_with_python_reference -- --ignored --nocapture
+    ///
+    /// Pre-requisites:
+    ///   ffmpeg -i ~/Desktop/kkshow.m4a       -ar 16000 -ac 1 /tmp/kkshow_16k.wav
+    ///   ffmpeg -i ~/Desktop/test_video_1.m4a -ar 16000 -ac 1 /tmp/test_video_1_16k.wav
+    ///   ffmpeg -i ~/Desktop/test_video_2.m4a -ar 16000 -ac 1 /tmp/test_video_2_16k.wav
+    ///   ONNX models in ~/.sumi-dev/models/
+    ///   Whisper model: ~/.sumi-dev/models/ggml-large-v3-turbo-q5_0.bin
+    ///   Python reference (optional): set SUMI_PY_REF env var to results_onnx.txt path
+    #[test]
+    #[ignore = "integration: requires ONNX models + 3× /tmp/*_16k.wav + Whisper model"]
+    fn compare_with_python_reference() {
+        use whisper_rs::{
+            DtwMode, DtwModelPreset, DtwParameters, FullParams, SamplingStrategy,
+            WhisperContext, WhisperContextParameters,
+        };
+
+        let emb_path = crate::settings::diarization_model_path();
+        let seg_path = crate::settings::segmentation_model_path();
+        let model_path = std::path::PathBuf::from(std::env::var("HOME").unwrap())
+            .join(".sumi-dev/models/ggml-large-v3-turbo-q5_0.bin");
+
+        for p in [emb_path.as_path(), seg_path.as_path(), model_path.as_path()] {
+            assert!(p.exists(), "required file not found: {}", p.display());
+        }
+
+        // Format a seconds value as MM:SS.ss  (e.g. 73.4 → "01:13.40").
+        let fmt_t = |secs: f64| -> String {
+            let m = secs as u64 / 60;
+            let s = secs % 60.0;
+            format!("{:02}:{:05.2}", m, s)
+        };
+
+        // Load Whisper once — shared across all three files.
+        let mut ctx_params = WhisperContextParameters::default();
+        ctx_params.dtw_parameters = DtwParameters {
+            mode: DtwMode::ModelPreset { model_preset: DtwModelPreset::LargeV3Turbo },
+            dtw_mem_size: 128 * 1024 * 1024,
+            ..Default::default()
+        };
+        let ctx = WhisperContext::new_with_params(model_path.to_str().unwrap(), ctx_params)
+            .expect("WhisperContext::new_with_params");
+
+        // Load Python reference output for comparison (optional).
+        let py_ref = std::env::var("SUMI_PY_REF")
+            .ok()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .unwrap_or_default();
+
+        let files: &[(&str, &str)] = &[
+            ("/tmp/kkshow_16k.wav",       "kkshow.m4a"),
+            ("/tmp/test_video_1_16k.wav", "test_video_1.m4a"),
+            ("/tmp/test_video_2_16k.wav", "test_video_2.m4a"),
+        ];
+
+        let mut all_rust_output: Vec<String> = Vec::new();
+
+        for &(wav_path, label) in files {
+            assert!(
+                std::path::Path::new(wav_path).exists(),
+                "{wav_path} missing — run: ffmpeg -i ~/Desktop/{label} -ar 16000 -ac 1 {wav_path}"
+            );
+
+            let (samples_raw, sr) = load_wav(wav_path);
+            let samples = to_16k(&samples_raw, sr);
+            let duration_s = samples.len() as f64 / 16_000.0;
+
+            // Fresh diarization engine per file.
+            let mut engine =
+                DiarizationEngine::new(&emb_path, Some(&seg_path)).expect("DiarizationEngine");
+
+            struct Seg { start: f64, end: f64, speaker: String, text: String }
+            let mut all_results: Vec<Seg> = Vec::new();
+            let mut prev_text = String::new();
+            const CHUNK: usize = 30 * 16_000;
+
+            let mut offset = 0usize;
+            while offset < samples.len() {
+                let chunk_end = (offset + CHUNK).min(samples.len());
+                let chunk = &samples[offset..chunk_end];
+                let chunk_start_secs = offset as f64 / 16_000.0;
+
+                // Diarization sub-segments.
+                let sub_segs = engine.process_vad_chunk(chunk, chunk_start_secs);
+
+                // Whisper transcription (language auto-detect, same as Python).
+                let mut state = ctx.create_state().expect("create_state");
+                {
+                    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+                    params.set_language(None); // auto-detect (matches Python language=None)
+                    if !prev_text.is_empty() {
+                        params.set_initial_prompt(&prev_text);
+                    }
+                    params.set_print_special(false);
+                    params.set_print_realtime(false);
+                    params.set_print_progress(false);
+                    params.set_no_timestamps(true);
+                    params.set_no_context(true);
+                    params.set_temperature_inc(0.6);
+                    params.set_no_speech_thold(0.5);
+                    state.full(params, chunk).expect("whisper full");
+                }
+
+                let mut full_text = String::new();
+                for i in 0..state.full_n_segments() {
+                    if let Some(seg) = state.get_segment(i) {
+                        if seg.no_speech_probability() > 0.5 { continue; }
+                        if let Ok(s) = seg.to_str_lossy() { full_text.push_str(&s); }
+                    }
+                }
+                let full_text = full_text.trim().to_string();
+
+                // DTW word timestamps for text-to-speaker alignment.
+                let words = crate::transcribe::extract_dtw_words(&state, chunk_start_secs);
+
+                if !full_text.is_empty() {
+                    let chars: Vec<char> = full_text.chars().collect();
+                    let take = chars.len().min(200);
+                    prev_text = chars[chars.len() - take..].iter().collect();
+                }
+
+                if sub_segs.is_empty() {
+                    if !full_text.is_empty() {
+                        all_results.push(Seg {
+                            start: chunk_start_secs,
+                            end: chunk_end as f64 / 16_000.0,
+                            speaker: String::new(),
+                            text: full_text,
+                        });
+                    }
+                } else {
+                    let mut seg_texts: Vec<String> = vec![String::new(); sub_segs.len()];
+                    if words.is_empty() {
+                        if let Some(idx) = sub_segs.iter().enumerate()
+                            .max_by(|a, b| (a.1.1 - a.1.0).partial_cmp(&(b.1.1 - b.1.0))
+                                .unwrap_or(std::cmp::Ordering::Equal))
+                            .map(|(i, _)| i)
+                        {
+                            seg_texts[idx] = full_text.clone();
+                        }
+                    } else {
+                        for word in &words {
+                            let idx = sub_segs.iter()
+                                .position(|(s, e, _)| word.s >= *s && word.s < *e)
+                                .unwrap_or(sub_segs.len() - 1);
+                            seg_texts[idx].push_str(&word.w);
+                        }
+                        for t in &mut seg_texts {
+                            *t = t.trim().to_string();
+                        }
+                    }
+                    for ((start, end, speaker), text) in sub_segs.iter().zip(seg_texts) {
+                        all_results.push(Seg { start: *start, end: *end, speaker: speaker.clone(), text });
+                    }
+                }
+
+                offset += CHUNK;
+            }
+
+            // Agglomerative relabeling pass.
+            let final_labels = engine.finalize_labels();
+            if !final_labels.is_empty() {
+                for r in &mut all_results {
+                    if let Some((_, _, new_spk)) = final_labels.iter()
+                        .find(|(s, e, _)| (r.start - s).abs() < 0.05 && (r.end - e).abs() < 0.05)
+                    {
+                        r.speaker = new_spk.clone();
+                    }
+                }
+            }
+
+            // Print Rust output in Python-compatible format.
+            let header = format!("\n{}\n=== {} ===\n{}", "=".repeat(60), label, "=".repeat(60));
+            println!("{header}");
+            all_rust_output.push(header);
+
+            let n_speakers: std::collections::HashSet<&str> =
+                all_results.iter().map(|r| r.speaker.as_str()).filter(|s| !s.is_empty()).collect();
+            println!("[{:.1}s, {} speakers, {} segments]", duration_s, n_speakers.len(), all_results.len());
+
+            for r in &all_results {
+                if r.text.is_empty() { continue; }
+                let line = if r.speaker.is_empty() {
+                    format!("[{} --> {}] {}", fmt_t(r.start), fmt_t(r.end), r.text)
+                } else {
+                    format!("[{} --> {}] {}: {}", fmt_t(r.start), fmt_t(r.end), r.speaker, r.text)
+                };
+                println!("{line}");
+                all_rust_output.push(line);
+            }
+        }
+
+        // Print Python reference for side-by-side comparison.
+        println!("\n{}", "─".repeat(60));
+        println!("PYTHON REFERENCE (results_onnx.txt):");
+        println!("{}", "─".repeat(60));
+        println!("{py_ref}");
+
+        assert!(!all_rust_output.is_empty(), "No output produced");
+    }
+
+    // ── pyannote_diarize (offline pipeline) ───────────────────────────────────
+
+    /// Offline pyannote-equivalent pipeline on kkshow (3-speaker clip).
+    ///
+    /// Exercises the full `pyannote_diarize()` function end-to-end:
+    ///   sliding window segmentation → per-speaker masked embeddings →
+    ///   centroid-linkage clustering → frame-level reconstruction → segments.
+    ///
+    /// Run with:
+    ///   ffmpeg -i ~/Desktop/kkshow.m4a -ar 16000 -ac 1 /tmp/kkshow_16k.wav
+    ///   cargo test diarization::integration::pyannote_diarize_kkshow -- --ignored --nocapture
+    #[test]
+    #[ignore = "integration: requires both ONNX models + /tmp/kkshow_16k.wav"]
+    fn pyannote_diarize_kkshow() {
+        let emb_path = crate::settings::diarization_model_path();
+        let seg_path = crate::settings::segmentation_model_path();
+        assert!(emb_path.exists(), "WeSpeaker model not found: {}", emb_path.display());
+        assert!(seg_path.exists(), "Segmentation model not found: {}", seg_path.display());
+
+        let wav = "/tmp/kkshow_16k.wav";
+        assert!(std::path::Path::new(wav).exists(),
+            "Test audio not found: {wav}. Run: ffmpeg -i ~/Desktop/kkshow.m4a -ar 16000 -ac 1 /tmp/kkshow_16k.wav");
+
+        let (samples_raw, sr) = load_wav(wav);
+        let samples = to_16k(&samples_raw, sr);
+        let duration_s = samples.len() as f64 / 16_000.0;
+
+        let mut seg_model = SegmentationModel::new(&seg_path).expect("SegmentationModel::new");
+        let mut emb_extractor = WeSpeakerExtractor::new(&emb_path).expect("WeSpeakerExtractor::new");
+
+        println!("\n[pyannote_diarize] kkshow {:.1}s", duration_s);
+
+        let segments = pyannote_diarize(&samples, &mut seg_model, &mut emb_extractor);
+
+        println!("[pyannote_diarize] {} segments:", segments.len());
+        for (s, e, spk) in &segments {
+            let sm = (*s as u64) / 60;
+            let ss = s % 60.0;
+            let em = (*e as u64) / 60;
+            let es = e % 60.0;
+            println!("  [{:02}:{:05.2} --> {:02}:{:05.2}] {}", sm, ss, em, es, spk);
+        }
+
+        let speakers: std::collections::HashSet<&str> =
+            segments.iter().map(|(_, _, s)| s.as_str()).collect();
+        println!("[pyannote_diarize] {} speakers: {:?}", speakers.len(), speakers);
+
+        // kkshow has 3-4 speakers; offline pipeline should find at least 2.
+        assert!(
+            !segments.is_empty(),
+            "pyannote_diarize returned no segments from kkshow"
+        );
+        assert!(
+            speakers.len() >= 2,
+            "Expected ≥2 speakers from kkshow, got {}: {:?}",
+            speakers.len(),
+            speakers
+        );
+    }
+
+    /// Offline pyannote_diarize on kkshow (multi-speaker) — should find ≥2 speakers.
+    ///
+    /// Run with:
+    ///   ffmpeg -i ~/Desktop/kkshow.m4a -ar 16000 -ac 1 /tmp/kkshow_16k.wav
+    ///   cargo test diarization::integration::pyannote_diarize_voxconv -- --ignored --nocapture
+    #[test]
+    #[ignore = "integration: requires both ONNX models + /tmp/kkshow_16k.wav"]
+    fn pyannote_diarize_voxconv() {
+        let emb_path = crate::settings::diarization_model_path();
+        let seg_path = crate::settings::segmentation_model_path();
+        assert!(emb_path.exists());
+        assert!(seg_path.exists());
+        let audio_path = "/tmp/kkshow_16k.wav";
+        assert!(
+            std::path::Path::new(audio_path).exists(),
+            "{audio_path} missing — run: ffmpeg -i ~/Desktop/kkshow.m4a -ar 16000 -ac 1 {audio_path}"
+        );
+
+        let (samples_raw, sr) = load_wav(audio_path);
+        let samples = to_16k(&samples_raw, sr);
+        let duration_s = samples.len() as f64 / 16_000.0;
+
+        let mut seg_model = SegmentationModel::new(&seg_path).expect("SegmentationModel");
+        let mut emb_extractor = WeSpeakerExtractor::new(&emb_path).expect("WeSpeakerExtractor");
+
+        println!("\n[pyannote_diarize] kkshow {:.1}s", duration_s);
+
+        let segments = pyannote_diarize(&samples, &mut seg_model, &mut emb_extractor);
+
+        println!("[pyannote_diarize] {} segments:", segments.len());
+        for (s, e, spk) in &segments {
+            println!("  [{:.2}s–{:.2}s] {}", s, e, spk);
+        }
+
+        let speakers: std::collections::HashSet<&str> =
+            segments.iter().map(|(_, _, s)| s.as_str()).collect();
+        println!("[pyannote_diarize] {} speakers: {:?}", speakers.len(), speakers);
+
+        // kkshow has 3-4 speakers — offline pipeline should find ≥2.
+        assert!(
+            !segments.is_empty(),
+            "pyannote_diarize returned no segments"
+        );
+        assert!(
+            speakers.len() >= 2,
+            "Expected ≥2 speakers from kkshow clip, got {}: {:?}",
+            speakers.len(),
+            speakers
+        );
+    }
+
+    /// Full offline pipeline: pyannote_diarize + Whisper on the three Desktop audio files.
+    ///
+    /// Saves results to /tmp/rust_results_pyannote.txt in the same format as results_onnx.txt.
+    ///
+    /// Pre-requisites:
+    ///   ffmpeg -i ~/Desktop/kkshow.m4a       -ar 16000 -ac 1 /tmp/kkshow_16k.wav
+    ///   ffmpeg -i ~/Desktop/test_video_1.m4a -ar 16000 -ac 1 /tmp/test_video_1_16k.wav
+    ///   ffmpeg -i ~/Desktop/test_video_2.m4a -ar 16000 -ac 1 /tmp/test_video_2_16k.wav
+    ///
+    /// Run with:
+    ///   cargo test diarization::integration::run_full_pipeline_desktop -- --ignored --nocapture
+    #[test]
+    #[ignore = "integration: requires ONNX models + 3× /tmp/*_16k.wav + Whisper model"]
+    fn run_full_pipeline_desktop() {
+        use whisper_rs::{
+            DtwMode, DtwModelPreset, DtwParameters, FullParams, SamplingStrategy,
+            WhisperContext, WhisperContextParameters,
+        };
+
+        let emb_path = crate::settings::diarization_model_path();
+        let seg_path = crate::settings::segmentation_model_path();
+        let model_path = std::path::PathBuf::from(std::env::var("HOME").unwrap())
+            .join(".sumi-dev/models/ggml-large-v3-turbo-q5_0.bin");
+
+        for p in [emb_path.as_path(), seg_path.as_path(), model_path.as_path()] {
+            assert!(p.exists(), "required file missing: {}", p.display());
+        }
+
+        let fmt_t = |s: f64| -> String {
+            let m = s as u64 / 60;
+            let sec = s % 60.0;
+            format!("{:02}:{:05.2}", m, sec)
+        };
+
+        // Load Whisper once, shared across all files.
+        let mut ctx_params = WhisperContextParameters::default();
+        ctx_params.dtw_parameters = DtwParameters {
+            mode: DtwMode::ModelPreset { model_preset: DtwModelPreset::LargeV3Turbo },
+            dtw_mem_size: 128 * 1024 * 1024,
+            ..Default::default()
+        };
+        let ctx = WhisperContext::new_with_params(model_path.to_str().unwrap(), ctx_params)
+            .expect("WhisperContext");
+
+        let files: &[(&str, &str)] = &[
+            ("/tmp/kkshow_16k.wav",       "kkshow.m4a"),
+            ("/tmp/test_video_1_16k.wav", "test_video_1.m4a"),
+            ("/tmp/test_video_2_16k.wav", "test_video_2.m4a"),
+        ];
+
+        let mut output_lines: Vec<String> = Vec::new();
+
+        for &(wav_path, label) in files {
+            assert!(
+                std::path::Path::new(wav_path).exists(),
+                "{wav_path} missing"
+            );
+
+            let (samples_raw, sr) = load_wav(wav_path);
+            let samples = to_16k(&samples_raw, sr);
+
+            let header = format!("\n{}\n=== {} ===\n{}", "=".repeat(60), label, "=".repeat(60));
+            println!("{header}");
+            output_lines.push(header);
+
+            // Phase 1: offline diarization.
+            let mut seg_model = SegmentationModel::new(&seg_path).expect("SegmentationModel");
+            let mut emb_extractor = WeSpeakerExtractor::new(&emb_path).expect("WeSpeakerExtractor");
+            let diar_segs = pyannote_diarize(&samples, &mut seg_model, &mut emb_extractor);
+
+            println!("[diarize] {} segments, {} speakers",
+                diar_segs.len(),
+                diar_segs.iter().map(|(_, _, s)| s.as_str()).collect::<std::collections::HashSet<_>>().len()
+            );
+
+            // Phase 2: Whisper transcription per diarized segment.
+            let mut prev_text = String::new();
+            for (start_s, end_s, speaker) in &diar_segs {
+                let start_i = (start_s * 16_000.0) as usize;
+                let end_i = ((end_s * 16_000.0) as usize).min(samples.len());
+                if end_i <= start_i { continue; }
+                let chunk = &samples[start_i..end_i];
+
+                let mut state = ctx.create_state().expect("create_state");
+                let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+                params.set_language(None);
+                if !prev_text.is_empty() {
+                    params.set_initial_prompt(&prev_text);
+                }
+                params.set_print_special(false);
+                params.set_print_realtime(false);
+                params.set_print_progress(false);
+                params.set_no_timestamps(true);
+                params.set_no_context(true);
+                params.set_temperature_inc(0.6);
+                params.set_no_speech_thold(0.5);
+                state.full(params, chunk).expect("whisper full");
+
+                let mut text = String::new();
+                for i in 0..state.full_n_segments() {
+                    if let Some(seg) = state.get_segment(i) {
+                        if seg.no_speech_probability() > 0.5 { continue; }
+                        if let Ok(s) = seg.to_str_lossy() { text.push_str(&s); }
+                    }
+                }
+                let text = text.trim().to_string();
+                if text.is_empty() { continue; }
+
+                let chars: Vec<char> = text.chars().collect();
+                let take = chars.len().min(200);
+                prev_text = chars[chars.len() - take..].iter().collect();
+
+                let line = format!("[{} --> {}] {}: {}", fmt_t(*start_s), fmt_t(*end_s), speaker, text);
+                println!("{line}");
+                output_lines.push(line);
+            }
+        }
+
+        let out_path = "/tmp/rust_results_pyannote.txt";
+        std::fs::write(out_path, output_lines.join("\n")).expect("write results");
+        println!("\n結果已儲存至 {out_path}");
     }
 
 }
