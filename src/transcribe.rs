@@ -501,46 +501,31 @@ pub fn extract_dtw_words(
             Ok(s) => s.into_owned(),
             Err(_) => continue,
         };
+        let chars: Vec<char> = seg_text.chars().collect();
+        let n_chars = chars.len();
         let n_valid = valid_ts.len();
-        if seg_text.is_empty() {
+
+        if n_chars == 0 {
             continue;
         }
 
-        // Split text into tokens: whitespace-delimited for Latin scripts,
-        // character-based fallback for CJK (where spaces are rare).
-        let ws_tokens: Vec<&str> = seg_text.split_whitespace().collect();
-        if !ws_tokens.is_empty() {
-            // Distribute DTW timestamps across whitespace-delimited tokens.
-            let n_tok = ws_tokens.len();
-            for (pos, t_dtw) in valid_ts.iter().enumerate() {
-                let tok_idx = pos * n_tok / n_valid;
-                if tok_idx >= n_tok {
-                    break;
-                }
-                let w = ws_tokens[tok_idx].to_string();
-                if w.is_empty() {
-                    continue;
-                }
-                let t = audio_start_secs + *t_dtw as f64 / 100.0;
-                words.push(WordTs { w, s: t, e: t });
+        // Distribute character slices proportionally across tokens.
+        // Token i gets chars[i*n_chars/n_valid .. (i+1)*n_chars/n_valid].
+        // The word text is only used internally for speaker assignment
+        // (find_best_speaker matches on timestamps, not text content),
+        // so character-level splitting is fine for both CJK and Latin scripts.
+        for (pos, t_dtw) in valid_ts.iter().enumerate() {
+            let char_start = pos * n_chars / n_valid;
+            let char_end = ((pos + 1) * n_chars / n_valid).min(n_chars);
+            if char_start >= n_chars {
+                break;
             }
-        } else {
-            // CJK / no-whitespace: character-based splitting.
-            let chars: Vec<char> = seg_text.chars().collect();
-            let n_chars = chars.len();
-            for (pos, t_dtw) in valid_ts.iter().enumerate() {
-                let char_start = pos * n_chars / n_valid;
-                let char_end = ((pos + 1) * n_chars / n_valid).min(n_chars);
-                if char_start >= n_chars {
-                    break;
-                }
-                let w: String = chars[char_start..char_end].iter().collect();
-                if w.trim().is_empty() {
-                    continue;
-                }
-                let t = audio_start_secs + *t_dtw as f64 / 100.0;
-                words.push(WordTs { w, s: t, e: t });
+            let w: String = chars[char_start..char_end].iter().collect();
+            if w.trim().is_empty() {
+                continue;
             }
+            let t = audio_start_secs + *t_dtw as f64 / 100.0;
+            words.push(WordTs { w, s: t, e: t });
         }
     }
 

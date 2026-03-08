@@ -325,26 +325,11 @@ pub(crate) fn transcribe_import_segments(
             .collect();
 
         let mut words = Vec::new();
-        if !valid_ts.is_empty() && !text.is_empty() {
+        if !valid_ts.is_empty() {
+            let chars: Vec<char> = text.chars().collect();
+            let n_chars = chars.len();
             let n_valid = valid_ts.len();
-            let ws_tokens: Vec<&str> = text.split_whitespace().collect();
-            if !ws_tokens.is_empty() {
-                let n_tok = ws_tokens.len();
-                for (pos, t_dtw) in valid_ts.iter().enumerate() {
-                    let tok_idx = pos * n_tok / n_valid;
-                    if tok_idx >= n_tok {
-                        break;
-                    }
-                    let w = ws_tokens[tok_idx].to_string();
-                    if w.is_empty() {
-                        continue;
-                    }
-                    let t = audio_start_secs + *t_dtw as f64 / 100.0;
-                    words.push(WordTs { w, s: t, e: t });
-                }
-            } else {
-                let chars: Vec<char> = text.chars().collect();
-                let n_chars = chars.len();
+            if n_chars > 0 {
                 for (pos, t_dtw) in valid_ts.iter().enumerate() {
                     let char_start = pos * n_chars / n_valid;
                     let char_end = ((pos + 1) * n_chars / n_valid).min(n_chars);
