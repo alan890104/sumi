@@ -81,63 +81,66 @@
       </button>
     </div>
 
-    <!-- Unified comparison card -->
-    <div class="hd-card">
-      {#if wasPolished}
-        <div class="hd-cell">
-          <span class="hd-tag">{t('history.before')}</span>
-          <p class="hd-text">{entry.raw_text}</p>
-        </div>
-        <div class="hd-divider"></div>
-        <div class="hd-cell">
-          <span class="hd-tag polished">{t('history.after')}</span>
-          <p class="hd-text">{entry.text}</p>
-        </div>
-      {:else}
-        <div class="hd-cell">
-          <span class="hd-tag">{t('history.transcription')}</span>
-          <p class="hd-text">{entry.text}</p>
-        </div>
-      {/if}
-    </div>
+    <!-- Scrollable body: card + meta -->
+    <div class="hd-body">
+      <!-- Unified comparison card -->
+      <div class="hd-card">
+        {#if wasPolished}
+          <div class="hd-cell">
+            <span class="hd-tag">{t('history.before')}</span>
+            <p class="hd-text">{entry.raw_text}</p>
+          </div>
+          <div class="hd-divider"></div>
+          <div class="hd-cell">
+            <span class="hd-tag polished">{t('history.after')}</span>
+            <p class="hd-text">{entry.text}</p>
+          </div>
+        {:else}
+          <div class="hd-cell">
+            <span class="hd-tag">{t('history.transcription')}</span>
+            <p class="hd-text">{entry.text}</p>
+          </div>
+        {/if}
+      </div>
 
-    <!-- Meta -->
-    <div class="hd-meta">
-      <div class="hd-meta-row">
-        <span class="hd-meta-label">{t('history.metaDuration')}</span>
-        <span class="hd-meta-value">{entry.duration_secs.toFixed(1)}s</span>
-      </div>
-      <div class="hd-meta-row">
-        <span class="hd-meta-label">{t('history.metaStt')}</span>
-        <span class="hd-meta-value">{entry.stt_model}</span>
-      </div>
-      {#if wasPolished}
+      <!-- Meta -->
+      <div class="hd-meta">
         <div class="hd-meta-row">
-          <span class="hd-meta-label">{t('history.metaPolish')}</span>
-          <span class="hd-meta-value">{entry.polish_model}</span>
+          <span class="hd-meta-label">{t('history.metaDuration')}</span>
+          <span class="hd-meta-value">{entry.duration_secs.toFixed(1)}s</span>
         </div>
-      {/if}
-      <div class="hd-meta-row">
-        <span class="hd-meta-label">{t('history.metaTime')}</span>
-        <span class="hd-meta-value">{formattedTime}</span>
+        <div class="hd-meta-row">
+          <span class="hd-meta-label">{t('history.metaStt')}</span>
+          <span class="hd-meta-value">{entry.stt_model}</span>
+        </div>
+        {#if wasPolished}
+          <div class="hd-meta-row">
+            <span class="hd-meta-label">{t('history.metaPolish')}</span>
+            <span class="hd-meta-value">{entry.polish_model}</span>
+          </div>
+        {/if}
+        <div class="hd-meta-row">
+          <span class="hd-meta-label">{t('history.metaTime')}</span>
+          <span class="hd-meta-value">{formattedTime}</span>
+        </div>
+        {#if entry.app_name}
+          <div class="hd-meta-row">
+            <span class="hd-meta-label">{t('history.metaApp')}</span>
+            <span class="hd-meta-value hd-meta-app">
+              {#if appIconUri}
+                <img class="hd-app-icon" src={appIconUri} alt="" width="16" height="16" />
+              {/if}
+              {entry.app_name}
+            </span>
+          </div>
+        {/if}
+        {#if entry.chars_per_sec > 0}
+          <div class="hd-meta-row">
+            <span class="hd-meta-label">{t('history.metaCharsPerSec')}</span>
+            <span class="hd-meta-value">{entry.chars_per_sec.toFixed(1)} chars/s</span>
+          </div>
+        {/if}
       </div>
-      {#if entry.app_name}
-        <div class="hd-meta-row">
-          <span class="hd-meta-label">{t('history.metaApp')}</span>
-          <span class="hd-meta-value hd-meta-app">
-            {#if appIconUri}
-              <img class="hd-app-icon" src={appIconUri} alt="" width="16" height="16" />
-            {/if}
-            {entry.app_name}
-          </span>
-        </div>
-      {/if}
-      {#if entry.chars_per_sec > 0}
-        <div class="hd-meta-row">
-          <span class="hd-meta-label">{t('history.metaCharsPerSec')}</span>
-          <span class="hd-meta-value">{entry.chars_per_sec.toFixed(1)} chars/s</span>
-        </div>
-      {/if}
     </div>
 
     <!-- Actions -->
@@ -176,6 +179,14 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 16px;
+    flex-shrink: 0;
+  }
+
+  /* ── Scrollable body ── */
+  .hd-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .hd-title {
@@ -296,6 +307,7 @@
     justify-content: flex-end;
     gap: 8px;
     margin-top: 16px;
+    flex-shrink: 0;
   }
 
   .hd-btn {

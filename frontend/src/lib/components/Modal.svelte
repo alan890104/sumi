@@ -60,6 +60,10 @@
     padding: 24px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--border-subtle);
     animation: modalFadeIn 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    overflow: hidden;
   }
 
   @keyframes modalFadeIn {

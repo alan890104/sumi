@@ -16,6 +16,7 @@
     onMeetingNoteCreated,
     onMeetingNoteUpdated,
     onMeetingNoteFinalized,
+    onMeetingNoteRefresh,
     importMeetingAudio,
     cancelImport,
     onImportProgress,
@@ -487,14 +488,26 @@
       }
     });
 
-    const u4 = await onImportProgress((p) => {
+    const u4 = await onMeetingNoteRefresh(async (p) => {
+      // Re-fetch the note from WAL to pick up speaker labels after merge.
+      try {
+        const fresh = await getMeetingNote(p.id);
+        const idx = notes.findIndex((x) => x.id === p.id);
+        if (idx !== -1) {
+          notes[idx] = fresh;
+          notes = [...notes];
+        }
+      } catch { /* ignore */ }
+    });
+
+    const u5 = await onImportProgress((p) => {
       if (p.id) importingNoteId = p.id;
       importProgress = p.progress;
     });
 
     // Drag-and-drop: listen for file drops on this window
     const webview = getCurrentWebviewWindow();
-    const u5 = await webview.onDragDropEvent((event) => {
+    const u6 = await webview.onDragDropEvent((event) => {
       if (event.payload.type === 'over') {
         dragOver = true;
       } else if (event.payload.type === 'drop') {
@@ -511,7 +524,7 @@
       }
     });
 
-    unlisteners = [u1, u2, u3, u4, u5];
+    unlisteners = [u1, u2, u3, u4, u5, u6];
 
     // Close context menu on outside click
     document.addEventListener('click', closeContextMenu);

@@ -293,7 +293,6 @@ pub fn read_wal(history_dir: &Path, id: &str) -> String {
 /// Overwrite the WAL file with new content.
 /// Used after agglomerative speaker relabeling in the import pipeline to
 /// replace online speaker labels with globally-optimal ones before finalizing.
-#[allow(dead_code)]
 pub fn write_wal(history_dir: &Path, id: &str, content: &str) {
     let path = wal_path(history_dir, id);
     if let Err(e) = std::fs::write(&path, content) {

@@ -316,6 +316,11 @@ export const onMeetingNoteFinalized = (
 ): Promise<UnlistenFn> =>
   listen('meeting-note-finalized', (e) => cb(e.payload as { id: string }));
 
+export const onMeetingNoteRefresh = (
+  cb: (p: { id: string }) => void,
+): Promise<UnlistenFn> =>
+  listen('meeting-note-refresh', (e) => cb(e.payload as { id: string }));
+
 // ── Infra downloads ──
 
 export const startInfraDownloads = () => invoke<void>('start_infra_downloads');

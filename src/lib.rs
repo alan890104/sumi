@@ -18,6 +18,7 @@ pub mod settings;
 mod whisper_streaming;
 pub mod stt;
 mod transcribe;
+mod vbx;
 pub mod whisper_models;
 
 use std::collections::HashMap;

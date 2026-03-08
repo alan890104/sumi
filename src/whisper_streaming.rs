@@ -230,6 +230,133 @@ pub(crate) fn run_whisper_preview_loop(app: AppHandle, language: String, session
     tracing::info!("[whisper-preview] feeder exited (session {})", session_id);
 }
 
+// ── Import helpers ────────────────────────────────────────────────────────────
+
+/// One Whisper segment with its native timestamps and DTW word timestamps.
+/// Used by the import pipeline (WhisperX-style: ASR → diarize → merge).
+pub(crate) struct WhisperImportSegment {
+    pub start: f64,
+    pub end: f64,
+    pub text: String,
+    pub words: Vec<crate::meeting_notes::WordTs>,
+}
+
+/// Transcribe `samples` (16 kHz) for the import pipeline, returning
+/// per-segment results with Whisper's native segment timestamps.
+///
+/// Unlike `transcribe_meeting_chunk` (which concatenates all segments),
+/// this function preserves each Whisper segment individually — matching
+/// WhisperX's `transcribe()` output that feeds into `assign_word_speakers`.
+///
+/// Key difference: `no_timestamps = false` so Whisper produces proper
+/// segment boundaries (start/end) via timestamp tokens.
+pub(crate) fn transcribe_import_segments(
+    ctx_guard: &std::sync::MutexGuard<'_, Option<crate::transcribe::WhisperContextCache>>,
+    samples: &[f32],
+    language: &str,
+    initial_prompt: Option<&str>,
+    audio_start_secs: f64,
+) -> Result<Vec<WhisperImportSegment>, String> {
+    use crate::meeting_notes::WordTs;
+
+    let c = ctx_guard.as_ref().ok_or("Whisper context not loaded")?;
+    let mut wh_state = c
+        .ctx
+        .create_state()
+        .map_err(|e| format!("Failed to create whisper state: {}", e))?;
+
+    {
+        let lang_hint = if language.is_empty() || language == "auto" {
+            None
+        } else {
+            Some(language.split('-').next().unwrap_or(language))
+        };
+        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+        params.set_language(lang_hint);
+        if let Some(prompt) = initial_prompt {
+            if !prompt.is_empty() {
+                params.set_initial_prompt(prompt);
+            }
+        }
+        params.set_print_special(false);
+        params.set_print_realtime(false);
+        params.set_print_progress(false);
+        params.set_single_segment(false);
+        // Enable timestamp tokens so Whisper produces proper segment boundaries.
+        params.set_no_timestamps(false);
+        params.set_no_context(true);
+        params.set_temperature_inc(0.6);
+        params.set_no_speech_thold(0.5);
+        params.set_n_threads(crate::transcribe::num_cpus() as _);
+        wh_state
+            .full(params, samples)
+            .map_err(|e| format!("Whisper import inference failed: {}", e))?;
+    }
+
+    let num_segments = wh_state.full_n_segments();
+    let mut result = Vec::new();
+
+    for i in 0..num_segments {
+        let Some(seg) = wh_state.get_segment(i) else {
+            continue;
+        };
+        if seg.no_speech_probability() > 0.5 {
+            continue;
+        }
+        let text = match seg.to_str_lossy() {
+            Ok(s) => s.trim().to_string(),
+            Err(_) => continue,
+        };
+        if text.is_empty() {
+            continue;
+        }
+
+        let seg_start = audio_start_secs + seg.start_timestamp() as f64 / 100.0;
+        let seg_end = audio_start_secs + seg.end_timestamp() as f64 / 100.0;
+
+        // Extract DTW word timestamps for this segment only.
+        let n_tokens = seg.n_tokens();
+        let valid_ts: Vec<i64> = (0..n_tokens)
+            .filter_map(|t| {
+                let tok = seg.get_token(t)?;
+                let td = tok.token_data();
+                if td.t_dtw < 0 { None } else { Some(td.t_dtw) }
+            })
+            .collect();
+
+        let mut words = Vec::new();
+        if !valid_ts.is_empty() {
+            let chars: Vec<char> = text.chars().collect();
+            let n_chars = chars.len();
+            let n_valid = valid_ts.len();
+            if n_chars > 0 {
+                for (pos, t_dtw) in valid_ts.iter().enumerate() {
+                    let char_start = pos * n_chars / n_valid;
+                    let char_end = ((pos + 1) * n_chars / n_valid).min(n_chars);
+                    if char_start >= n_chars {
+                        break;
+                    }
+                    let w: String = chars[char_start..char_end].iter().collect();
+                    if w.trim().is_empty() {
+                        continue;
+                    }
+                    let t = audio_start_secs + *t_dtw as f64 / 100.0;
+                    words.push(WordTs { w, s: t, e: t });
+                }
+            }
+        }
+
+        result.push(WhisperImportSegment {
+            start: seg_start,
+            end: seg_end,
+            text,
+            words,
+        });
+    }
+
+    Ok(result)
+}
+
 // ── Meeting feeder helpers ────────────────────────────────────────────────────
 
 /// Transcribe `samples` (16 kHz) from the already-loaded `WhisperContextCache`.

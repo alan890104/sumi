@@ -161,6 +161,10 @@ pub fn segmentation_model_path() -> PathBuf {
     models_dir().join("speech-turn-detector.onnx")
 }
 
+pub fn plda_model_path() -> PathBuf {
+    models_dir().join("plda.bin")
+}
+
 pub fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }
