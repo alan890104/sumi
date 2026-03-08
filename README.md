@@ -22,9 +22,14 @@ English | [繁體中文](README_TW.md) | [简体中文](README_CN.md)
 
 <table>
 <tr>
-<td align="center"><img src="assets/demo-gmail.gif" width="280"/><br/><sub><b>Gmail</b> — formats as a proper email</sub></td>
-<td align="center"><img src="assets/demo-notion.gif" width="280"/><br/><sub><b>Notion</b> — clean structured prose</sub></td>
-<td align="center"><img src="assets/demo-telegram.gif" width="280"/><br/><sub><b>Telegram</b> — casual, conversational</sub></td>
+<td align="center" valign="middle" width="33%"><img src="assets/demo-gmail.gif" width="280"/></td>
+<td align="center" valign="middle" width="33%"><img src="assets/demo-notion.gif" width="280"/></td>
+<td align="center" valign="middle" width="33%"><img src="assets/demo-telegram.gif" width="280"/></td>
+</tr>
+<tr>
+<td align="center"><sub><b>Gmail</b> — formats as a proper email</sub></td>
+<td align="center"><sub><b>Notion</b> — clean structured prose</sub></td>
+<td align="center"><sub><b>Telegram</b> — casual, conversational</sub></td>
 </tr>
 </table>
 
