@@ -164,9 +164,16 @@ pub struct AppState {
 /// to send incremental transcription results to the overlay.
 pub(crate) fn emit_transcription_partial(app: &AppHandle, text: &str) {
     if let Some(overlay) = app.get_webview_window("overlay") {
+        let lang = app
+            .state::<AppState>()
+            .settings
+            .lock()
+            .map(|s| s.stt.language.clone())
+            .unwrap_or_default();
+        let converted = maybe_convert_zh(text, &lang);
         let _ = overlay.emit(
             "transcription-partial",
-            serde_json::json!({ "text": text }),
+            serde_json::json!({ "text": converted }),
         );
     }
 }
@@ -1067,88 +1074,117 @@ pub fn run() {
             });
 
             // Register a CoreAudio listener for default-input-device changes.
-            // When the user connects Bluetooth headphones, the system default input
-            // may switch to them. The listener reconnects the cpal stream to the
-            // built-in mic (via resolve_input_device), preventing an A2DP → HFP switch.
+            //
+            // Handles two scenarios:
+            // 1. Not recording: tear down the current stream so that the next
+            //    `do_start_recording` reconnects to the correct device (lazy).
+            // 2. Recording with BT hotplug: immediately reconnect to the
+            //    built-in mic to prevent A2DP → HFP quality degradation.
             {
                 let app_for_listener = app.handle().clone();
                 audio_devices::add_default_input_listener(move || {
                     let state = app_for_listener.state::<AppState>();
 
-                    // If the user chose an explicit mic device, never interfere.
+                    let is_active = state.is_recording.load(Ordering::SeqCst)
+                        || state.meeting_active.load(Ordering::SeqCst);
+
+                    // ── Active recording: only handle BT → built-in switch ──
+                    if is_active {
+                        let explicit = state.settings.lock()
+                            .ok()
+                            .and_then(|s| s.mic_device.clone());
+                        if explicit.is_some() { return; }
+                        if !crate::audio_devices::is_default_input_bluetooth() {
+                            tracing::info!("Default input changed while recording (non-BT) — will apply on next start");
+                            return;
+                        }
+
+                        tracing::info!("Default input changed to Bluetooth while recording — reconnecting to built-in mic");
+
+                        if state.reconnecting.swap(true, Ordering::SeqCst) {
+                            tracing::info!("Reconnect already in progress — skipping duplicate notification");
+                            return;
+                        }
+
+                        if let Ok(mut at) = state.audio_thread.lock() {
+                            if let Some(ctrl) = at.take() { ctrl.stop(); }
+                        }
+                        state.mic_available.store(false, Ordering::SeqCst);
+
+                        let app2 = app_for_listener.clone();
+                        std::thread::spawn(move || {
+                            let state = app2.state::<AppState>();
+                            let result = audio::try_reconnect_audio(
+                                &state.mic_available,
+                                &state.sample_rate,
+                                &state.buffer,
+                                &state.is_recording,
+                                &state.audio_thread,
+                                None,
+                            );
+                            state.reconnecting.store(false, Ordering::SeqCst);
+                            match result {
+                                Ok(()) => {
+                                    tracing::info!("Mic stream reconnected after BT input device change");
+                                    if let Ok(mut t) = state.last_recording_end.lock() {
+                                        *t = None;
+                                    }
+                                }
+                                Err(e) => tracing::error!("Mic stream reconnect failed: {}", e),
+                            }
+                        });
+                        return;
+                    }
+
+                    // ── Not recording: lazy reconnect for ANY device change ──
+                    // Already unavailable — next recording will pick the right device.
+                    if !state.mic_available.load(Ordering::SeqCst) {
+                        // If there's a paused stream from idle timeout, stop it so
+                        // next recording gets a fresh stream on the new device.
+                        if let Ok(mut at) = state.audio_thread.lock() {
+                            if at.as_ref().is_some_and(|c| c.is_paused()) {
+                                if let Some(ctrl) = at.take() { ctrl.stop(); }
+                            }
+                        }
+                        return;
+                    }
+
+                    // Determine the wanted device.
                     let explicit = state.settings.lock()
                         .ok()
                         .and_then(|s| s.mic_device.clone());
-                    if explicit.is_some() { return; }
 
-                    // Don't interrupt an active recording.
-                    if state.is_recording.load(Ordering::SeqCst) {
-                        tracing::info!("Default input changed while recording — will apply on next start");
+                    if let Some(ref name) = explicit {
+                        // Explicit device: only react if that device appeared.
+                        if !audio_devices::input_device_exists(name) {
+                            return;
+                        }
+                    }
+
+                    // wanted_input_device_name returns a concrete device name
+                    // (resolves "Auto" to the actual system default with BT
+                    // avoidance), so the comparison below is always meaningful.
+                    let wanted = audio_devices::wanted_input_device_name(explicit);
+
+                    // Already on the correct device?
+                    let current = state.audio_thread.lock().ok()
+                        .and_then(|at| at.as_ref().map(|c| c.device_name.clone()))
+                        .flatten();
+
+                    if current.as_deref() == wanted.as_deref() {
                         return;
                     }
 
-                    // Only reconnect when the new default IS Bluetooth.
-                    // If BT just disconnected and the default reverted to built-in,
-                    // our cpal stream is already on the built-in mic — no action needed.
-                    // (If the BT stream dies, the error callback will set stream_alive=false
-                    //  and do_start_recording will trigger a lazy reconnect.)
-                    if !crate::audio_devices::is_default_input_bluetooth() {
-                        tracing::info!("Default input changed to non-BT device — stream already correct, skipping reconnect");
-                        return;
-                    }
+                    tracing::info!(
+                        "Input device changed (current={:?}, wanted={:?}) — marking for lazy reconnect",
+                        current, wanted
+                    );
 
-                    tracing::info!("Default audio input device changed to Bluetooth — reconnecting to built-in mic");
-
-                    // On-demand model: stream is closed between recordings.
-                    // resolve_input_device will avoid BT automatically on the next
-                    // recording start, so no reconnect is needed while idle.
-                    if !state.is_recording.load(Ordering::SeqCst) {
-                        tracing::info!("Not recording — skipping BT reconnect; built-in will be used on next hotkey press");
-                        return;
-                    }
-
-                    // Guard against multiple concurrent reconnects: CoreAudio can fire
-                    // 2-3 property-change notifications per physical hotplug event.
-                    // If two threads both reach spawn_audio_thread, the second one leaks
-                    // the first cpal stream (it keeps running, consuming resources forever).
-                    if state.reconnecting.swap(true, Ordering::SeqCst) {
-                        tracing::info!("Reconnect already in progress — skipping duplicate CoreAudio notification");
-                        return;
-                    }
-
-                    // Tear down the old thread so try_reconnect_audio will spawn a fresh one.
+                    // Tear down stream; do_start_recording will reconnect on next press.
                     if let Ok(mut at) = state.audio_thread.lock() {
                         if let Some(ctrl) = at.take() { ctrl.stop(); }
                     }
                     state.mic_available.store(false, Ordering::SeqCst);
-
-                    // Dispatch to a background thread — CoreAudio HAL callbacks must return
-                    // quickly; try_reconnect_audio blocks for up to 5 s (recv_timeout).
-                    let app2 = app_for_listener.clone();
-                    std::thread::spawn(move || {
-                        let state = app2.state::<AppState>();
-                        let result = audio::try_reconnect_audio(
-                            &state.mic_available,
-                            &state.sample_rate,
-                            &state.buffer,
-                            &state.is_recording,
-                            &state.audio_thread,
-                            None,
-                        );
-                        // Always reset the guard so future events can trigger reconnect.
-                        state.reconnecting.store(false, Ordering::SeqCst);
-                        match result {
-                            Ok(()) => {
-                                tracing::info!("Mic stream reconnected after input device change");
-                                // Reset idle clock so the watcher doesn't immediately
-                                // close the freshly reconnected stream.
-                                if let Ok(mut t) = state.last_recording_end.lock() {
-                                    *t = None;
-                                }
-                            }
-                            Err(e) => tracing::error!("Mic stream reconnect failed: {}", e),
-                        }
-                    });
                 });
             }
 

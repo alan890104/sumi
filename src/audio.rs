@@ -8,26 +8,67 @@ use std::time::{Duration, Instant};
 use crate::stt::{LocalSttEngine, SttConfig, SttMode};
 use crate::transcribe::transcribe_with_cached_whisper;
 
-/// Handle to control (stop) a running audio thread.
+/// Commands sent from [`AudioThreadControl`] to the audio thread.
+enum AudioCmd {
+    /// Pause the cpal stream (CoreAudio stops capturing, mic indicator goes away).
+    Pause,
+    /// Resume the cpal stream.  The reply channel signals `true` on success.
+    Resume(mpsc::Sender<bool>),
+    /// Stop the audio thread entirely (thread exits, stream is dropped).
+    Stop,
+}
+
+/// Handle to control a running audio thread.
 pub struct AudioThreadControl {
-    thread: std::thread::Thread,
-    stop_signal: Arc<AtomicBool>,
+    cmd_tx: mpsc::Sender<AudioCmd>,
     /// False when the cpal stream has emitted an error and is no longer delivering data.
     pub stream_alive: Arc<AtomicBool>,
     /// The resolved device name this stream was opened on (after BT-avoidance).
     /// `None` means cpal's system default was used at open time.
     pub device_name: Option<String>,
+    /// True while the stream is paused (idle timeout).
+    paused: Arc<AtomicBool>,
 }
 
 impl AudioThreadControl {
-    /// Signal the audio thread to stop and wake it up.
+    /// Signal the audio thread to stop.  The thread exits and the cpal stream
+    /// is dropped (fully releasing the microphone resource).
     pub fn stop(&self) {
-        self.stop_signal.store(true, Ordering::Relaxed);
-        self.thread.unpark();
+        let _ = self.cmd_tx.send(AudioCmd::Stop);
+    }
+
+    /// Pause the cpal stream.  CoreAudio stops capturing and the mic indicator
+    /// disappears, but the AudioUnit configuration is preserved so that a
+    /// subsequent [`resume`] can restart without re-initialisation issues.
+    pub fn pause(&self) {
+        let _ = self.cmd_tx.send(AudioCmd::Pause);
+        self.paused.store(true, Ordering::SeqCst);
+    }
+
+    /// Resume a previously paused stream.  Returns `true` if the stream was
+    /// successfully restarted.  This call blocks (up to 500 ms) until the audio
+    /// thread confirms that `stream.play()` succeeded, guaranteeing data flow
+    /// before the caller sets `is_recording = true`.
+    pub fn resume(&self) -> bool {
+        let (reply_tx, reply_rx) = mpsc::channel();
+        if self.cmd_tx.send(AudioCmd::Resume(reply_tx)).is_err() {
+            return false;
+        }
+        let ok = reply_rx
+            .recv_timeout(Duration::from_millis(500))
+            .unwrap_or(false);
+        if ok {
+            self.paused.store(false, Ordering::SeqCst);
+        }
+        ok
     }
 
     pub fn is_alive(&self) -> bool {
         self.stream_alive.load(Ordering::Relaxed)
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.paused.load(Ordering::SeqCst)
     }
 }
 
@@ -45,23 +86,20 @@ pub fn spawn_audio_thread(
 ) -> Result<(u32, AudioThreadControl), String> {
     // Apply Bluetooth avoidance when in Auto mode (device_name == None).
     let device_name = crate::audio_devices::resolve_input_device(device_name);
-    // Clone the resolved name before it is moved into the spawned thread,
-    // so we can record it on AudioThreadControl for the mismatch check.
-    let resolved_device_name = device_name.clone();
-
-    let stop = Arc::new(AtomicBool::new(false));
-    let stop_for_thread = Arc::clone(&stop);
-
     // Shared flag: set to false by the error callback when the stream dies.
     let stream_alive = Arc::new(AtomicBool::new(true));
     let alive_for_thread = Arc::clone(&stream_alive);
 
-    let (init_tx, init_rx) = mpsc::channel::<Result<u32, String>>();
+    // Init channel carries (sample_rate, actual_device_name).  The actual
+    // name may differ from the requested one when the requested device was
+    // not found and we fell back to the system default.
+    let (init_tx, init_rx) = mpsc::channel::<Result<(u32, Option<String>), String>>();
+    let (cmd_tx, cmd_rx) = mpsc::channel::<AudioCmd>();
 
     let buf_for_thread = Arc::clone(&buffer);
     let rec_for_thread = Arc::clone(&is_recording);
 
-    let join_handle = std::thread::spawn(move || {
+    std::thread::spawn(move || {
         let host = cpal::default_host();
 
         let device = if let Some(ref name) = device_name {
@@ -91,6 +129,9 @@ pub fn spawn_audio_thread(
                 }
             }
         };
+
+        // Record the ACTUAL device name (may differ from `device_name` on fallback).
+        let actual_device_name = device.name().ok();
 
         let config = match device.default_input_config() {
             Ok(c) => c,
@@ -204,29 +245,49 @@ pub fn spawn_audio_thread(
         }
 
         tracing::info!(
-            "Audio stream always-on: {} Hz, {} ch",
-            sample_rate, channels
+            "Audio stream always-on: {} Hz, {} ch (device: {:?})",
+            sample_rate, channels, actual_device_name,
         );
-        let _ = init_tx.send(Ok(sample_rate));
+        let _ = init_tx.send(Ok((sample_rate, actual_device_name)));
 
-        // Park the thread until signalled to stop, keeping `stream` alive.
+        // Block on channel commands, keeping `stream` alive.
         loop {
-            if stop_for_thread.load(Ordering::Relaxed) {
-                tracing::info!("Audio thread stopping");
-                break;
+            match cmd_rx.recv() {
+                Ok(AudioCmd::Pause) => {
+                    if let Err(e) = stream.pause() {
+                        tracing::warn!("Failed to pause audio stream: {}", e);
+                    } else {
+                        tracing::info!("Audio stream paused (idle)");
+                    }
+                }
+                Ok(AudioCmd::Resume(reply)) => {
+                    let ok = match stream.play() {
+                        Ok(()) => {
+                            tracing::info!("Audio stream resumed");
+                            true
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to resume audio stream: {}", e);
+                            alive_for_thread.store(false, Ordering::Relaxed);
+                            false
+                        }
+                    };
+                    let _ = reply.send(ok);
+                }
+                Ok(AudioCmd::Stop) | Err(_) => {
+                    tracing::info!("Audio thread stopping");
+                    break;
+                }
             }
-            std::thread::park();
         }
     });
 
-    // Grab the Thread handle before blocking on the init channel.
-    let thread = join_handle.thread().clone();
-
-    let sample_rate = init_rx
+    let (sample_rate, actual_device_name) = init_rx
         .recv_timeout(std::time::Duration::from_secs(5))
         .map_err(|_| "Audio thread init timed out".to_string())??;
 
-    Ok((sample_rate, AudioThreadControl { thread, stop_signal: stop, stream_alive, device_name: resolved_device_name }))
+    let paused = Arc::new(AtomicBool::new(false));
+    Ok((sample_rate, AudioThreadControl { cmd_tx, stream_alive, device_name: actual_device_name, paused }))
 }
 
 /// Attempt to reconnect the microphone when `mic_available` is false.
@@ -283,7 +344,6 @@ pub fn do_start_recording(
     device_name: Option<String>,
 ) -> Result<(), String> {
     // ── Step 1: ensure stream is alive ───────────────────────────────────
-    // Clone device_name here so it remains available for the mismatch check below.
     let stream_dead = audio_thread.lock().ok()
         .and_then(|at| at.as_ref().map(|c| !c.is_alive()))
         .unwrap_or(false);
@@ -292,6 +352,10 @@ pub fn do_start_recording(
         if stream_dead {
             tracing::warn!("Audio stream was dead, reconnecting before recording");
             mic_available.store(false, Ordering::SeqCst);
+            // Clean up the dead stream so try_reconnect_audio starts fresh.
+            if let Ok(mut at) = audio_thread.lock() {
+                if let Some(ctrl) = at.take() { ctrl.stop(); }
+            }
         } else if reconnecting.load(Ordering::SeqCst) {
             // A background reconnect (e.g. startup pre-open) is in progress.
             // Wait for it instead of racing to open a second stream, which
@@ -308,11 +372,31 @@ pub fn do_start_recording(
                 return Err("mic_not_ready".to_string());
             }
         }
+
         // Re-check: the background reconnect may have succeeded while we waited.
         if !mic_available.load(Ordering::SeqCst) {
-            try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name.clone())?;
+            // Try to resume a paused stream first (idle timeout pauses rather
+            // than destroying the stream, preserving the CoreAudio AudioUnit
+            // configuration and avoiding sample-rate mismatches on re-init).
+            let resumed = audio_thread.lock().ok()
+                .and_then(|at| at.as_ref().and_then(|c| {
+                    if c.is_paused() && c.is_alive() {
+                        Some(c.resume())
+                    } else {
+                        None
+                    }
+                }))
+                .unwrap_or(false);
+
+            if resumed {
+                mic_available.store(true, Ordering::SeqCst);
+                tracing::info!("Microphone resumed from idle pause");
+            } else {
+                // Full reconnect (first start, device switch, or dead stream).
+                try_reconnect_audio(mic_available, sample_rate, buffer, is_recording_arc, audio_thread, device_name.clone())?;
+            }
         }
-        // Freshly reconnected stream is already on the correct device;
+        // Freshly resumed/reconnected stream is already on the correct device;
         // the mismatch check below will be a no-op.
     }
 

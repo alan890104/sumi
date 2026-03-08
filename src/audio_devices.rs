@@ -69,6 +69,40 @@ pub fn add_default_input_listener(callback: impl Fn() + Send + 'static) {
     { let _ = callback; }
 }
 
+/// Returns `true` if an input device with the given name is currently available.
+pub fn input_device_exists(name: &str) -> bool {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    cpal::default_host()
+        .input_devices()
+        .ok()
+        .and_then(|mut devs| devs.find(|d| d.name().ok().as_deref() == Some(name)))
+        .is_some()
+}
+
+/// Returns the name of the system default input device, or `None` if
+/// no input device is available.
+pub fn default_input_device_name() -> Option<String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    cpal::default_host()
+        .default_input_device()
+        .and_then(|d| d.name().ok())
+}
+
+/// Returns the device name that [`super::audio::spawn_audio_thread`] would
+/// actually open for the given preference.  Unlike [`resolve_input_device`],
+/// this always returns a concrete name (never `None`) when a device is
+/// available, making it suitable for comparing against
+/// `AudioThreadControl::device_name`.
+pub fn wanted_input_device_name(preferred: Option<String>) -> Option<String> {
+    let resolved = resolve_input_device(preferred);
+    if resolved.is_some() {
+        return resolved;
+    }
+    // resolve_input_device returned None → "use system default".
+    // Return the actual default device name for comparison.
+    default_input_device_name()
+}
+
 /// Resolve the effective microphone device name, applying Bluetooth avoidance
 /// when the user has not made an explicit device selection.
 ///
