@@ -381,7 +381,63 @@
     setContextOverride('', '', '').catch(() => {});
   }
 
-  // ── Step 4: Polish Readiness Check ──
+  // ── Step 4: Polish Readiness Check + Mockup Animation ──
+
+  const MOCKUP_RAW = 'um, I was thinking — maybe we could have lunch tomorrow?';
+  const MOCKUP_POLISHED = 'I was thinking we could have lunch tomorrow.';
+  const MOCKUP_TIMINGS = [0, 300, 700, 4200, 5200];
+  const MOCKUP_LOOP = 9000;
+
+  let mockupStep = $state(0);
+  let mockupDisplayed = $state('');
+  let mockupSecs = $state(0);
+  let mockupTimers: ReturnType<typeof setTimeout>[] = [];
+  let mockupTypeIv: ReturnType<typeof setInterval> | null = null;
+  let mockupSecsIv: ReturnType<typeof setInterval> | null = null;
+  let mockupRecordingTime = $derived(`0:${String(mockupSecs).padStart(2, '0')}`);
+
+  function startMockupLoop() {
+    stopMockupLoop();
+    const at = (s: number, delay: number) => {
+      const t = setTimeout(() => {
+        mockupStep = s;
+        if (s === 2) {
+          mockupDisplayed = '';
+          mockupSecs = 0;
+          let i = 0;
+          const charDelay = Math.max(20, Math.floor((MOCKUP_TIMINGS[3] - MOCKUP_TIMINGS[2]) / MOCKUP_RAW.length));
+          mockupTypeIv = setInterval(() => {
+            i++;
+            mockupDisplayed = MOCKUP_RAW.slice(0, i);
+            if (i >= MOCKUP_RAW.length && mockupTypeIv) { clearInterval(mockupTypeIv); mockupTypeIv = null; }
+          }, charDelay);
+          mockupSecsIv = setInterval(() => mockupSecs++, 1000);
+        }
+        if (s === 3 && mockupSecsIv) { clearInterval(mockupSecsIv); mockupSecsIv = null; }
+      }, delay);
+      mockupTimers.push(t);
+    };
+    at(0, 0);
+    at(1, MOCKUP_TIMINGS[1]);
+    at(2, MOCKUP_TIMINGS[2]);
+    at(3, MOCKUP_TIMINGS[3]);
+    at(4, MOCKUP_TIMINGS[4]);
+    mockupTimers.push(setTimeout(() => startMockupLoop(), MOCKUP_LOOP));
+  }
+
+  function stopMockupLoop() {
+    mockupTimers.forEach(clearTimeout);
+    mockupTimers = [];
+    if (mockupTypeIv) { clearInterval(mockupTypeIv); mockupTypeIv = null; }
+    if (mockupSecsIv) { clearInterval(mockupSecsIv); mockupSecsIv = null; }
+    mockupStep = 0;
+    mockupDisplayed = '';
+    mockupSecs = 0;
+  }
+
+  function cleanupPolishCheck() {
+    stopMockupLoop();
+  }
 
   let polishReady = $state(false);
 
@@ -404,6 +460,7 @@
   }
 
   async function setupPolishCheck() {
+    startMockupLoop();
     await checkPolishReady();
   }
 
@@ -535,6 +592,7 @@
     cleanupMicTest();
     cleanupHotkeyTest();
     cleanupGeneral();
+    cleanupPolishCheck();
     cleanupGmail();
     cleanupEditHotkeyCheck();
     cleanupEditTest();
@@ -744,25 +802,51 @@
           {/if}
         </div>
         <div class="test-right">
-          <div class="test-polish-demo">
-            <div class="test-polish-demo-raw">
-              <div class="test-polish-demo-badge">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-                <span>Raw</span>
-              </div>
-              <p>"um yeah so I was thinking — maybe we could like, have lunch tomorrow?"</p>
+          <div class="mockup-editor">
+            <div class="mockup-titlebar">
+              <div class="mockup-dots"><span></span><span></span><span></span></div>
+              <span class="mockup-window-title">Sumi</span>
             </div>
-            <div class="test-polish-demo-divider">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              <span>AI Polish</span>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-            </div>
-            <div class="test-polish-demo-polished">
-              <div class="test-polish-demo-badge polished">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                <span>Polished</span>
-              </div>
-              <p>"I was thinking we could have lunch tomorrow."</p>
+            <div class="mockup-body">
+              <!-- Text content -->
+              {#if mockupStep === 4}
+                <div class="mockup-text mockup-text-polished">{MOCKUP_POLISHED}</div>
+              {:else if mockupStep >= 2}
+                <div class="mockup-text mockup-text-raw">
+                  {mockupDisplayed}{#if mockupDisplayed.length < MOCKUP_RAW.length}<span class="mockup-cursor"></span>{/if}
+                </div>
+              {:else}
+                <div class="mockup-text mockup-text-idle">{MOCKUP_RAW}</div>
+              {/if}
+
+              <!-- Recording / Polishing badge -->
+              {#if mockupStep === 2 || mockupStep === 3}
+                <div class="mockup-badge" class:mockup-badge-rec={mockupStep === 2} class:mockup-badge-pol={mockupStep === 3}>
+                  {#if mockupStep === 2}
+                    <div class="mockup-waveform">
+                      {#each [0.5, 1, 0.7, 1, 0.5] as scale, i}
+                        <div class="mockup-waveform-bar" style="--scale: {scale}; animation-delay: {i * 0.12}s"></div>
+                      {/each}
+                    </div>
+                    {t('overlay.recording')} {mockupRecordingTime}
+                  {:else}
+                    <svg class="mockup-sparkle" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,220,50,0.9)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    {t('overlay.polishing')}...
+                  {/if}
+                </div>
+              {/if}
+
+              <!-- Shortcut hint -->
+              {#if mockupStep <= 1}
+                <div class="mockup-shortcut-hint">
+                  {#each hotkey.split('+') as part, i}
+                    {@const sym = MODIFIER_SYMBOLS[part]}
+                    {@const label = sym ?? part.replace(/^Key/, '').replace(/^Digit/, '')}
+                    {@const parts = hotkey.split('+')}
+                    <div class="mockup-shortcut-key" class:lit={mockupStep >= 1 || i < parts.length - 1}>{label}</div>
+                  {/each}
+                </div>
+              {/if}
             </div>
           </div>
         </div>
@@ -1395,68 +1479,170 @@
     font-weight: 700;
   }
 
-  /* ── Polish before/after demo card ── */
-  .test-polish-demo {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
-    width: 84%;
-    max-width: 320px;
+  /* ── Polish step mockup editor ── */
+  .mockup-editor {
+    border-radius: 10px;
     overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+    width: 88%;
+    max-width: 380px;
+    background: #fff;
   }
 
-  .test-polish-demo-raw {
-    padding: 14px 16px;
-  }
-
-  .test-polish-demo-polished {
-    padding: 14px 16px;
-  }
-
-  .test-polish-demo-badge {
+  .mockup-titlebar {
+    padding: 8px 12px;
+    background: linear-gradient(to bottom, #f0f0f0, #e5e5e5);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-bottom: 7px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-tertiary);
   }
 
-  .test-polish-demo-badge.polished {
-    color: #007AFF;
-  }
-
-  .test-polish-demo-raw p {
-    margin: 0;
-    font-size: 13px;
-    color: var(--text-tertiary);
-    line-height: 1.5;
-    font-style: italic;
-  }
-
-  .test-polish-demo-polished p {
-    margin: 0;
-    font-size: 13px;
-    color: var(--text-primary);
-    line-height: 1.5;
-    font-weight: 500;
-  }
-
-  .test-polish-demo-divider {
+  .mockup-dots {
     display: flex;
-    align-items: center;
-    justify-content: center;
     gap: 6px;
-    padding: 7px 16px;
-    background: rgba(0, 122, 255, 0.05);
-    border-top: 1px solid rgba(0, 122, 255, 0.1);
-    border-bottom: 1px solid rgba(0, 122, 255, 0.1);
+  }
+
+  .mockup-dots span {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .mockup-dots span:nth-child(1) { background: #ff5f56; border: 1px solid #e0443e; }
+  .mockup-dots span:nth-child(2) { background: #ffbd2e; border: 1px solid #dea123; }
+  .mockup-dots span:nth-child(3) { background: #27c93f; border: 1px solid #1aab29; }
+
+  .mockup-window-title {
+    flex: 1;
+    text-align: center;
     font-size: 11px;
     font-weight: 600;
-    color: #007AFF;
+    color: #666;
+  }
+
+  .mockup-body {
+    padding: 24px 20px 20px;
+    min-height: 150px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mockup-text {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .mockup-text-idle {
+    color: #ddd;
+    user-select: none;
+  }
+
+  .mockup-text-raw {
+    color: #888;
+  }
+
+  .mockup-text-polished {
+    color: #000;
+    font-weight: 600;
+    animation: mockup-fade-in 0.5s ease forwards;
+  }
+
+  @keyframes mockup-fade-in {
+    from { opacity: 0; filter: blur(5px); }
+    to   { opacity: 1; filter: blur(0); }
+  }
+
+  .mockup-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: #888;
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: mockup-blink 0.8s ease-in-out infinite;
+  }
+
+  @keyframes mockup-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .mockup-badge {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 100px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .mockup-badge-rec { background: #f97316; }
+  .mockup-badge-pol { background: #3b82f6; }
+
+  .mockup-waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .mockup-waveform-bar {
+    width: 3px;
+    height: 18px;
+    border-radius: 2px;
+    background: #fff;
+    transform-origin: center;
+    animation: mockup-wave 0.6s ease-in-out infinite;
+  }
+
+  @keyframes mockup-wave {
+    0%, 100% { transform: scaleY(var(--scale, 0.5)); }
+    50%       { transform: scaleY(1.2); }
+  }
+
+  .mockup-sparkle {
+    animation: mockup-pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes mockup-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .mockup-shortcut-hint {
+    position: absolute;
+    bottom: 14px;
+    right: 14px;
+    display: flex;
+    gap: 5px;
+  }
+
+  .mockup-shortcut-key {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    color: #000;
+    transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  }
+
+  .mockup-shortcut-key.lit {
+    background: #3b82f6;
+    color: #fff;
+    border-color: #2563eb;
   }
 
   /* ── Polish status ── */

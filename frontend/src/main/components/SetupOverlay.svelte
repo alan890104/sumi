@@ -156,7 +156,7 @@
     const selected = await openDialog({ directory: true, multiple: false });
     if (!selected || typeof selected !== 'string') return;
     try {
-      await migrateDataRoot(selected, 'change_only');
+      await migrateDataRoot(selected, 'move');
       dataRootPath = selected;
     } catch (e) {
       dataRootError = String(e);
