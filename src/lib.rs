@@ -241,13 +241,16 @@ fn hide_overlay_delayed(app: &AppHandle, delay_ms: u64) {
 }
 
 /// Emit 'preparing' to reset overlay phase, then hide via delayed path.
-/// Uses `hide_overlay_delayed(0)` instead of `run_on_main_thread` so the
-/// Cocoa run loop yields before hiding, giving the WebView event loop a
-/// chance to process the IPC 'preparing' message first.
 fn reset_and_hide_overlay(app: &AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.emit("recording-status", "preparing");
     }
+    // Emit 'preparing' first so the WebView can process the phase reset before
+    // the window becomes invisible.  hide_overlay_delayed(0) schedules the
+    // actual hide on the main thread via a freshly spawned OS thread, which
+    // gives the run loop one extra iteration to deliver the IPC message.
+    // Ordering is best-effort: if the hide races ahead the stale phase is
+    // still corrected once the pending event is processed after the next show.
     hide_overlay_delayed(app, 0);
 }
 
