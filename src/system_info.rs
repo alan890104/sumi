@@ -187,43 +187,54 @@ fn get_gpu_vram() -> u64 {
 }
 
 /// Read the CPU model string from the OS.
-/// macOS: `machdep.cpu.brand_string` sysctl (works on both Intel and Apple Silicon).
+/// macOS: tries `machdep.cpu.brand_string` first (Intel only), then falls back
+///        to `hw.model` for Apple Silicon (e.g. "Mac16,11").
 /// Windows: `ProcessorNameString` registry value under CentralProcessor\0.
 fn get_cpu_model() -> String {
     #[cfg(target_os = "macos")]
     {
         use std::ffi::CStr;
-        let name = b"machdep.cpu.brand_string\0";
-        let mut size: libc::size_t = 0;
-        unsafe {
-            libc::sysctlbyname(
-                name.as_ptr() as *const libc::c_char,
-                std::ptr::null_mut(),
-                &mut size,
-                std::ptr::null_mut(),
-                0,
-            );
-        }
-        if size == 0 {
-            return "unknown".to_string();
-        }
-        let mut buf = vec![0u8; size];
-        let ret = unsafe {
-            libc::sysctlbyname(
-                name.as_ptr() as *const libc::c_char,
-                buf.as_mut_ptr() as *mut libc::c_void,
-                &mut size,
-                std::ptr::null_mut(),
-                0,
-            )
+
+        // Helper: query a sysctl string by name.
+        let sysctl_string = |name: &[u8]| -> Option<String> {
+            let mut size: libc::size_t = 0;
+            let ret = unsafe {
+                libc::sysctlbyname(
+                    name.as_ptr() as *const libc::c_char,
+                    std::ptr::null_mut(),
+                    &mut size,
+                    std::ptr::null_mut(),
+                    0,
+                )
+            };
+            if ret != 0 || size == 0 {
+                return None;
+            }
+            let mut buf = vec![0u8; size];
+            let ret = unsafe {
+                libc::sysctlbyname(
+                    name.as_ptr() as *const libc::c_char,
+                    buf.as_mut_ptr() as *mut libc::c_void,
+                    &mut size,
+                    std::ptr::null_mut(),
+                    0,
+                )
+            };
+            if ret == 0 && size > 0 {
+                CStr::from_bytes_until_nul(&buf)
+                    .map(|s| s.to_string_lossy().trim().to_string())
+                    .ok()
+                    .filter(|s| !s.is_empty())
+            } else {
+                None
+            }
         };
-        if ret == 0 && size > 0 {
-            CStr::from_bytes_until_nul(&buf)
-                .map(|s| s.to_string_lossy().trim().to_string())
-                .unwrap_or_else(|_| "unknown".to_string())
-        } else {
-            "unknown".to_string()
-        }
+
+        // machdep.cpu.brand_string is x86-only; returns ENOENT on Apple Silicon.
+        // Fall back to hw.model (e.g. "Mac16,11") for M-series machines.
+        sysctl_string(b"machdep.cpu.brand_string\0")
+            .or_else(|| sysctl_string(b"hw.model\0"))
+            .unwrap_or_else(|| "unknown".to_string())
     }
 
     #[cfg(target_os = "windows")]
