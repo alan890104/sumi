@@ -312,6 +312,9 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         let _ = main_win.emit("voice-rule-transcript", &text);
                     }
                     state.is_processing.store(false, Ordering::SeqCst);
+                    if let Some(overlay) = app_handle.get_webview_window("overlay") {
+                        let _ = overlay.emit("recording-status", "preparing");
+                    }
                     let app_for_hide = app_handle.clone();
                     let _ = app_handle.run_on_main_thread(move || {
                         if let Some(overlay) = app_for_hide.get_webview_window("overlay") {
@@ -498,6 +501,9 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 }
                 // Release immediately and hide overlay — nothing to display
                 state.is_processing.store(false, Ordering::SeqCst);
+                if let Some(overlay) = app_handle.get_webview_window("overlay") {
+                    let _ = overlay.emit("recording-status", "preparing");
+                }
                 let app_for_hide = app_handle.clone();
                 let _ = app_handle.run_on_main_thread(move || {
                     if let Some(overlay) = app_for_hide.get_webview_window("overlay") {
