@@ -45,12 +45,13 @@
   /** Phases actively driven by backend events — do not reset on visibilitychange.
    *  Excluded (terminal/short-lived; reset on hide is correct):
    *    'preparing', 'pasted', 'copied', 'error', 'edited',
-   *    'edit_requires_polish', 'meeting_stopped', 'undo'
+   *    'edit_requires_polish', 'meeting_stopped',
+   *    'undo' — context-specific; countdown expires intentionally on navigation
    */
   const ACTIVE_PHASES: readonly Phase[] = [
     'recording', 'edit_recording', 'meeting_recording',
     'transcribing', 'polishing', 'processing',
-    'switching', // model-switch in progress — not related to Space switching
+    'switching', // model-switch in progress; backend owns the 'done' transition
   ];
 
   let phase: Phase = $state('preparing');

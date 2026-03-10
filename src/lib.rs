@@ -312,6 +312,9 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                         let _ = main_win.emit("voice-rule-transcript", &text);
                     }
                     state.is_processing.store(false, Ordering::SeqCst);
+                    // Emit before hide so the frontend transitions to 'preparing'
+                    // before visibilitychange fires. Ordering is benign even if
+                    // the IPC event arrives after hide.
                     if let Some(overlay) = app_handle.get_webview_window("overlay") {
                         let _ = overlay.emit("recording-status", "preparing");
                     }
@@ -501,6 +504,9 @@ fn stop_transcribe_and_paste(app: &AppHandle) {
                 }
                 // Release immediately and hide overlay — nothing to display
                 state.is_processing.store(false, Ordering::SeqCst);
+                // Emit before hide so the frontend transitions to 'preparing'
+                // before visibilitychange fires. Ordering is benign even if
+                // the IPC event arrives after hide.
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "preparing");
                 }
@@ -694,6 +700,9 @@ fn stop_edit_and_replace(app: &AppHandle) {
                 tracing::info!("Edit-by-voice: no speech detected");
                 state.is_processing.store(false, Ordering::SeqCst);
                 restore_clipboard(&state);
+                // Emit before hide so the frontend transitions to 'preparing'
+                // before visibilitychange fires. Ordering is benign even if
+                // the IPC event arrives after hide.
                 if let Some(overlay) = app_handle.get_webview_window("overlay") {
                     let _ = overlay.emit("recording-status", "preparing");
                 }
