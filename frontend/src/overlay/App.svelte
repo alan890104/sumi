@@ -23,15 +23,6 @@
   const UNDO_DURATION = 5000;
   const TIMER_INTERVAL = 200;
   const INTERPOLATION_FACTOR = 0.25;
-  /** Phases actively driven by backend events — do not reset on visibilitychange.
-   *  Excluded (terminal/short-lived; reset on hide is correct):
-   *    'preparing', 'pasted', 'copied', 'error', 'edited',
-   *    'edit_requires_polish', 'meeting_stopped', 'undo'
-   */
-  const ACTIVE_PHASES: Phase[] = [
-    'recording', 'edit_recording', 'meeting_recording',
-    'transcribing', 'polishing', 'processing', 'switching',
-  ];
 
   // ── State ──
   type Phase =
@@ -50,6 +41,16 @@
     | 'edit_requires_polish'
     | 'undo'
     | 'switching';
+
+  /** Phases actively driven by backend events — do not reset on visibilitychange.
+   *  Excluded (terminal/short-lived; reset on hide is correct):
+   *    'preparing', 'pasted', 'copied', 'error', 'edited',
+   *    'edit_requires_polish', 'meeting_stopped', 'undo'
+   */
+  const ACTIVE_PHASES: Phase[] = [
+    'recording', 'edit_recording', 'meeting_recording',
+    'transcribing', 'polishing', 'processing', 'switching',
+  ];
 
   let phase: Phase = $state('preparing');
   let timerText: string = $state('0:00');
