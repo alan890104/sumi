@@ -6,7 +6,8 @@ use crate::polisher::{self, PolishModelInfo};
 use crate::qwen3_asr as qwen3;
 use crate::settings::{self, Settings};
 use crate::stt::{Qwen3AsrModel, Qwen3AsrModelInfo, SttMode};
-use crate::whisper_models::{self, WhisperModel, WhisperModelInfo, SystemInfo};
+use crate::system_info::{self as sysinfo, SystemInfo};
+use crate::whisper_models::{self, WhisperModel, WhisperModelInfo};
 use crate::{history, meeting_notes, AppState};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -1323,7 +1324,7 @@ pub fn download_llm_model(app: AppHandle, state: State<'_, AppState>) -> Result<
 
 #[tauri::command]
 pub fn list_polish_models(state: State<'_, AppState>) -> Vec<PolishModelInfo> {
-    let system = crate::whisper_models::detect_system_info();
+    let system = sysinfo::detect_system_info();
     let (active_model, recommended) = state
         .settings
         .lock()
@@ -1589,12 +1590,12 @@ pub fn list_whisper_models(state: State<'_, AppState>) -> Vec<WhisperModelInfo> 
 
 #[tauri::command]
 pub fn get_system_info() -> SystemInfo {
-    whisper_models::detect_system_info()
+    sysinfo::detect_system_info()
 }
 
 #[tauri::command]
 pub fn get_whisper_model_recommendation(state: State<'_, AppState>) -> WhisperModel {
-    let system = whisper_models::detect_system_info();
+    let system = sysinfo::detect_system_info();
     // When stt.language is "auto", resolve to proper BCP-47 code via system locale
     let stt_language = state
         .settings
@@ -1603,7 +1604,7 @@ pub fn get_whisper_model_recommendation(state: State<'_, AppState>) -> WhisperMo
         .map(|s| s.stt.language.clone())
         .filter(|l| !l.is_empty() && l != "auto")
         .or_else(|| {
-            whisper_models::detect_system_language()
+            sysinfo::detect_system_language()
                 .map(|locale| crate::stt::locale_to_stt_language(&locale))
                 .filter(|l| l != "auto")
         });
@@ -2071,6 +2072,7 @@ pub fn export_diagnostic_log(state: State<'_, AppState>) -> Result<String, Strin
     let sys = get_system_info();
     writeln!(report, "--- System ---").ok();
     writeln!(report, "OS: {} ({})", sys.os, sys.arch).ok();
+    writeln!(report, "CPU: {}", sys.cpu_model).ok();
     writeln!(report, "Apple Silicon: {}", sys.is_apple_silicon).ok();
     writeln!(report, "RAM: {} MB", sys.total_ram_bytes / 1024 / 1024).ok();
     writeln!(report, "Disk Free: {} MB", sys.available_disk_bytes / 1024 / 1024).ok();
