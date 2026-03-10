@@ -240,18 +240,15 @@ fn hide_overlay_delayed(app: &AppHandle, delay_ms: u64) {
     });
 }
 
-/// Emit 'preparing' to reset overlay phase, then hide immediately.
-/// Ensures the frontend transitions to idle before visibilitychange can fire.
+/// Emit 'preparing' to reset overlay phase, then hide via delayed path.
+/// Uses `hide_overlay_delayed(0)` instead of `run_on_main_thread` so the
+/// Cocoa run loop yields before hiding, giving the WebView event loop a
+/// chance to process the IPC 'preparing' message first.
 fn reset_and_hide_overlay(app: &AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.emit("recording-status", "preparing");
     }
-    let app_for_hide = app.clone();
-    let _ = app.run_on_main_thread(move || {
-        if let Some(overlay) = app_for_hide.get_webview_window("overlay") {
-            platform::hide_overlay(&overlay);
-        }
-    });
+    hide_overlay_delayed(app, 0);
 }
 
 /// Shared logic: stop recording, transcribe, copy/paste, and hide the overlay.
