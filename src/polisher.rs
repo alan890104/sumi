@@ -310,7 +310,7 @@ impl PolishModelInfo {
         model: &PolishModel,
         active_model: &PolishModel,
         recommended_model: &PolishModel,
-        system: &crate::whisper_models::SystemInfo,
+        system: &crate::system_info::SystemInfo,
     ) -> Self {
         let dir = crate::settings::models_dir();
         let (downloaded, file_size_on_disk) = model_file_status(&dir, model);

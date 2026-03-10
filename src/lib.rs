@@ -16,6 +16,7 @@ pub mod models;
 mod polisher;
 mod qwen3_asr;
 pub mod settings;
+pub mod system_info;
 mod whisper_streaming;
 pub mod stt;
 mod transcribe;

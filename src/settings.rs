@@ -208,7 +208,7 @@ pub fn apply_locale_defaults(settings: &mut Settings) {
     let mut changed = false;
     let is_new_install = settings.stt.language == "auto" || settings.stt.language.is_empty();
 
-    if let Some(locale) = crate::whisper_models::detect_system_language() {
+    if let Some(locale) = crate::system_info::detect_system_language() {
         // STT language & prompt rules
         if is_new_install {
             let lang = crate::stt::locale_to_stt_language(&locale);
