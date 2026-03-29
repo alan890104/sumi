@@ -532,7 +532,14 @@ pub fn do_stop_recording(
     };
 
     // ── VAD or RMS trimming ─────────────────────────────────────────────
-    if crate::settings::vad_model_path().exists() {
+    // Skip Silero VAD for cloud STT — cloud providers handle silence/speech
+    // detection server-side, and the ggml VAD backend creates a disposable
+    // threadpool per 512-sample chunk (~1000× for 30 s audio), adding
+    // seconds of overhead on Windows due to repeated kernel calls.
+    let use_silero = crate::settings::vad_model_path().exists()
+        && stt_config.mode != SttMode::Cloud;
+
+    if use_silero {
         // Use Silero VAD to extract speech segments
         match crate::transcribe::filter_with_vad(&state.vad_ctx, &samples_16k) {
             Ok(speech) if speech.is_empty() => {
@@ -553,7 +560,11 @@ pub fn do_stop_recording(
             }
         }
     } else {
-        tracing::debug!("VAD model not downloaded, using RMS trimming");
+        if stt_config.mode == SttMode::Cloud {
+            tracing::info!("Skipping Silero VAD for cloud STT; using RMS trimming");
+        } else {
+            tracing::debug!("VAD model not downloaded, using RMS trimming");
+        }
         rms_trim_silence(&mut samples_16k)?;
     }
 
