@@ -14,11 +14,11 @@
     <key>com.apple.security.automation.apple-events</key>
     <true/>
 
-    <!-- Data Protection Keychain for API key storage (credentials.rs) -->
-    <key>keychain-access-groups</key>
-    <array>
-        <string>HZ3F4JWGL9.com.sumivoice.app</string>
-        <string>HZ3F4JWGL9.com.sumivoice.app.dev</string>
-    </array>
+    <!-- Do NOT add keychain-access-groups (or any other restricted entitlement)
+         here unless an embedded.provisionprofile that authorises it is bundled.
+         Without one, macOS refuses to launch the Developer ID-signed app
+         ("Unsatisfied entitlements" → "Sumi can't be opened", issue #39).
+         credentials.rs falls back to the login keychain via the security CLI
+         when the Data Protection Keychain entitlement is absent. -->
 </dict>
 </plist>

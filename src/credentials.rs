@@ -1,6 +1,11 @@
 //! Credential storage — platform-specific implementations.
 //!
-//! macOS: hybrid approach — Data Protection Keychain primary + CLI backup:
+//! macOS: hybrid approach — Data Protection Keychain primary + CLI backup.
+//! The Data Protection Keychain needs the `keychain-access-groups` entitlement,
+//! which macOS only honours when authorised by an embedded provisioning profile
+//! (an unauthorised claim makes the signed app fail to launch). Release builds
+//! ship without it, so there every call hits errSecMissingEntitlement and the
+//! `security` CLI (login keychain) is the store actually used:
 //!   save()   → security-framework + Data Protection Keychain (primary,
 //!              kSecUseDataProtectionKeychain=true, no per-app ACL, no prompts ever)
 //!              + `security` CLI backup written only when value changes (checked via

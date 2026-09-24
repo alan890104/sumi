@@ -344,3 +344,58 @@ jobs:
           gh release edit "$TAG" \
             --repo "${{ github.repository }}" \
             --draft=false
+
+  # ── Homebrew tap: point the cask at the DMG published above ───────
+  # Keeps `brew install --cask sumi` in sync with the release. The cask's
+  # version/sha256 used to be bumped by hand and drifted (issue #39).
+  # Requires a HOMEBREW_TAP_TOKEN secret: a fine-grained PAT with
+  # "Contents: read and write" on <owner>/homebrew-sumi. Skipped with a
+  # warning when the secret is absent so a release never fails on it.
+  update-homebrew-tap:
+    needs: [create-release, finalize]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bump Casks/sumi.rb to the released DMG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_REPO: ${{ github.repository_owner }}/homebrew-sumi
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.create-release.outputs.tag }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::warning::HOMEBREW_TAP_TOKEN is not set; skipping Homebrew tap update. Bump $TAP_REPO/Casks/sumi.rb to $VERSION manually."
+            exit 0
+          fi
+          case "$VERSION" in
+            *-*) echo "Pre-release $VERSION; leaving the Homebrew cask unchanged."; exit 0 ;;
+          esac
+
+          # Hash the exact DMG attached to the release (after any --clobber re-upload).
+          DMG="Sumi_${VERSION}_aarch64.dmg"
+          gh release download "$TAG" --repo "$REPO" --pattern "$DMG"
+          SHA256=$(sha256sum "$DMG" | cut -d' ' -f1)
+          echo "$DMG sha256: $SHA256"
+
+          git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
+          CASK=tap/Casks/sumi.rb
+          sed -i -E \
+            -e "s/^(  version )\"[^\"]*\"/\1\"${VERSION}\"/" \
+            -e "s/^(  sha256 )\"[^\"]*\"/\1\"${SHA256}\"/" \
+            "$CASK"
+          # Fail loudly if the cask layout changed and the rewrite missed.
+          grep -qxF "  version \"${VERSION}\"" "$CASK"
+          grep -qxF "  sha256 \"${SHA256}\"" "$CASK"
+          ruby -c "$CASK"
+
+          cd tap
+          if git diff --quiet; then
+            echo "Cask already at $VERSION ($SHA256)."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "cask: bump sumi to ${VERSION}"
+          git push origin HEAD
