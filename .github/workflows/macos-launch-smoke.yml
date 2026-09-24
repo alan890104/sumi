@@ -4,9 +4,12 @@ name: "Smoke: macOS launch"
 # entitlement (keychain-access-groups) without a provisioning profile made every
 # signed build since v0.5.3 fail with "Sumi can't be opened".
 #
-#   (A) harness self-check: the published known-bad release must FAIL to launch
-#   (B) the same binary re-signed with this branch's entitlements must launch
-#   (C) a signed build of this branch must launch
+#   (A)  harness self-check: the published known-bad release must FAIL to launch
+#   (B0) control: that binary re-signed (same identity) with its own
+#        entitlements must still FAIL
+#   (B)  the same re-signing with this branch's entitlements must launch,
+#        so the entitlements are the only difference between B0 and B
+#   (C)  a signed build of this branch must launch
 on:
   pull_request:
     paths:
@@ -75,6 +78,18 @@ jobs:
           echo "Entitlements of $KNOWN_BAD_TAG:"
           codesign -d --entitlements - --xml Sumi.app 2>/dev/null | plutil -p -
           "$GITHUB_WORKSPACE/scripts/macos-launch-check.sh" Sumi.app fail
+
+      - name: (B0) Control, same binary re-signed with its original entitlements must fail
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/known-bad"
+          codesign -d --entitlements - --xml Sumi.app 2>/dev/null > original-entitlements.plist
+          rm -rf control && mkdir control && cp -R Sumi.app control/
+          rm -f control/Sumi.app/Contents/CodeResources
+          codesign --force --timestamp=none --options runtime \
+            --entitlements original-entitlements.plist \
+            --sign "$SIGN_IDENTITY" control/Sumi.app
+          "$GITHUB_WORKSPACE/scripts/macos-launch-check.sh" control/Sumi.app fail
 
       - name: (B) Same binary re-signed with this branch's entitlements must launch
         run: |

@@ -144,6 +144,11 @@ pub fn spawn_audio_thread(
         let sample_rate = config.sample_rate().0;
         let channels = config.channels() as usize;
 
+        // Set when this thread stops.  A retired stream's callbacks must not
+        // touch the shared buffer / recording flag: on macOS the cpal stream
+        // outlives its drop (see the Stop handling below).
+        let retired = Arc::new(AtomicBool::new(false));
+
         let stream = {
             let buf = Arc::clone(&buf_for_thread);
             let rec = Arc::clone(&rec_for_thread);
@@ -151,10 +156,12 @@ pub fn spawn_audio_thread(
                 cpal::SampleFormat::F32 => {
                     let rec_err = Arc::clone(&rec_for_thread);
                     let alive_err = Arc::clone(&alive_for_thread);
+                    let retired_data = Arc::clone(&retired);
+                    let retired_err = Arc::clone(&retired);
                     device.build_input_stream(
                         &config.into(),
                         move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                            if !rec.load(Ordering::Relaxed) {
+                            if retired_data.load(Ordering::Relaxed) || !rec.load(Ordering::Relaxed) {
                                 return;
                             }
                             let mut buf = match buf.lock() {
@@ -175,6 +182,9 @@ pub fn spawn_audio_thread(
                             }
                         },
                         move |err| {
+                            if retired_err.load(Ordering::Relaxed) {
+                                return;
+                            }
                             tracing::error!("audio stream error: {}", err);
                             alive_err.store(false, Ordering::Relaxed);
                             rec_err.store(false, Ordering::Relaxed);
@@ -187,10 +197,12 @@ pub fn spawn_audio_thread(
                     let rec = Arc::clone(&rec_for_thread);
                     let rec_err = Arc::clone(&rec_for_thread);
                     let alive_err = Arc::clone(&alive_for_thread);
+                    let retired_data = Arc::clone(&retired);
+                    let retired_err = Arc::clone(&retired);
                     device.build_input_stream(
                         &config.into(),
                         move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                            if !rec.load(Ordering::Relaxed) {
+                            if retired_data.load(Ordering::Relaxed) || !rec.load(Ordering::Relaxed) {
                                 return;
                             }
                             let mut buf = match buf.lock() {
@@ -217,6 +229,9 @@ pub fn spawn_audio_thread(
                             }
                         },
                         move |err| {
+                            if retired_err.load(Ordering::Relaxed) {
+                                return;
+                            }
                             tracing::error!("audio stream error: {}", err);
                             alive_err.store(false, Ordering::Relaxed);
                             rec_err.store(false, Ordering::Relaxed);
@@ -280,6 +295,17 @@ pub fn spawn_audio_thread(
                 }
             }
         }
+
+        // Retire and pause before dropping.  On macOS, cpal 0.15's disconnect
+        // listener holds a strong reference to its own stream, so dropping
+        // `stream` never disposes the AudioUnit: without this the input IO
+        // kept running after every stop (mic indicator stuck on, #41) and its
+        // callbacks kept writing into the shared buffer / recording flag.
+        retired.store(true, Ordering::SeqCst);
+        if let Err(e) = stream.pause() {
+            tracing::warn!("Failed to pause audio stream before drop: {}", e);
+        }
+        drop(stream);
     });
 
     let (sample_rate, actual_device_name) = init_rx

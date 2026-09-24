@@ -81,4 +81,13 @@ jobs:
       - name: Audio tests incl. OS-level mic check
         env:
           LIBCLANG_PATH: "C:/Program Files/LLVM/bin"
+          # Static CRT everywhere, as in release.yml: esaxx-rs (tokenizers)
+          # always builds /MT, so whisper.cpp must not default to /MD.
+          RUSTFLAGS: "-C target-feature=+crt-static"
+          CMAKE_C_FLAGS_DEBUG: "-MT -Zi -Ob0 -Od"
+          CMAKE_CXX_FLAGS_DEBUG: "-MT -Zi -Ob0 -Od"
+          CMAKE_C_FLAGS_RELWITHDEBINFO: "-MT -Zi -O2 -Ob1 -DNDEBUG"
+          CMAKE_CXX_FLAGS_RELWITHDEBINFO: "-MT -Zi -O2 -Ob1 -DNDEBUG"
+          CMAKE_C_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
+          CMAKE_CXX_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
         run: "cargo test --no-default-features --lib audio:: -- --include-ignored --test-threads=1 --nocapture"
