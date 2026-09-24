@@ -881,6 +881,97 @@ mod tests {
         ctrl.stop();
     }
 
+    /// Whether the OS considers this process to be using the microphone —
+    /// the condition behind the macOS orange dot / Windows tray mic icon.
+    /// `None` on platforms (or OS versions) where it cannot be queried.
+    fn os_reports_mic_in_use(device: Option<&str>) -> Option<bool> {
+        #[cfg(target_os = "macos")]
+        {
+            let process = crate::platform::macos::this_process_is_running_input();
+            let dev = device.and_then(crate::platform::macos::input_device_is_running_somewhere);
+            println!("  macOS: process running input = {process:?}, device running somewhere = {dev:?}");
+            process.or(dev)
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let _ = device;
+            let active = crate::platform::windows::this_process_capture_session_active();
+            println!("  Windows: capture session active = {active:?}");
+            active
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+        {
+            let _ = device;
+            None
+        }
+    }
+
+    fn wait_for(what: &str, mut cond: impl FnMut() -> bool) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            if cond() {
+                println!("ok: {what}");
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        panic!("timed out waiting for: {what}");
+    }
+
+    fn print_consent_store(_label: &str) {
+        #[cfg(target_os = "windows")]
+        crate::platform::windows::print_mic_consent_store(_label);
+    }
+
+    /// OS-level check for #41: opening the stream makes the OS report the mic
+    /// as in use, the idle pause releases it, resume re-acquires it (with
+    /// audio flowing again), and stop releases it.  Needs a real or virtual
+    /// input device (SUMI_TEST_INPUT_DEVICE, default device if unset), so it
+    /// is ignored by default and run by the mic-release-smoke workflow.
+    #[test]
+    #[ignore = "needs an audio input device; run by the mic-release-smoke workflow"]
+    fn os_sees_mic_released_on_pause_and_reacquired_on_resume() {
+        let device = std::env::var("SUMI_TEST_INPUT_DEVICE").ok().filter(|s| !s.is_empty());
+        if cfg!(not(any(target_os = "macos", target_os = "windows"))) {
+            println!("skipped: no OS mic-in-use query on this platform");
+            return;
+        }
+        let buffer = Arc::new(Mutex::new(Vec::new()));
+        let rec = Arc::new(AtomicBool::new(false));
+        let (sr, ctrl) = spawn_audio_thread(Arc::clone(&buffer), Arc::clone(&rec), device.clone())
+            .expect("open input stream");
+        println!("opened {:?} at {sr} Hz", ctrl.device_name);
+
+        let expect = |want: bool| {
+            let dev = device.clone();
+            move || os_reports_mic_in_use(dev.as_deref()) == Some(want)
+        };
+        let captures = |buffer: &Arc<Mutex<Vec<f32>>>, rec: &Arc<AtomicBool>| {
+            buffer.lock().unwrap().clear();
+            rec.store(true, Ordering::SeqCst);
+            let buf = Arc::clone(buffer);
+            wait_for("audio samples arrive", move || !buf.lock().unwrap().is_empty());
+            rec.store(false, Ordering::SeqCst);
+        };
+
+        wait_for("OS reports mic in use after open", expect(true));
+        print_consent_store("open");
+        captures(&buffer, &rec);
+
+        ctrl.pause();
+        wait_for("OS reports mic released after idle pause", expect(false));
+        print_consent_store("paused");
+
+        assert!(ctrl.resume(), "resume must succeed");
+        wait_for("OS reports mic in use after resume", expect(true));
+        print_consent_store("resumed");
+        captures(&buffer, &rec);
+
+        ctrl.stop();
+        wait_for("OS reports mic released after stop", expect(false));
+        print_consent_store("stopped");
+    }
+
     #[test]
     fn start_recording_resumes_idle_paused_stream() {
         // End-to-end through do_start_recording (no cpal device needed): the

@@ -223,3 +223,37 @@ fn entry(provider: &str) -> Result<keyring::Entry, String> {
     keyring::Entry::new(&keychain_service(provider), SERVICE)
         .map_err(|e| format!("Keyring error: {}", e))
 }
+
+#[cfg(test)]
+mod tests {
+    /// Restricted macOS entitlements: claiming one without an embedded
+    /// provisioning profile that authorises it makes the signed app fail to
+    /// launch ("Unsatisfied entitlements" -> "Sumi can't be opened", #39).
+    const RESTRICTED: &[&str] = &[
+        "keychain-access-groups",
+        "com.apple.application-identifier",
+        "com.apple.developer.",
+    ];
+
+    #[test]
+    fn release_entitlements_need_a_provisioning_profile_for_restricted_keys() {
+        let entitlements = include_str!("../entitlements.plist");
+        let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json"))
+            .expect("tauri.conf.json is valid JSON");
+        let bundles_profile = conf
+            .pointer("/bundle/macOS/files")
+            .and_then(|f| f.as_object())
+            .is_some_and(|f| f.keys().any(|k| k.ends_with("embedded.provisionprofile")));
+
+        let claimed: Vec<&str> = entitlements
+            .lines()
+            .filter_map(|l| l.trim().strip_prefix("<key>")?.strip_suffix("</key>"))
+            .filter(|k| RESTRICTED.iter().any(|r| k.starts_with(r)))
+            .collect();
+        assert!(
+            claimed.is_empty() || bundles_profile,
+            "entitlements.plist claims restricted entitlements {claimed:?} but tauri.conf.json \
+             bundles no embedded.provisionprofile; the signed app would not launch (#39)"
+        );
+    }
+}

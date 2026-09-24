@@ -1,0 +1,136 @@
+name: "Smoke: macOS launch"
+
+# Proves a signed Sumi.app actually launches on macOS. Issue #39: a restricted
+# entitlement (keychain-access-groups) without a provisioning profile made every
+# signed build since v0.5.3 fail with "Sumi can't be opened".
+#
+#   (A) harness self-check: the published known-bad release must FAIL to launch
+#   (B) the same binary re-signed with this branch's entitlements must launch
+#   (C) a signed build of this branch must launch
+on:
+  pull_request:
+    paths:
+      - "entitlements.plist"
+      - "Info.plist"
+      - "tauri.conf.json"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "scripts/macos-launch-check.sh"
+      - ".github/workflows/macos-launch-smoke.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: macos-launch-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # Last release shipped with keychain-access-groups and no provisioning profile.
+  KNOWN_BAD_TAG: v0.5.4
+
+jobs:
+  launch:
+    runs-on: macos-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Import signing identity (Developer ID; ad-hoc without secrets)
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$APPLE_CERTIFICATE" ] || [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            echo "::warning::No signing secrets (e.g. fork PR); using ad-hoc signing"
+            echo "SIGN_IDENTITY=-" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/smoke.keychain-db"
+          KC_PW="$(uuidgen)"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 5400 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PW" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -f pkcs12 -k "$KEYCHAIN" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PW" "$KEYCHAIN" >/dev/null
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          echo "SIGN_IDENTITY=$APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+
+      - name: (A) Harness self-check, published known-bad release must fail to launch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/known-bad" && cd "$RUNNER_TEMP/known-bad"
+          gh release download "$KNOWN_BAD_TAG" --repo "$GITHUB_REPOSITORY" --pattern "Sumi.app.tar.gz"
+          tar xzf Sumi.app.tar.gz
+          echo "Entitlements of $KNOWN_BAD_TAG:"
+          codesign -d --entitlements - --xml Sumi.app 2>/dev/null | plutil -p -
+          "$GITHUB_WORKSPACE/scripts/macos-launch-check.sh" Sumi.app fail
+
+      - name: (B) Same binary re-signed with this branch's entitlements must launch
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/known-bad"
+          rm -rf resigned && mkdir resigned && cp -R Sumi.app resigned/
+          rm -f resigned/Sumi.app/Contents/CodeResources # stapled ticket no longer matches
+          codesign --force --timestamp=none --options runtime \
+            --entitlements "$GITHUB_WORKSPACE/entitlements.plist" \
+            --sign "$SIGN_IDENTITY" resigned/Sumi.app
+          codesign --verify --strict --verbose=2 resigned/Sumi.app
+          codesign -d --entitlements - --xml resigned/Sumi.app 2>/dev/null | plutil -p -
+          "$GITHUB_WORKSPACE/scripts/macos-launch-check.sh" resigned/Sumi.app ok
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: macos-aarch64
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@2
+
+      - name: (C) Build Sumi.app from this branch (signed, not notarized)
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          CMAKE_OSX_DEPLOYMENT_TARGET: "11.0"
+          CMAKE_C_FLAGS: "-march=armv8.5-a"
+          CMAKE_CXX_FLAGS: "-march=armv8.5-a"
+        run: |
+          APPLE_SIGNING_IDENTITY="$SIGN_IDENTITY" tauri build --ci \
+            --target aarch64-apple-darwin --bundles app \
+            --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: (C) Branch build carries no restricted entitlement and must launch
+        run: |
+          set -euo pipefail
+          APP=target/aarch64-apple-darwin/release/bundle/macos/Sumi.app
+          codesign --verify --strict --verbose=2 "$APP"
+          codesign -dv "$APP" 2>&1 | grep -E "^(Identifier|Authority|TeamIdentifier|CodeDirectory)"
+          codesign -d --entitlements - --xml "$APP" 2>/dev/null > "$RUNNER_TEMP/ent.xml"
+          plutil -p "$RUNNER_TEMP/ent.xml"
+          if grep -q "keychain-access-groups" "$RUNNER_TEMP/ent.xml"; then
+            echo "::error::branch build still claims keychain-access-groups"
+            exit 1
+          fi
+          scripts/macos-launch-check.sh "$APP" ok
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/smoke.keychain-db" 2>/dev/null || true
