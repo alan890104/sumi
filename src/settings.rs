@@ -31,9 +31,11 @@ pub struct Settings {
     /// Optional hotkey for meeting transcription mode. None = disabled.
     #[serde(default)]
     pub meeting_hotkey: Option<String>,
-    /// Idle mic timeout in seconds. 0 = never close (always-on).
-    /// When > 0, the mic stream is closed after this many seconds of inactivity
-    /// to prevent CoreAudio DSP (echo cancellation, AGC) from affecting other apps.
+    /// Idle mic timeout in seconds. 0 = never close (always-on, opened at launch).
+    /// When > 0, the mic stream is not opened at launch and is paused after this
+    /// many seconds of inactivity (1 = right after each recording), so the OS
+    /// mic indicator turns off and CoreAudio DSP (echo cancellation, AGC) stops
+    /// affecting other apps.
     #[serde(default = "default_idle_mic_timeout_secs")]
     pub idle_mic_timeout_secs: u32,
     /// When true, the raw audio of each meeting is archived as a WAV file alongside

@@ -1292,7 +1292,19 @@ pub fn run() {
             // press arriving in the first few hundred ms sees the flag and waits
             // (via do_start_recording's spin-wait) instead of racing into
             // spawn_audio_thread and leaking one cpal stream.
-            {
+            //
+            // Skipped when "Close mic when idle" is enabled: the user asked for
+            // the mic to be in use only around recordings, so it is opened on
+            // the first hotkey press instead of at launch.
+            let idle_mic_timeout_secs = app.state::<AppState>().settings.lock()
+                .map(|s| s.idle_mic_timeout_secs)
+                .unwrap_or(0);
+            if !audio::should_preopen_mic(idle_mic_timeout_secs) {
+                tracing::info!(
+                    "Mic pre-open skipped (idle mic timeout {}s); opening on first recording",
+                    idle_mic_timeout_secs
+                );
+            } else {
                 let state = app.state::<AppState>();
                 state.reconnecting.store(true, Ordering::SeqCst);
                 let app_handle = app.handle().clone();
@@ -1319,15 +1331,17 @@ pub fn run() {
                 });
             }
 
-            // Idle mic watcher: closes the mic stream after a configurable idle
-            // period to avoid CoreAudio DSP (echo cancellation, AGC, audio
-            // ducking) from affecting other apps when Sumi is not in use.
+            // Idle mic watcher: pauses the mic stream after a configurable idle
+            // period so the OS microphone indicator turns off and CoreAudio DSP
+            // (echo cancellation, AGC, audio ducking) stops affecting other apps
+            // when Sumi is not in use.  Polls every second so the "immediately
+            // after recording" option (1 s) releases the mic promptly.
             {
                 let app_handle = app.handle().clone();
                 std::thread::spawn(move || {
-                    tracing::info!("Idle mic watcher started (poll interval: 5s)");
+                    tracing::info!("Idle mic watcher started (poll interval: 1s)");
                     loop {
-                        std::thread::sleep(std::time::Duration::from_secs(5));
+                        std::thread::sleep(std::time::Duration::from_secs(1));
                         let state = app_handle.state::<AppState>();
 
                         let timeout_secs = state
@@ -1348,20 +1362,27 @@ pub fn run() {
                             continue;
                         }
 
-                        let timeout = std::time::Duration::from_secs(timeout_secs as u64);
+                        let idle_for = |state: &AppState| {
+                            state
+                                .last_recording_end
+                                .lock()
+                                .ok()
+                                .and_then(|t| t.map(|i| i.elapsed()))
+                        };
 
-                        // Pre-check elapsed outside the lock as a fast path to
-                        // avoid contending on audio_thread every 5 seconds.
-                        let elapsed = state
-                            .last_recording_end
-                            .lock()
-                            .ok()
-                            .and_then(|t| t.map(|i| i.elapsed()));
-
-                        match elapsed {
-                            None | Some(std::time::Duration::ZERO) => continue, // never recorded
-                            Some(e) if e < timeout => continue,
-                            _ => {}
+                        // Pre-check outside the audio_thread lock as a fast
+                        // path to avoid contending on it every tick.
+                        match audio::idle_mic_action(timeout_secs, idle_for(&state)) {
+                            audio::IdleMicAction::Keep => continue,
+                            audio::IdleMicAction::StartClock => {
+                                // Stream is open without a completed recording
+                                // (e.g. a cancelled one): count idle time from now.
+                                if let Ok(mut t) = state.last_recording_end.lock() {
+                                    t.get_or_insert_with(Instant::now);
+                                }
+                                continue;
+                            }
+                            audio::IdleMicAction::Pause => {}
                         }
 
                         // Acquire audio_thread lock and re-check all guards
@@ -1378,15 +1399,10 @@ pub fn run() {
                             // Re-read elapsed inside the lock to close the
                             // TOCTOU window: a recording may have completed
                             // between our pre-check and acquiring this lock.
-                            let fresh = state
-                                .last_recording_end
-                                .lock()
-                                .ok()
-                                .and_then(|t| t.map(|i| i.elapsed()));
-                            match fresh {
-                                None | Some(std::time::Duration::ZERO) => continue,
-                                Some(e) if e < timeout => continue,
-                                _ => {}
+                            if audio::idle_mic_action(timeout_secs, idle_for(&state))
+                                != audio::IdleMicAction::Pause
+                            {
+                                continue;
                             }
                             tracing::info!(
                                 "Idle mic timeout ({}s) — pausing mic stream",
@@ -1396,9 +1412,10 @@ pub fn run() {
                             // stream so a concurrent do_start_recording
                             // sees the unavailable flag immediately.
                             state.mic_available.store(false, Ordering::SeqCst);
-                            // Pause rather than destroy: CoreAudio stops
-                            // capturing (mic indicator disappears) but the
-                            // AudioUnit config is preserved, avoiding the
+                            // Pause rather than destroy: capture stops (macOS
+                            // AudioOutputUnitStop / Windows IAudioClient::Stop,
+                            // so the mic indicator disappears) but the stream
+                            // config is preserved, avoiding the CoreAudio
                             // sample-rate mismatch bug on re-init.
                             if let Some(ref ctrl) = *at {
                                 ctrl.pause();

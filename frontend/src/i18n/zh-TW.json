@@ -384,6 +384,7 @@
   "settings.behavior.micIdle": "閒置關閉麥克風",
   "settings.behavior.micIdleDesc": "閒置時自動關閉麥克風，避免系統音訊閃避",
   "settings.behavior.micIdle.off": "關閉",
+  "settings.behavior.micIdle.immediate": "錄音結束後立即",
   "settings.behavior.micIdle.30s": "30 秒",
   "settings.behavior.micIdle.1min": "1 分鐘",
   "settings.behavior.micIdle.5min": "5 分鐘",

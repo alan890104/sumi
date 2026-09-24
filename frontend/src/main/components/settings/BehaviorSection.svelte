@@ -10,6 +10,7 @@
 
   const micIdleOptions = $derived([
     { value: '0', label: t('settings.behavior.micIdle.off') },
+    { value: '1', label: t('settings.behavior.micIdle.immediate') },
     { value: '30', label: t('settings.behavior.micIdle.30s') },
     { value: '60', label: t('settings.behavior.micIdle.1min') },
     { value: '300', label: t('settings.behavior.micIdle.5min') },
