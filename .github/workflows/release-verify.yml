@@ -1,0 +1,81 @@
+name: "Verify release (macOS)"
+
+# Checks a published release the way users get it (issue #39): the DMG's app
+# must pass Gatekeeper as a notarized Developer ID app, carry no restricted
+# entitlement, and launch. With check_brew it also installs through the
+# Homebrew tap. Runs after every successful Release, or on demand for a tag.
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to verify (e.g. v0.5.5)"
+        required: true
+        type: string
+      check_brew:
+        description: "Also run `brew install --cask sumi` from the tap and launch it"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    # workflow_run's head_branch is the tag only for tag-push releases.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_branch }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Download the DMG and copy Sumi.app out of it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          DMG="Sumi_${VERSION}_aarch64.dmg"
+          mkdir -p "$RUNNER_TEMP/rel" && cd "$RUNNER_TEMP/rel"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$DMG"
+          shasum -a 256 "$DMG"
+          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/mnt" "$DMG"
+          ditto "$RUNNER_TEMP/mnt/Sumi.app" "$RUNNER_TEMP/app/Sumi.app"
+          hdiutil detach "$RUNNER_TEMP/mnt"
+          plutil -extract CFBundleShortVersionString raw "$RUNNER_TEMP/app/Sumi.app/Contents/Info.plist"
+
+      - name: Gatekeeper accepts it as a notarized Developer ID app
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/app/Sumi.app"
+          codesign --verify --strict --deep --verbose=2 "$APP"
+          xcrun stapler validate "$APP"
+          spctl --assess --type execute -vv "$APP" 2>&1 | tee "$RUNNER_TEMP/spctl.txt"
+          grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl.txt"
+          codesign -d --entitlements - --xml "$APP" 2>/dev/null > "$RUNNER_TEMP/ent.xml"
+          plutil -p "$RUNNER_TEMP/ent.xml"
+          if grep -Eq "keychain-access-groups|com\.apple\.application-identifier|com\.apple\.developer\." "$RUNNER_TEMP/ent.xml"; then
+            echo "::error::release claims a restricted entitlement without a provisioning profile"
+            exit 1
+          fi
+
+      - name: The app launches
+        run: scripts/macos-launch-check.sh "$RUNNER_TEMP/app/Sumi.app" ok
+
+      - name: Homebrew cask installs the release and it launches
+        if: github.event_name == 'workflow_dispatch' && inputs.check_brew
+        run: |
+          set -euo pipefail
+          brew tap alan890104/sumi
+          brew install --cask sumi
+          INSTALLED="$(plutil -extract CFBundleShortVersionString raw /Applications/Sumi.app/Contents/Info.plist)"
+          echo "installed: $INSTALLED (expected ${TAG#v})"
+          [ "$INSTALLED" = "${TAG#v}" ]
+          scripts/macos-launch-check.sh /Applications/Sumi.app ok
