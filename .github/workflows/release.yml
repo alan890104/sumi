@@ -49,6 +49,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
+          # A manual run may name a tag that does not exist yet (release from
+          # the browser): create it at the commit this run started from, since
+          # a draft release does not create its tag and the builds check it out.
+          if ! gh api "repos/${{ github.repository }}/git/ref/tags/$TAG" &>/dev/null; then
+            echo "Tag $TAG does not exist; creating it at $GITHUB_SHA"
+            gh api "repos/${{ github.repository }}/git/refs" \
+              -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" >/dev/null
+          fi
           if gh release view "$TAG" --repo "${{ github.repository }}" &>/dev/null; then
             echo "Release $TAG already exists, setting back to draft"
             gh release edit "$TAG" --repo "${{ github.repository }}" --draft
