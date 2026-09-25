@@ -148,7 +148,9 @@ jobs:
   # ── Windows CUDA build (reusable) ─────────────────────────────────
   build-windows:
     needs: create-release
-    runs-on: windows-latest
+    # Pinned: nvcc needs the VS 2022 cl.exe located below, and windows-latest
+    # moved to a VS 2026 image (windows-2025-vs2026) without it.
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
@@ -187,7 +189,7 @@ jobs:
           $clExe = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\*\bin\HostX64\x64\cl.exe" -ErrorAction SilentlyContinue |
             Sort-Object FullName | Select-Object -Last 1
           if (-not $clExe) {
-            Write-Error "cl.exe not found under VS 2022 Enterprise"
+            Write-Error "cl.exe not found under VS 2022 Enterprise (runner image changed?)"
             exit 1
           }
           Write-Host "Found cl.exe: $($clExe.FullName)"
