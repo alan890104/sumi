@@ -36,7 +36,7 @@ English | [繁體中文](README_TW.md) | [简体中文](README_CN.md)
 <br/>
 
 ```bash
-brew tap alan890104/sumi && brew install --cask sumi
+brew install --cask alan890104/sumi/sumi
 ```
 
 [Download DMG](https://github.com/alan890104/sumi/releases/latest) · [Releases](https://github.com/alan890104/sumi/releases) · [Issues](https://github.com/alan890104/sumi/issues)
@@ -168,8 +168,7 @@ The interface ships in 58 locales. Traditional Chinese users get automatic zh-CN
 ### Homebrew (recommended)
 
 ```bash
-brew tap alan890104/sumi
-brew install --cask sumi
+brew install --cask alan890104/sumi/sumi
 ```
 
 ### Download DMG
