@@ -15,7 +15,7 @@ on:
         required: true
         type: string
       check_brew:
-        description: "Also run `brew install --cask sumi` from the tap and launch it"
+        description: "Also install the cask as the README says (alan890104/sumi/sumi) and launch it"
         type: boolean
         default: false
 
@@ -73,8 +73,11 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.check_brew
         run: |
           set -euo pipefail
-          brew tap alan890104/sumi
-          brew install --cask sumi
+          # The README command. Homebrew refuses short names from untrusted
+          # third-party taps; a fully qualified install taps it and trusts
+          # this cask, so the short name must work afterwards for upgrades.
+          brew install --cask alan890104/sumi/sumi
+          brew info --cask sumi
           INSTALLED="$(plutil -extract CFBundleShortVersionString raw /Applications/Sumi.app/Contents/Info.plist)"
           echo "installed: $INSTALLED (expected ${TAG#v})"
           [ "$INSTALLED" = "${TAG#v}" ]

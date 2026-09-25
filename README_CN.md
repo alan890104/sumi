@@ -36,7 +36,7 @@
 <br/>
 
 ```bash
-brew tap alan890104/sumi && brew install --cask sumi
+brew install --cask alan890104/sumi/sumi
 ```
 
 [下载 DMG](https://github.com/alan890104/sumi/releases/latest) · [所有版本](https://github.com/alan890104/sumi/releases) · [反馈问题](https://github.com/alan890104/sumi/issues)
@@ -168,8 +168,7 @@ brew tap alan890104/sumi && brew install --cask sumi
 ### Homebrew（推荐）
 
 ```bash
-brew tap alan890104/sumi
-brew install --cask sumi
+brew install --cask alan890104/sumi/sumi
 ```
 
 ### 下载 DMG
