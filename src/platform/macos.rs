@@ -935,3 +935,92 @@ pub fn clipboard_change_count() -> Option<u32> {
         Some(count as u32)
     }
 }
+
+// ── Test support: is the microphone in use? ──────────────────────────────────
+
+#[cfg(test)]
+const K_AUDIO_HW_PROP_TRANSLATE_PID: u32 = 0x69643270; // 'id2p' (macOS 14+)
+#[cfg(test)]
+const K_AUDIO_PROCESS_PROP_IS_RUNNING_INPUT: u32 = 0x70697269; // 'piri' (macOS 14+)
+#[cfg(test)]
+const K_AUDIO_DEVICE_PROP_RUNNING_SOMEWHERE: u32 = 0x676f6e65; // 'gone'
+
+/// Whether this process is running audio input IO on any device, which is
+/// what turns on the macOS microphone privacy indicator.  `None` when the
+/// process-object API is unavailable (macOS < 14) or the query fails.
+#[cfg(test)]
+pub(crate) fn this_process_is_running_input() -> Option<bool> {
+    unsafe {
+        let addr = AudioObjectPropertyAddress {
+            selector: K_AUDIO_HW_PROP_TRANSLATE_PID,
+            scope: K_SCOPE_GLOBAL,
+            element: K_ELEMENT_MAIN,
+        };
+        let pid = std::process::id() as i32;
+        let mut process_obj: u32 = 0;
+        let mut size = std::mem::size_of::<u32>() as u32;
+        let status = AudioObjectGetPropertyData(
+            K_AUDIO_OBJECT_SYSTEM, &addr,
+            std::mem::size_of::<i32>() as u32, &pid as *const i32 as *const c_void,
+            &mut size, &mut process_obj as *mut u32 as *mut c_void,
+        );
+        if status != 0 || process_obj == 0 { return None; }
+
+        let addr_running = AudioObjectPropertyAddress {
+            selector: K_AUDIO_PROCESS_PROP_IS_RUNNING_INPUT,
+            scope: K_SCOPE_GLOBAL,
+            element: K_ELEMENT_MAIN,
+        };
+        let mut running: u32 = 0;
+        let mut size2 = std::mem::size_of::<u32>() as u32;
+        let status2 = AudioObjectGetPropertyData(
+            process_obj, &addr_running,
+            0, std::ptr::null(),
+            &mut size2, &mut running as *mut u32 as *mut c_void,
+        );
+        if status2 != 0 { return None; }
+        Some(running != 0)
+    }
+}
+
+/// Whether any process is running IO on the input device named `name`.
+/// `None` if no such device exists or the query fails.
+#[cfg(test)]
+pub(crate) fn input_device_is_running_somewhere(name: &str) -> Option<bool> {
+    unsafe {
+        let addr_devs = AudioObjectPropertyAddress {
+            selector: K_AUDIO_PROP_DEVICES,
+            scope: K_SCOPE_GLOBAL,
+            element: K_ELEMENT_MAIN,
+        };
+        let mut data_size: u32 = 0;
+        if AudioObjectGetPropertyDataSize(
+            K_AUDIO_OBJECT_SYSTEM, &addr_devs, 0, std::ptr::null(), &mut data_size,
+        ) != 0 || data_size == 0 {
+            return None;
+        }
+        let mut ids = vec![0u32; data_size as usize / std::mem::size_of::<u32>()];
+        if AudioObjectGetPropertyData(
+            K_AUDIO_OBJECT_SYSTEM, &addr_devs, 0, std::ptr::null(),
+            &mut data_size, ids.as_mut_ptr() as *mut c_void,
+        ) != 0 {
+            return None;
+        }
+        let dev_id = *ids.iter().find(|&&id| get_cfstring_property(id, K_AUDIO_PROP_NAME) == name)?;
+
+        let addr_running = AudioObjectPropertyAddress {
+            selector: K_AUDIO_DEVICE_PROP_RUNNING_SOMEWHERE,
+            scope: K_SCOPE_GLOBAL,
+            element: K_ELEMENT_MAIN,
+        };
+        let mut running: u32 = 0;
+        let mut size = std::mem::size_of::<u32>() as u32;
+        if AudioObjectGetPropertyData(
+            dev_id, &addr_running, 0, std::ptr::null(),
+            &mut size, &mut running as *mut u32 as *mut c_void,
+        ) != 0 {
+            return None;
+        }
+        Some(running != 0)
+    }
+}

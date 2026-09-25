@@ -162,3 +162,71 @@ fn make_key_input(vk: u16, key_up: bool) -> INPUT {
         },
     }
 }
+
+// ── Test support: is the microphone in use? ──────────────────────────────────
+
+/// Whether this process has an active (running) capture session on the
+/// default recording device, i.e. whether Windows considers it to be using
+/// the microphone.  `None` if the audio session API is unavailable.
+#[cfg(test)]
+pub(crate) fn this_process_capture_session_active() -> Option<bool> {
+    use windows::core::Interface;
+    use windows::Win32::Media::Audio::{
+        eCapture, eConsole, AudioSessionStateActive, IAudioSessionControl2,
+        IAudioSessionManager2, IMMDeviceEnumerator, MMDeviceEnumerator,
+    };
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
+
+    unsafe {
+        // S_FALSE / RPC_E_CHANGED_MODE only mean COM is already initialised.
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let enumerator: IMMDeviceEnumerator =
+            CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
+        let device = enumerator.GetDefaultAudioEndpoint(eCapture, eConsole).ok()?;
+        let manager: IAudioSessionManager2 = device.Activate(CLSCTX_ALL, None).ok()?;
+        let sessions = manager.GetSessionEnumerator().ok()?;
+        let pid = std::process::id();
+        for i in 0..sessions.GetCount().ok()? {
+            let control = sessions.GetSession(i).ok()?;
+            let control2: IAudioSessionControl2 = control.cast().ok()?;
+            if control2.GetProcessId().ok() == Some(pid)
+                && control.GetState().ok() == Some(AudioSessionStateActive)
+            {
+                return Some(true);
+            }
+        }
+        Some(false)
+    }
+}
+
+/// Print this executable's entry in the Windows microphone privacy store
+/// (`LastUsedTimeStop == 0` means "in use"; this backs the tray mic icon).
+/// Diagnostic only: the store may be absent on server images.
+#[cfg(test)]
+pub(crate) fn print_mic_consent_store(label: &str) {
+    const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone\NonPackaged";
+    let exe = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()))
+        .unwrap_or_default();
+    let out = match std::process::Command::new("reg").args(["query", KEY, "/s"]).output() {
+        Ok(o) => String::from_utf8_lossy(&o.stdout).into_owned(),
+        Err(e) => {
+            println!("[{label}] consent store unavailable: {e}");
+            return;
+        }
+    };
+    let mut in_ours = false;
+    let mut found = false;
+    for line in out.lines() {
+        if line.starts_with("HKEY_") {
+            in_ours = line.to_lowercase().ends_with(&exe);
+        } else if in_ours && line.contains("LastUsedTime") {
+            found = true;
+            println!("[{label}] consent store: {}", line.trim());
+        }
+    }
+    if !found {
+        println!("[{label}] consent store: no entry for {exe}");
+    }
+}

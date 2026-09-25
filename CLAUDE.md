@@ -48,7 +48,7 @@ Rust source files (16 modules + platform sub-module):
 - Registers all Tauri commands from `commands.rs` and sets up the tray menu, windows, and global shortcuts.
 
 #### `src/settings.rs` — Settings & data directories
-- **`Settings`** — persisted to `~/.sumi/config/settings.json`. Fields: `hotkey`, `auto_paste`, `polish` (PolishConfig), `history_retention_days` (u32, 0 = keep forever), `language` (Option<String>, UI language override), `stt` (SttConfig), `edit_hotkey` (Option<String>, default `"Control+Alt+KeyZ"`), `onboarding_completed` (bool), `mic_device` (Option<String>, preferred mic input device), `meeting_hotkey` (Option<String>, default None = disabled).
+- **`Settings`** — persisted to `~/.sumi/config/settings.json`. Fields: `hotkey`, `auto_paste`, `polish` (PolishConfig), `history_retention_days` (u32, 0 = keep forever), `language` (Option<String>, UI language override), `stt` (SttConfig), `edit_hotkey` (Option<String>, default `"Control+Alt+KeyZ"`), `onboarding_completed` (bool), `mic_device` (Option<String>, preferred mic input device), `meeting_hotkey` (Option<String>, default None = disabled), `idle_mic_timeout_secs` (u32, 0 = mic always on and pre-opened at launch; >0 = no pre-open, stream paused after N idle seconds; 1 = right after each recording).
 - **Data directory layout**: `~/.sumi/` (release) or `~/.sumi-dev/` (debug) with subdirectories: `config/` (settings.json), `models/` (Whisper & LLM GGUF files, Qwen3-ASR model dirs), `history/` (history.db, meeting WAL files), `audio/` (WAV files).
 
 #### `src/commands.rs` — Tauri command handlers
@@ -112,7 +112,7 @@ All `#[tauri::command]` functions exposed to the frontend:
 - **`transcribe_with_cached_whisper`** — accepts `dictionary_terms` for Whisper initial prompt biasing and `app_name` for context-aware prompting.
 
 #### `src/audio.rs` — Audio recording
-- **`spawn_audio_thread`** — creates a persistent always-on cpal input stream at app startup. The callback checks `is_recording` atomically and discards samples when false, giving true zero-latency recording start.
+- **`spawn_audio_thread`** — creates a persistent cpal input stream (pre-opened at app startup only when `idle_mic_timeout_secs == 0`; otherwise opened on the first recording). The callback checks `is_recording` atomically and discards samples when false, giving true zero-latency recording start. The idle mic watcher in `lib.rs` pauses the stream after `idle_mic_timeout_secs` (see `idle_mic_action`), and `do_start_recording` resumes it.
 - **`try_reconnect_audio`** — auto-reconnect on mic disconnection.
 - **`do_start_recording`** — clears the buffer and flips `is_recording` to true (instant, <5 ms). For Qwen3-ASR local mode, spawns `run_feeder_loop` (normal) or `run_meeting_feeder_loop` (meeting). For Whisper local mode, spawns `run_whisper_preview_loop` (normal) or `run_whisper_meeting_feeder_loop` (meeting). For cloud meeting mode, spawns `run_cloud_meeting_feeder_loop`.
 - **`do_stop_recording`** — flips `is_recording` to false, extracts samples, resamples to 16 kHz. Applies VAD filtering (or RMS trimming fallback). Dispatches to local Whisper/Qwen3-ASR or cloud STT based on `SttConfig.mode` and `local_engine`.

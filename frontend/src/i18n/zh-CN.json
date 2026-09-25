@@ -384,6 +384,7 @@
   "settings.behavior.micIdle": "闲置关闭麦克风",
   "settings.behavior.micIdleDesc": "闲置时自动关闭麦克风，避免系统音频闪避",
   "settings.behavior.micIdle.off": "关闭",
+  "settings.behavior.micIdle.immediate": "录音结束后立即",
   "settings.behavior.micIdle.30s": "30 秒",
   "settings.behavior.micIdle.1min": "1 分钟",
   "settings.behavior.micIdle.5min": "5 分钟",

@@ -1,0 +1,93 @@
+name: "Smoke: mic release"
+
+# OS-level check for issue #41: with a virtual input device on real macOS and
+# Windows runners, the OS must report Sumi's stream as using the microphone
+# after open/resume and as released after the idle pause/stop (what drives the
+# macOS orange dot and the Windows tray mic icon). See
+# audio::tests::os_sees_mic_released_on_pause_and_reacquired_on_resume.
+on:
+  pull_request:
+    paths:
+      - "src/audio.rs"
+      - "src/lib.rs"
+      - "src/platform/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/mic-release-smoke.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mic-release-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install virtual input device (BlackHole 2ch)
+        run: |
+          brew install --cask blackhole-2ch
+          sudo killall -9 coreaudiod || true
+          sleep 5
+          system_profiler SPAudioDataType
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: mic-smoke-macos
+
+      - name: Build frontend (needed by tauri::generate_context!)
+        run: npm ci && npm run build
+        working-directory: frontend
+
+      - name: Audio tests incl. OS-level mic check
+        env:
+          SUMI_TEST_INPUT_DEVICE: "BlackHole 2ch"
+        run: "cargo test --lib audio:: -- --include-ignored --test-threads=1 --nocapture"
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install virtual input device (VB-CABLE) and start audio service
+        uses: AlekseyMartynov/action-vbcable-win@6ec0facd8780f0f463d7dc2fcfd630e06eb1fc0b
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: mic-smoke-windows
+
+      - name: Build frontend (needed by tauri::generate_context!)
+        run: npm ci && npm run build
+        working-directory: frontend
+
+      - name: Audio tests incl. OS-level mic check
+        env:
+          LIBCLANG_PATH: "C:/Program Files/LLVM/bin"
+          # Static CRT everywhere, as in release.yml: esaxx-rs (tokenizers)
+          # always builds /MT, so whisper.cpp must not default to /MD.
+          RUSTFLAGS: "-C target-feature=+crt-static"
+          CMAKE_C_FLAGS_DEBUG: "-MT -Zi -Ob0 -Od"
+          CMAKE_CXX_FLAGS_DEBUG: "-MT -Zi -Ob0 -Od"
+          CMAKE_C_FLAGS_RELWITHDEBINFO: "-MT -Zi -O2 -Ob1 -DNDEBUG"
+          CMAKE_CXX_FLAGS_RELWITHDEBINFO: "-MT -Zi -O2 -Ob1 -DNDEBUG"
+          CMAKE_C_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
+          CMAKE_CXX_FLAGS_RELEASE: "-MT -O2 -Ob2 -DNDEBUG"
+        run: "cargo test --no-default-features --lib audio:: -- --include-ignored --test-threads=1 --nocapture"
